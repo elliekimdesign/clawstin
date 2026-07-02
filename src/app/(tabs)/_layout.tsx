@@ -21,6 +21,11 @@ export default function TabsLayout() {
         <NativeTabs.Trigger.Icon sf="sparkles" />
       </NativeTabs.Trigger>
 
+      <NativeTabs.Trigger name="crew">
+        <NativeTabs.Trigger.Label>Crew</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf="person.2" />
+      </NativeTabs.Trigger>
+
       <NativeTabs.Trigger name="access">
         <NativeTabs.Trigger.Label>Access</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf="key" />

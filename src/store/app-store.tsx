@@ -10,6 +10,7 @@ import {
   Permission,
   RequestLogItem,
 } from '@/mock/permissions';
+import { CrewMember, initialCrew } from '@/mock/crew';
 import { initialInfra, InfraEndpoint } from '@/mock/infra';
 import { initialServices, ServiceStatus } from '@/mock/services';
 import { initialThreads, Thread } from '@/mock/threads';
@@ -65,6 +66,12 @@ type Store = {
   // Access (infrastructure endpoints)
   infra: InfraEndpoint[];
   setInfraValue: (id: string, value: string) => void;
+
+  // Crew (the Muppets — hired assistant characters)
+  crew: CrewMember[];
+  getCrew: (id: string) => CrewMember | undefined;
+  toggleCrewActive: (id: string) => void;
+  toggleCrewSkill: (crewId: string, skill: string) => void;
 };
 
 const AppContext = createContext<Store | null>(null);
@@ -81,6 +88,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [permissions, setPermissions] = useState<Permission[]>(initialPermissions);
   const [requestLog, setRequestLog] = useState<RequestLogItem[]>(initialRequestLog);
   const [infra, setInfra] = useState<InfraEndpoint[]>(initialInfra);
+  const [crew, setCrew] = useState<CrewMember[]>(initialCrew);
 
   const setPermissionEnabled = useCallback((key: string, enabled: boolean) => {
     setPermissions((prev) => prev.map((p) => (p.key === key ? { ...p, enabled } : p)));
@@ -90,9 +98,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setRequestLog((prev) => [{ id: nextId('r'), text, time: 'just now', result }, ...prev]);
   }, []);
 
-  const addActivity = useCallback((item: Omit<ActivityItem, 'id' | 'time'>) => {
-    setActivity((prev) => [{ id: nextId('a'), time: 'just now', ...item }, ...prev]);
-  }, []);
+  const addActivity = useCallback(
+    (
+      item: Omit<ActivityItem, 'id' | 'time' | 'crew' | 'emoji' | 'day'> &
+        Partial<Pick<ActivityItem, 'crew' | 'emoji' | 'day'>>
+    ) => {
+      setActivity((prev) => [
+        { id: nextId('a'), time: 'just now', crew: 'Muppet', emoji: '🙂', day: 'today', ...item },
+        ...prev,
+      ]);
+    },
+    []
+  );
 
   const resolveApproval = useCallback(
     (a: Approval, approved: boolean) => {
@@ -124,6 +141,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const setInfraValue = useCallback((id: string, value: string) => {
     setInfra((prev) => prev.map((e) => (e.id === id ? { ...e, value } : e)));
+  }, []);
+
+  const getCrew = useCallback((id: string) => crew.find((c) => c.id === id), [crew]);
+
+  const toggleCrewActive = useCallback((id: string) => {
+    setCrew((prev) => prev.map((c) => (c.id === id ? { ...c, active: !c.active } : c)));
+  }, []);
+
+  const toggleCrewSkill = useCallback((crewId: string, skill: string) => {
+    setCrew((prev) =>
+      prev.map((c) =>
+        c.id === crewId
+          ? { ...c, skills: c.skills.map((s) => (s.label === skill ? { ...s, on: !s.on } : s)) }
+          : c
+      )
+    );
   }, []);
 
   // --- Threads -------------------------------------------------------------
@@ -255,6 +288,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       togglePermission,
       infra,
       setInfraValue,
+      crew,
+      getCrew,
+      toggleCrewActive,
+      toggleCrewSkill,
     }),
     [
       connected,
@@ -278,6 +315,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       togglePermission,
       infra,
       setInfraValue,
+      crew,
+      getCrew,
+      toggleCrewActive,
+      toggleCrewSkill,
     ]
   );
 
