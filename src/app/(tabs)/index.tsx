@@ -15,6 +15,7 @@ import { DevReset } from '@/components/dev/dev-reset';
 import { ApprovalCard } from '@/components/ui/approval-card';
 import { AuroraLine } from '@/components/ui/aurora-line';
 import { Card } from '@/components/ui/card';
+import { MeshBg } from '@/components/ui/mesh-bg';
 import { PulseMark } from '@/components/ui/pulse-mark';
 import { SectionHeader } from '@/components/ui/section-header';
 import { StatusPopover, worstServiceState } from '@/components/ui/status-popover';
@@ -208,6 +209,8 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top']}>
+      {/* Pearl gradient behind onboarding only (state board stays plain) */}
+      {!connected && <MeshBg />}
       {connected ? (
         // ───────────────────────── State board ─────────────────────────
         <>
@@ -266,17 +269,18 @@ export default function HomeScreen() {
               onPress={startChat}
               style={{ marginTop: spacing.xl, paddingVertical: spacing.xxl }}>
               <Corner icon="arrow-up" iconColor={BENTO.orange} bg={BENTO.onDark} rotate />
-              <Eyebrow color={BENTO.onDarkDim}>ASK ANYTHING</Eyebrow>
+              <Eyebrow color={BENTO.onDarkDim}>ORCHESTRATE</Eyebrow>
               <Text
                 style={{
                   color: BENTO.onDark,
                   fontSize: 30,
                   lineHeight: 34,
+                  minHeight: 68, // keep the original 2-line hero height
                   letterSpacing: -0.5,
                   fontFamily: fontFamily.bold,
                   marginTop: spacing.sm,
                 }}>
-                Start a task{'\n'}or question
+                Start a task
               </Text>
             </Tile>
 
@@ -328,8 +332,11 @@ export default function HomeScreen() {
               </Tile>
             </View>
 
-            {/* Agent voice block (mint) */}
-            <Tile bg={BENTO.mint} onPress={startChat} style={{ marginTop: spacing.md }}>
+            {/* Agent voice block (mint) — opens Muppet's calendar view */}
+            <Tile
+              bg={BENTO.mint}
+              onPress={() => router.push('/calendar')}
+              style={{ marginTop: spacing.md }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
                 <View
                   style={{
@@ -353,8 +360,9 @@ export default function HomeScreen() {
                 }}>
                 {running.length > 0 ? running[0].label : 'Ready when you are.'}
               </Text>
-              <View
-                style={{
+              <Pressable
+                onPress={startChat}
+                style={({ pressed }) => ({
                   flexDirection: 'row',
                   alignItems: 'center',
                   alignSelf: 'flex-start',
@@ -364,7 +372,8 @@ export default function HomeScreen() {
                   borderRadius: radius.pill,
                   paddingVertical: 8,
                   paddingHorizontal: spacing.md,
-                }}>
+                  opacity: pressed ? 0.9 : 1,
+                })}>
                 <Text
                   style={{
                     color: BENTO.onDark,
@@ -379,7 +388,7 @@ export default function HomeScreen() {
                   color={BENTO.onDark}
                   style={{ transform: [{ rotate: '45deg' }] }}
                 />
-              </View>
+              </Pressable>
             </Tile>
 
             {/* Recent (cream list block) */}

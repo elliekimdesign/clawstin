@@ -27,7 +27,7 @@ export const initialInfra: InfraEndpoint[] = [
   },
   {
     id: 'oc35-token',
-    label: 'OpenClaude-3.5 API Token',
+    label: 'Claude 3.5 Sonnet API Token',
     icon: 'key-outline',
     kind: 'token',
     value: 'sk-live-9f3c2a771b04e5d6a8f14a2f',
@@ -36,7 +36,8 @@ export const initialInfra: InfraEndpoint[] = [
   },
   {
     id: 'hermes-token',
-    label: 'Hermes-70B API Token',
+    // hosting source made explicit — "Hermes-70B" alone doesn't say where it runs
+    label: 'Nous Hermes 70B (Ollama) API Token',
     icon: 'key-outline',
     kind: 'token',
     value: 'hb-70b-4c1e8a92d7f0b3569e2c1d8f',

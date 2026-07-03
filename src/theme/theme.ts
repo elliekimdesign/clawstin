@@ -25,8 +25,8 @@ export const colors = {
   successSoft: '#E4F7EF',
   warning: '#F5A524',
   warningSoft: '#FDF1DD',
-  danger: '#F23F5D',
-  dangerSoft: '#FDE5E9',
+  danger: '#E0483F', // true muted red, not pink — kept soft, not fire-engine intense
+  dangerSoft: '#FBE4E2',
 
   // Lines
   border: '#E6E8EC',

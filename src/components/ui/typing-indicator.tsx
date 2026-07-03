@@ -8,7 +8,7 @@ import Animated, {
   withSequence,
   withTiming,
 } from 'react-native-reanimated';
-import { colors, radius, spacing } from '@/theme/theme';
+import { colors, spacing } from '@/theme/theme';
 
 function Dot({ delay }: { delay: number }) {
   const o = useSharedValue(0.3);
@@ -26,19 +26,13 @@ function Dot({ delay }: { delay: number }) {
   );
 }
 
-/** Three pulsing dots inside an agent-style bubble. */
+/** Three pulsing dots — borderless, straight on the gradient background. */
 export function TypingIndicator() {
   return (
     <View
       style={{
         alignSelf: 'flex-start',
-        backgroundColor: colors.bubbleAgent,
-        borderRadius: radius.lg,
-        borderBottomLeftRadius: 6,
-        borderWidth: 1,
-        borderColor: colors.border,
         paddingVertical: spacing.md,
-        paddingHorizontal: spacing.lg,
         marginBottom: spacing.md,
         flexDirection: 'row',
         gap: spacing.xs + 1,

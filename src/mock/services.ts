@@ -18,11 +18,17 @@ export const initialServices: ServiceStatus[] = [
   { id: 'muppet', name: 'Muppet Agent', group: 'core', state: 'ready', detail: 'Ready' },
   {
     id: 'oc35',
-    name: 'OpenClaude-3.5 API',
+    name: 'Claude 3.5 Sonnet',
     group: 'llm',
     state: 'degraded',
     detail: 'Degraded',
     pingMs: 42,
   },
-  { id: 'hermes', name: 'Hermes-70B', group: 'llm', state: 'connected', detail: 'Connected' },
+  {
+    id: 'hermes',
+    name: 'Nous Hermes 70B (Ollama)',
+    group: 'llm',
+    state: 'connected',
+    detail: 'Connected',
+  },
 ];

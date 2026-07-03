@@ -3,6 +3,7 @@ import { Stack } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
+import { GatewayBanner } from '@/components/ui/gateway-banner';
 import { AppProvider } from '@/store/app-store';
 
 export default function RootLayout() {
@@ -25,9 +26,12 @@ export default function RootLayout() {
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="chat/[id]" options={{ presentation: 'card' }} />
             <Stack.Screen name="approval/[id]" options={{ presentation: 'card' }} />
-            <Stack.Screen name="access-detail/[field]" options={{ presentation: 'modal' }} />
             <Stack.Screen name="crew/[id]" options={{ presentation: 'card' }} />
+            <Stack.Screen name="calendar" options={{ presentation: 'card' }} />
           </Stack>
+          {/* Above the Stack so it renders over every tab/screen, notch-drop
+              style — reads gatewayStatus directly from the store. */}
+          <GatewayBanner />
         </AppProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
