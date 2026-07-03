@@ -218,7 +218,8 @@ export default function HomeScreen() {
             ref={scrollRef}
             contentContainerStyle={{ padding: spacing.lg, paddingBottom: 110 }}
             showsVerticalScrollIndicator={false}>
-            {/* Header: 2-line greeting (left) + date / online status (right) */}
+            {/* Top bar: global profile/settings (left, opens Access) +
+                date / online status (right). Greeting sits below. */}
             <View
               style={{
                 flexDirection: 'row',
@@ -226,17 +227,20 @@ export default function HomeScreen() {
                 alignItems: 'flex-start',
                 marginTop: spacing.xl,
               }}>
-              <Text
-                style={{
-                  color: colors.text,
-                  fontSize: fontSize.largeTitle,
-                  fontWeight: fontWeight.bold,
-                  letterSpacing: -0.5,
-                  lineHeight: 32,
-                }}>
-                {hello},{'\n'}
-                {USER_NAME}
-              </Text>
+              <Pressable
+                onPress={() => router.push('/access')}
+                hitSlop={8}
+                style={({ pressed }) => ({
+                  width: 38,
+                  height: 38,
+                  borderRadius: 999,
+                  backgroundColor: BENTO.charcoal,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  opacity: pressed ? 0.8 : 1,
+                })}>
+                <Ionicons name="person" size={17} color={BENTO.onDark} />
+              </Pressable>
 
               <View style={{ alignItems: 'flex-end', paddingTop: 4 }}>
                 <Text style={{ color: colors.textTertiary, fontSize: fontSize.small }}>
@@ -262,6 +266,20 @@ export default function HomeScreen() {
                 </Pressable>
               </View>
             </View>
+
+            {/* 2-line greeting */}
+            <Text
+              style={{
+                color: colors.text,
+                fontSize: fontSize.largeTitle,
+                fontWeight: fontWeight.bold,
+                letterSpacing: -0.5,
+                lineHeight: 32,
+                marginTop: spacing.lg,
+              }}>
+              {hello},{'\n'}
+              {USER_NAME}
+            </Text>
 
             {/* HERO — Ask (orange color block) */}
             <Tile
@@ -481,7 +499,7 @@ export default function HomeScreen() {
               onClose={() => setStatusOpen(false)}
               onManageAccess={() => {
                 setStatusOpen(false);
-                router.navigate('/(tabs)/access?focus=infra');
+                router.push('/access?focus=infra');
               }}
               topOffset={insets.top + 96}
             />

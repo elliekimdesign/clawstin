@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import {
   Linking,
@@ -452,6 +453,14 @@ export default function AccessScreen() {
           justifyContent: "center",
         }}
       >
+        {/* Pushed from Home's profile icon (no longer a tab) — needs a way back. */}
+        <Pressable
+          onPress={() => router.back()}
+          hitSlop={10}
+          style={{ position: "absolute", left: spacing.lg }}
+        >
+          <Ionicons name="chevron-back" size={26} color={colors.text} />
+        </Pressable>
         <Text
           style={{
             color: colors.text,

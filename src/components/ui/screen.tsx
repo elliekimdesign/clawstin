@@ -11,10 +11,12 @@ type Props = {
   children: ReactNode;
   /** content rendered to the right of the title (e.g. a status pill) */
   headerRight?: ReactNode;
+  /** content rendered to the left of the title (e.g. a back button on pushed screens) */
+  headerLeft?: ReactNode;
 };
 
 /** Standard screen frame: safe area + a centered single-line title (Telegram-style). */
-export function Screen({ title, children, headerRight }: Props) {
+export function Screen({ title, children, headerRight, headerLeft }: Props) {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top']}>
       <View
@@ -33,6 +35,9 @@ export function Screen({ title, children, headerRight }: Props) {
           }}>
           {title}
         </Text>
+        {headerLeft ? (
+          <View style={{ position: 'absolute', left: spacing.lg }}>{headerLeft}</View>
+        ) : null}
         {headerRight ? (
           <View style={{ position: 'absolute', right: spacing.lg }}>{headerRight}</View>
         ) : null}

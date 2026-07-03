@@ -80,7 +80,7 @@ export default function CrewScreen() {
   return (
     <Screen title="Crew">
       <ScrollView
-        contentContainerStyle={{ padding: spacing.lg, paddingBottom: spacing.xxl }}
+        contentContainerStyle={{ padding: spacing.lg, paddingBottom: 110 }}
         showsVerticalScrollIndicator={false}>
         <SectionHeader title="YOUR CREW" trailing={`${crew.length}`} />
         <Card padded={false}>

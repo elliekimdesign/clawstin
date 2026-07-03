@@ -59,7 +59,7 @@ export default function ActivityScreen() {
   return (
     <Screen title="Activity">
       <ScrollView
-        contentContainerStyle={{ padding: spacing.lg, paddingBottom: spacing.xxl }}
+        contentContainerStyle={{ padding: spacing.lg, paddingBottom: 110 }}
         showsVerticalScrollIndicator={false}>
         {GROUPS.map(({ key, label }) => {
           const items = activity.filter((a) => a.day === key);

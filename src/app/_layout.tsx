@@ -28,6 +28,10 @@ export default function RootLayout() {
             <Stack.Screen name="approval/[id]" options={{ presentation: 'card' }} />
             <Stack.Screen name="crew/[id]" options={{ presentation: 'card' }} />
             <Stack.Screen name="calendar" options={{ presentation: 'card' }} />
+            {/* Access moved out of the tab bar — it now opens from the
+                profile/settings icon at the top-left of Home. */}
+            <Stack.Screen name="access" options={{ presentation: 'card' }} />
+            <Stack.Screen name="memory" options={{ presentation: 'card' }} />
           </Stack>
           {/* Above the Stack so it renders over every tab/screen, notch-drop
               style — reads gatewayStatus directly from the store. */}

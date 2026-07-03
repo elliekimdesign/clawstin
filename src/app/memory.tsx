@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 
@@ -42,7 +43,14 @@ export default function MemoryScreen() {
   };
 
   return (
-    <Screen title="Memory" subtitle="What your assistant knows about you">
+    <Screen
+      title="Memory"
+      subtitle="What your assistant knows about you"
+      headerLeft={
+        <Pressable onPress={() => router.back()} hitSlop={10}>
+          <Ionicons name="chevron-back" size={26} color={colors.text} />
+        </Pressable>
+      }>
       <ScrollView
         contentContainerStyle={{ padding: spacing.lg, paddingBottom: spacing.xxl }}
         showsVerticalScrollIndicator={false}
