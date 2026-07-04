@@ -58,12 +58,12 @@ export type ChatTheme = {
   onLight: string;
   success: string;
   /** which background component draws this theme: MeshBg corner glows or
-   * one of the swoosh artworks (AquaBg, MintBg, ButterBg — see components/ui) */
-  background: 'mesh' | 'aqua' | 'mint' | 'butter';
+   * one of the artworks (AquaBg, MintBg, ButterBg, CloudBg — components/ui) */
+  background: 'mesh' | 'aqua' | 'mint' | 'butter' | 'clouds';
   mesh: { base: string; g1: string; g2: string; g3: string; g4: string };
 };
 
-export const chatThemes: Record<'darkGreen' | 'skyBlue' | 'skyBlueOs' | 'mintOs' | 'butterOs', ChatTheme> = {
+export const chatThemes: Record<'darkGreen' | 'skyBlue' | 'skyBlueOs' | 'mintOs' | 'butterOs' | 'blueCloudOs', ChatTheme> = {
   /** The original moody slate-teal look — preserved as a picker option. */
   darkGreen: {
     base: '#38454A',
@@ -147,10 +147,27 @@ export const chatThemes: Record<'darkGreen' | 'skyBlue' | 'skyBlueOs' | 'mintOs'
     // fallback mesh corners approximating the butter art's tones
     mesh: { base: '#D8C382', g1: '#8A6C2A', g2: '#C9AC5F', g3: '#EFE4B4', g4: '#E3D49A' },
   },
+  /** Open blue sky with wispy clouds up top, drawn by CloudBg. */
+  blueCloudOs: {
+    base: '#5D89BE',
+    text: '#F3F8FC',
+    textSecondary: 'rgba(243,248,252,0.72)',
+    textTertiary: 'rgba(243,248,252,0.55)',
+    glassBg: 'rgba(255,255,255,0.12)',
+    glassBorder: 'rgba(255,255,255,0.32)',
+    surface: 'rgba(255,255,255,0.10)',
+    solidSurface: '#38587E',
+    divider: 'rgba(255,255,255,0.14)',
+    onLight: '#2C4665',
+    success: '#5FD9A4',
+    background: 'clouds',
+    // fallback mesh corners approximating the sky's tones
+    mesh: { base: '#5D89BE', g1: '#4F7CB4', g2: '#6E97C6', g3: '#7FA6CF', g4: '#8FB2D6' },
+  },
 } as const;
 
 /** The active chat colorway. Swap here (or via a future user setting). */
-export const darkChat = chatThemes.butterOs;
+export const darkChat = chatThemes.blueCloudOs;
 
 export const spacing = {
   xs: 4,
