@@ -19,6 +19,7 @@ import { ApprovalCard } from '@/components/ui/approval-card';
 import { CrewSwitch } from '@/components/ui/crew-switch';
 import { GlassIconButton } from '@/components/ui/glass-icon-button';
 import { AquaBg } from '@/components/ui/aqua-bg';
+import { ButterBg } from '@/components/ui/butter-bg';
 import { MeshBg } from '@/components/ui/mesh-bg';
 import { MintBg } from '@/components/ui/mint-bg';
 import { MonthOverlay } from '@/components/ui/month-overlay';
@@ -82,6 +83,8 @@ export default function ChatThreadScreen() {
         <AquaBg />
       ) : darkChat.background === 'mint' ? (
         <MintBg />
+      ) : darkChat.background === 'butter' ? (
+        <ButterBg />
       ) : (
         <MeshBg variant="dark" />
       )}

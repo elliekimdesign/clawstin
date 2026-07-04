@@ -58,12 +58,12 @@ export type ChatTheme = {
   onLight: string;
   success: string;
   /** which background component draws this theme: MeshBg corner glows or
-   * one of the swoosh artworks (AquaBg, MintBg — see components/ui) */
-  background: 'mesh' | 'aqua' | 'mint';
+   * one of the swoosh artworks (AquaBg, MintBg, ButterBg — see components/ui) */
+  background: 'mesh' | 'aqua' | 'mint' | 'butter';
   mesh: { base: string; g1: string; g2: string; g3: string; g4: string };
 };
 
-export const chatThemes: Record<'darkGreen' | 'skyBlue' | 'skyBlueOs' | 'mintOs', ChatTheme> = {
+export const chatThemes: Record<'darkGreen' | 'skyBlue' | 'skyBlueOs' | 'mintOs' | 'butterOs', ChatTheme> = {
   /** The original moody slate-teal look — preserved as a picker option. */
   darkGreen: {
     base: '#38454A',
@@ -130,10 +130,27 @@ export const chatThemes: Record<'darkGreen' | 'skyBlue' | 'skyBlueOs' | 'mintOs'
     // fallback mesh corners approximating the mint art's tones
     mesh: { base: '#8CBBB2', g1: '#2F6560', g2: '#79A8A3', g3: '#B7D8CB', g4: '#A5CFC0' },
   },
+  /** Warm butter-honey with the same swoosh geometry, drawn by ButterBg. */
+  butterOs: {
+    base: '#D8C382',
+    text: '#FFFDF5',
+    textSecondary: 'rgba(255,253,245,0.75)',
+    textTertiary: 'rgba(255,253,245,0.58)',
+    glassBg: 'rgba(255,255,255,0.14)',
+    glassBorder: 'rgba(255,255,255,0.38)',
+    surface: 'rgba(255,255,255,0.12)',
+    solidSurface: '#7A6226',
+    divider: 'rgba(255,255,255,0.16)',
+    onLight: '#5C4A1E',
+    success: '#2E8F66',
+    background: 'butter',
+    // fallback mesh corners approximating the butter art's tones
+    mesh: { base: '#D8C382', g1: '#8A6C2A', g2: '#C9AC5F', g3: '#EFE4B4', g4: '#E3D49A' },
+  },
 } as const;
 
 /** The active chat colorway. Swap here (or via a future user setting). */
-export const darkChat = chatThemes.mintOs;
+export const darkChat = chatThemes.butterOs;
 
 export const spacing = {
   xs: 4,
