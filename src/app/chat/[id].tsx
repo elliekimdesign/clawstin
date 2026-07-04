@@ -18,6 +18,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ApprovalCard } from '@/components/ui/approval-card';
 import { CrewSwitch } from '@/components/ui/crew-switch';
 import { GlassIconButton } from '@/components/ui/glass-icon-button';
+import { AquaBg } from '@/components/ui/aqua-bg';
 import { MeshBg } from '@/components/ui/mesh-bg';
 import { MonthOverlay } from '@/components/ui/month-overlay';
 import { MessageBubble } from '@/components/ui/message-bubble';
@@ -75,8 +76,8 @@ export default function ChatThreadScreen() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: darkChat.base }} edges={['top', 'bottom']}>
       <StatusBar style="light" />
-      {/* Moody slate-teal aurora background */}
-      <MeshBg variant="dark" />
+      {/* Background art follows the active chat colorway (see chatThemes) */}
+      {darkChat.background === 'aqua' ? <AquaBg /> : <MeshBg variant="dark" />}
 
       {/* Slim header: back pinned left, crew switch truly centered on the
           screen (not just centered in the space left of the arrow) — a

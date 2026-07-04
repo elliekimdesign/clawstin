@@ -57,10 +57,13 @@ export type ChatTheme = {
   divider: string;
   onLight: string;
   success: string;
+  /** which background component draws this theme: MeshBg corner glows or
+   * the AquaBg swoosh artwork (see components/ui) */
+  background: 'mesh' | 'aqua';
   mesh: { base: string; g1: string; g2: string; g3: string; g4: string };
 };
 
-export const chatThemes: Record<'darkGreen' | 'skyBlue', ChatTheme> = {
+export const chatThemes: Record<'darkGreen' | 'skyBlue' | 'skyBlueOs', ChatTheme> = {
   /** The original moody slate-teal look — preserved as a picker option. */
   darkGreen: {
     base: '#38454A',
@@ -74,6 +77,7 @@ export const chatThemes: Record<'darkGreen' | 'skyBlue', ChatTheme> = {
     divider: 'rgba(255,255,255,0.12)',
     onLight: '#26333C',
     success: '#5FD9A4',
+    background: 'mesh',
     mesh: { base: '#38454A', g1: '#26333C', g2: '#2F3F46', g3: '#4C5E58', g4: '#5C6B62' },
   },
   /** Brighter hazy sky blue — same gradient mood, lighter air. */
@@ -89,12 +93,30 @@ export const chatThemes: Record<'darkGreen' | 'skyBlue', ChatTheme> = {
     divider: 'rgba(255,255,255,0.14)',
     onLight: '#2E4356',
     success: '#5FD9A4',
+    background: 'mesh',
     mesh: { base: '#6E93B0', g1: '#476982', g2: '#5A7E9A', g3: '#8FB4CC', g4: '#A5C6DA' },
+  },
+  /** Bright sky blue with the 2000s Mac OS Aqua swoosh artwork (AquaBg). */
+  skyBlueOs: {
+    base: '#84AAC7',
+    text: '#F2F7FA',
+    textSecondary: 'rgba(242,247,250,0.72)',
+    textTertiary: 'rgba(242,247,250,0.55)',
+    glassBg: 'rgba(255,255,255,0.12)',
+    glassBorder: 'rgba(255,255,255,0.32)',
+    surface: 'rgba(255,255,255,0.10)',
+    solidSurface: '#3E5A70',
+    divider: 'rgba(255,255,255,0.14)',
+    onLight: '#2E4356',
+    success: '#5FD9A4',
+    background: 'aqua',
+    // fallback mesh corners approximating the aqua art's tones
+    mesh: { base: '#84AAC7', g1: '#3A6390', g2: '#7CA3C2', g3: '#A2C2DA', g4: '#8FB2CE' },
   },
 } as const;
 
 /** The active chat colorway. Swap here (or via a future user setting). */
-export const darkChat = chatThemes.skyBlue;
+export const darkChat = chatThemes.skyBlueOs;
 
 export const spacing = {
   xs: 4,
