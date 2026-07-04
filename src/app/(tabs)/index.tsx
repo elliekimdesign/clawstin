@@ -211,7 +211,7 @@ export default function HomeScreen() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top']}>
       {/* Pearl gradient behind onboarding only (state board stays plain) */}
-      {!connected && <MeshBg />}
+      {!connected && <MeshBg variant="skyBlue" />}
       {connected ? (
         // ───────────────────────── State board ─────────────────────────
         <>

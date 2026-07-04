@@ -1,7 +1,7 @@
 import { StyleSheet, View } from 'react-native';
 import Svg, { Defs, Rect, RadialGradient, Stop } from 'react-native-svg';
 
-import { darkChat } from '@/theme/theme';
+import { chatThemes, darkChat } from '@/theme/theme';
 
 const BASE = '#FBFAF8'; // warm near-white
 const PEACH = '#F4DCCD';
@@ -13,10 +13,12 @@ const PALETTES = {
   pearl: { base: BASE, g1: PEACH, g2: LAVENDER, g3: SKY, g4: SKY_SOFT },
   // dark variant follows the active chat colorway (see chatThemes in theme.ts)
   dark: darkChat.mesh,
+  // the hazy sky blue colorway's corners — used on the intro/onboarding
+  skyBlue: chatThemes.skyBlue.mesh,
 };
 
 type MeshBgProps = {
-  variant?: 'pearl' | 'dark';
+  variant?: 'pearl' | 'dark' | 'skyBlue';
 };
 
 /**
@@ -25,8 +27,8 @@ type MeshBgProps = {
  * used behind chat + onboarding.
  *
  * `variant="pearl"` (default): warm cream/peach melting into pale lavender
- * and soft sky blue on near-white. `variant="dark"`: moody slate-teal —
- * darker blue-grey up top, smoky grey-green toward the bottom.
+ * and soft sky blue on near-white. `variant="dark"`: the active chat
+ * colorway's corners. `variant="skyBlue"`: the hazy sky blue palette.
  */
 export function MeshBg({ variant = 'pearl' }: MeshBgProps) {
   const { base, g1, g2, g3, g4 } = PALETTES[variant];

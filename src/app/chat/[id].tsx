@@ -20,6 +20,7 @@ import { CrewSwitch } from '@/components/ui/crew-switch';
 import { GlassIconButton } from '@/components/ui/glass-icon-button';
 import { AquaBg } from '@/components/ui/aqua-bg';
 import { MeshBg } from '@/components/ui/mesh-bg';
+import { MintBg } from '@/components/ui/mint-bg';
 import { MonthOverlay } from '@/components/ui/month-overlay';
 import { MessageBubble } from '@/components/ui/message-bubble';
 import { PipelineCard } from '@/components/ui/pipeline-card';
@@ -77,7 +78,13 @@ export default function ChatThreadScreen() {
     <SafeAreaView style={{ flex: 1, backgroundColor: darkChat.base }} edges={['top', 'bottom']}>
       <StatusBar style="light" />
       {/* Background art follows the active chat colorway (see chatThemes) */}
-      {darkChat.background === 'aqua' ? <AquaBg /> : <MeshBg variant="dark" />}
+      {darkChat.background === 'aqua' ? (
+        <AquaBg />
+      ) : darkChat.background === 'mint' ? (
+        <MintBg />
+      ) : (
+        <MeshBg variant="dark" />
+      )}
 
       {/* Slim header: back pinned left, crew switch truly centered on the
           screen (not just centered in the space left of the arrow) — a

@@ -58,12 +58,12 @@ export type ChatTheme = {
   onLight: string;
   success: string;
   /** which background component draws this theme: MeshBg corner glows or
-   * the AquaBg swoosh artwork (see components/ui) */
-  background: 'mesh' | 'aqua';
+   * one of the swoosh artworks (AquaBg, MintBg — see components/ui) */
+  background: 'mesh' | 'aqua' | 'mint';
   mesh: { base: string; g1: string; g2: string; g3: string; g4: string };
 };
 
-export const chatThemes: Record<'darkGreen' | 'skyBlue' | 'skyBlueOs', ChatTheme> = {
+export const chatThemes: Record<'darkGreen' | 'skyBlue' | 'skyBlueOs' | 'mintOs', ChatTheme> = {
   /** The original moody slate-teal look — preserved as a picker option. */
   darkGreen: {
     base: '#38454A',
@@ -113,10 +113,27 @@ export const chatThemes: Record<'darkGreen' | 'skyBlue' | 'skyBlueOs', ChatTheme
     // fallback mesh corners approximating the aqua art's tones
     mesh: { base: '#84AAC7', g1: '#3A6390', g2: '#7CA3C2', g3: '#A2C2DA', g4: '#8FB2CE' },
   },
+  /** Bright sage-mint with the same swoosh geometry, drawn by MintBg. */
+  mintOs: {
+    base: '#8CBBB2',
+    text: '#F4FAF7',
+    textSecondary: 'rgba(244,250,247,0.72)',
+    textTertiary: 'rgba(244,250,247,0.55)',
+    glassBg: 'rgba(255,255,255,0.12)',
+    glassBorder: 'rgba(255,255,255,0.32)',
+    surface: 'rgba(255,255,255,0.10)',
+    solidSurface: '#39615C',
+    divider: 'rgba(255,255,255,0.14)',
+    onLight: '#2E4B47',
+    success: '#5FD9A4',
+    background: 'mint',
+    // fallback mesh corners approximating the mint art's tones
+    mesh: { base: '#8CBBB2', g1: '#2F6560', g2: '#79A8A3', g3: '#B7D8CB', g4: '#A5CFC0' },
+  },
 } as const;
 
 /** The active chat colorway. Swap here (or via a future user setting). */
-export const darkChat = chatThemes.skyBlueOs;
+export const darkChat = chatThemes.mintOs;
 
 export const spacing = {
   xs: 4,
