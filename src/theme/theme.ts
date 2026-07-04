@@ -40,22 +40,61 @@ export const colors = {
 } as const;
 
 /**
- * Dark palette for the chat thread screen only — a moody slate-teal look
- * with glassy translucent surfaces. The rest of the app stays light.
+ * Chat colorways — the chat thread screen's palette, later user-selectable.
+ * Each theme carries the full token set plus the MeshBg gradient corners
+ * (`mesh`): base fill, g1 top-left, g2 top-right, g3 bottom-right,
+ * g4 bottom-left. The rest of the app stays light regardless.
  */
-export const darkChat = {
-  base: '#38454A', // dark slate-teal base under the gradient
-  text: '#EDF1EE',
-  textSecondary: 'rgba(236,241,238,0.65)',
-  textTertiary: 'rgba(236,241,238,0.45)',
-  glassBg: 'rgba(255,255,255,0.10)', // translucent glass pill/button fill
-  glassBorder: 'rgba(255,255,255,0.28)',
-  surface: 'rgba(255,255,255,0.08)', // card fill on the dark gradient
-  solidSurface: '#2C393E', // opaque sheet (popovers) — no bleed-through
-  divider: 'rgba(255,255,255,0.12)',
-  onLight: '#26333C', // text/icon on a light fill (inverted buttons)
-  success: '#5FD9A4', // lightened for contrast on dark
+export type ChatTheme = {
+  base: string;
+  text: string;
+  textSecondary: string;
+  textTertiary: string;
+  glassBg: string;
+  glassBorder: string;
+  surface: string;
+  solidSurface: string;
+  divider: string;
+  onLight: string;
+  success: string;
+  mesh: { base: string; g1: string; g2: string; g3: string; g4: string };
+};
+
+export const chatThemes: Record<'darkGreen' | 'skyBlue', ChatTheme> = {
+  /** The original moody slate-teal look — preserved as a picker option. */
+  darkGreen: {
+    base: '#38454A',
+    text: '#EDF1EE',
+    textSecondary: 'rgba(236,241,238,0.65)',
+    textTertiary: 'rgba(236,241,238,0.45)',
+    glassBg: 'rgba(255,255,255,0.10)',
+    glassBorder: 'rgba(255,255,255,0.28)',
+    surface: 'rgba(255,255,255,0.08)',
+    solidSurface: '#2C393E',
+    divider: 'rgba(255,255,255,0.12)',
+    onLight: '#26333C',
+    success: '#5FD9A4',
+    mesh: { base: '#38454A', g1: '#26333C', g2: '#2F3F46', g3: '#4C5E58', g4: '#5C6B62' },
+  },
+  /** Brighter hazy sky blue — same gradient mood, lighter air. */
+  skyBlue: {
+    base: '#6E93B0',
+    text: '#F2F7FA',
+    textSecondary: 'rgba(242,247,250,0.72)',
+    textTertiary: 'rgba(242,247,250,0.52)',
+    glassBg: 'rgba(255,255,255,0.12)',
+    glassBorder: 'rgba(255,255,255,0.32)',
+    surface: 'rgba(255,255,255,0.10)',
+    solidSurface: '#3E5A70',
+    divider: 'rgba(255,255,255,0.14)',
+    onLight: '#2E4356',
+    success: '#5FD9A4',
+    mesh: { base: '#6E93B0', g1: '#476982', g2: '#5A7E9A', g3: '#8FB4CC', g4: '#A5C6DA' },
+  },
 } as const;
+
+/** The active chat colorway. Swap here (or via a future user setting). */
+export const darkChat = chatThemes.skyBlue;
 
 export const spacing = {
   xs: 4,

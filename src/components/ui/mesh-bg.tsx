@@ -1,21 +1,18 @@
 import { StyleSheet, View } from 'react-native';
 import Svg, { Defs, Rect, RadialGradient, Stop } from 'react-native-svg';
 
+import { darkChat } from '@/theme/theme';
+
 const BASE = '#FBFAF8'; // warm near-white
 const PEACH = '#F4DCCD';
 const LAVENDER = '#EAD9EC';
 const SKY = '#C9DDF0';
 const SKY_SOFT = '#D6E4F2';
 
-const BASE_DARK = '#38454A'; // dark slate-teal base
-const NAVY_SLATE = '#26333C';
-const DEEP_TEAL = '#2F3F46';
-const TEAL_GREEN = '#4C5E58';
-const SMOKE_GREEN = '#5C6B62';
-
 const PALETTES = {
   pearl: { base: BASE, g1: PEACH, g2: LAVENDER, g3: SKY, g4: SKY_SOFT },
-  dark: { base: BASE_DARK, g1: NAVY_SLATE, g2: DEEP_TEAL, g3: TEAL_GREEN, g4: SMOKE_GREEN },
+  // dark variant follows the active chat colorway (see chatThemes in theme.ts)
+  dark: darkChat.mesh,
 };
 
 type MeshBgProps = {
