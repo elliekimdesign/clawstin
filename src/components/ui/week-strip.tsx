@@ -27,8 +27,16 @@ const WEEKDAY_SHORT = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
  * Dynamic-Island-style week strip shown while Muppet "scans" the calendar.
  * Today is pinned with a white circle; a hollow ring slides back and forth
  * between today and the target date — the visible "searching" motion.
+ * With `scanning` off, the ring settles on the target date and the strip
+ * stays up as a reference while the user picks a slot.
  */
-export function WeekStrip({ targetDate }: { targetDate: number }) {
+export function WeekStrip({
+  targetDate,
+  scanning = true,
+}: {
+  targetDate: number;
+  scanning?: boolean;
+}) {
   const [rowW, setRowW] = useState(0);
   const progress = useSharedValue(0); // 0 = today, 1 = target
 
@@ -52,16 +60,21 @@ export function WeekStrip({ targetDate }: { targetDate: number }) {
   const toIdx = targetIdx >= 0 ? targetIdx : todayIdx;
   const toX = toIdx * colW + colW / 2 - CIRCLE / 2;
 
-  // Start the slide once we know the row width.
+  // Start the slide once we know the row width; when scanning stops, the
+  // ring glides to the target date and rests there.
   useEffect(() => {
     if (rowW > 0 && targetIdx >= 0 && targetIdx !== todayIdx) {
-      progress.value = withRepeat(
-        withTiming(1, { duration: 700, easing: Easing.inOut(Easing.ease) }),
-        -1,
-        true
-      );
+      if (scanning) {
+        progress.value = withRepeat(
+          withTiming(1, { duration: 700, easing: Easing.inOut(Easing.ease) }),
+          -1,
+          true
+        );
+      } else {
+        progress.value = withTiming(1, { duration: 450, easing: Easing.out(Easing.ease) });
+      }
     }
-  }, [rowW, targetIdx, todayIdx, progress]);
+  }, [rowW, targetIdx, todayIdx, scanning, progress]);
 
   const ringStyle = useAnimatedStyle(
     () => ({
@@ -74,6 +87,8 @@ export function WeekStrip({ targetDate }: { targetDate: number }) {
     <View
       style={{
         backgroundColor: STRIP_BG,
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.28)',
         borderRadius: 28,
         paddingVertical: spacing.lg,
         paddingHorizontal: spacing.xl,

@@ -15,6 +15,7 @@ import { DevReset } from '@/components/dev/dev-reset';
 import { ApprovalCard } from '@/components/ui/approval-card';
 import { AuroraLine } from '@/components/ui/aurora-line';
 import { Card } from '@/components/ui/card';
+import { GlassIconButton } from '@/components/ui/glass-icon-button';
 import { MeshBg } from '@/components/ui/mesh-bg';
 import { PulseMark } from '@/components/ui/pulse-mark';
 import { SectionHeader } from '@/components/ui/section-header';
@@ -218,7 +219,7 @@ export default function HomeScreen() {
             ref={scrollRef}
             contentContainerStyle={{ padding: spacing.lg, paddingBottom: 110 }}
             showsVerticalScrollIndicator={false}>
-            {/* Header: 2-line greeting (left) + date / online status (right) */}
+            {/* Header: profile icon + 2-line greeting (left) + date / online status (right) */}
             <View
               style={{
                 flexDirection: 'row',
@@ -226,17 +227,27 @@ export default function HomeScreen() {
                 alignItems: 'flex-start',
                 marginTop: spacing.xl,
               }}>
-              <Text
-                style={{
-                  color: colors.text,
-                  fontSize: fontSize.largeTitle,
-                  fontWeight: fontWeight.bold,
-                  letterSpacing: -0.5,
-                  lineHeight: 32,
-                }}>
-                {hello},{'\n'}
-                {USER_NAME}
-              </Text>
+              <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md }}>
+                <GlassIconButton
+                  icon="person-circle-outline"
+                  onPress={() => router.push('/access')}
+                  size={34}
+                  iconSize={22}
+                  iconColor={colors.textSecondary}
+                  style={{ marginTop: 2 }}
+                />
+                <Text
+                  style={{
+                    color: colors.text,
+                    fontSize: fontSize.largeTitle,
+                    fontWeight: fontWeight.bold,
+                    letterSpacing: -0.5,
+                    lineHeight: 32,
+                  }}>
+                  {hello},{'\n'}
+                  {USER_NAME}
+                </Text>
+              </View>
 
               <View style={{ alignItems: 'flex-end', paddingTop: 4 }}>
                 <Text style={{ color: colors.textTertiary, fontSize: fontSize.small }}>
@@ -481,7 +492,7 @@ export default function HomeScreen() {
               onClose={() => setStatusOpen(false)}
               onManageAccess={() => {
                 setStatusOpen(false);
-                router.navigate('/(tabs)/access?focus=infra');
+                router.push('/access?focus=infra');
               }}
               topOffset={insets.top + 96}
             />

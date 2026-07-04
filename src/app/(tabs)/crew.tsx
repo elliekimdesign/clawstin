@@ -12,7 +12,7 @@ import { colors, fontSize, fontWeight, radius, spacing } from '@/theme/theme';
 // Orange is a POINT color in this app; soft tint for the muppet avatar bg.
 const BRAND_SOFT = 'rgba(255,74,50,0.12)';
 
-/** One crew row: emoji avatar + name/role + active status + chevron. Tap → detail. */
+/** One crew row: icon avatar + name/role + active status + chevron. Tap → detail. */
 function CrewRow({ member, first }: { member: CrewMember; first: boolean }) {
   return (
     <Pressable
@@ -36,7 +36,7 @@ function CrewRow({ member, first }: { member: CrewMember; first: boolean }) {
             alignItems: 'center',
             justifyContent: 'center',
           }}>
-          <Text style={{ fontSize: 18 }}>{member.emoji}</Text>
+          <Ionicons name={member.icon} size={18} color={colors.text} />
         </View>
         <View style={{ flex: 1 }}>
           <Text

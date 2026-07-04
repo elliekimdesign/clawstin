@@ -202,11 +202,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const addActivity = useCallback(
     (
-      item: Omit<ActivityItem, 'id' | 'time' | 'crew' | 'emoji' | 'day'> &
-        Partial<Pick<ActivityItem, 'crew' | 'emoji' | 'day'>>
+      item: Omit<ActivityItem, 'id' | 'time' | 'crew' | 'icon' | 'day'> &
+        Partial<Pick<ActivityItem, 'crew' | 'icon' | 'day'>>
     ) => {
       setActivity((prev) => [
-        { id: nextId('a'), time: 'just now', crew: 'Muppet', emoji: '🙂', day: 'today', ...item },
+        { id: nextId('a'), time: 'just now', crew: 'Muppet', icon: 'checkmark-circle-outline', day: 'today', ...item },
         ...prev,
       ]);
     },
@@ -330,12 +330,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (parsed) {
         setTypingThreadId(threadId);
         setCrewBusy(true);
-        // Transition Hold: Operator holds first, then Scheduler visibly
-        // takes over (auto wins for the calendar flow) — the week strip
-        // starts the moment Scheduler's hold BEGINS, so that hold time is
-        // spent "parsing the calendar" rather than sitting idle.
+        // Transition Hold: Operator holds first, then Orchestrator visibly
+        // takes over (auto wins for the calendar flow — there's no standalone
+        // Scheduler crew) — the week strip starts the moment Orchestrator's
+        // hold BEGINS, so that hold time is spent "parsing the calendar"
+        // rather than sitting idle.
         runCrewSequence(
-          ['triage', 'scheduler'],
+          ['triage', 'orchestrator'],
           setCrewSelected,
           () => {
             setTypingThreadId(null);
@@ -346,7 +347,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             appendToThread(threadId, {
               id: nextId('c'),
               from: 'agent',
-              text: `I checked ${dayWord} — here's how it looks. Want me to book "${parsed.title}"?`,
+              text: `I checked ${dayWord}. Here's how it looks. Want me to book "${parsed.title}"?`,
               schedule: {
                 date: parsed.date,
                 title: parsed.title,
@@ -355,7 +356,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             });
           },
           (key) => {
-            if (key === 'scheduler') {
+            if (key === 'orchestrator') {
               setCrewManual(false);
               setCalendarScan({ targetDate: parsed.date });
             }
@@ -381,6 +382,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
             text: reply.text,
             approval: reply.approval,
             result: reply.result,
+            pipeline: reply.pipeline,
+            crewCount: reply.crewCount,
           });
         });
       } else {
@@ -395,6 +398,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
             text: reply.text,
             approval: reply.approval,
             result: reply.result,
+            pipeline: reply.pipeline,
+            crewCount: reply.crewCount,
           });
         }, CREW_HOLD_MS);
       }
@@ -416,7 +421,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const gatewayLine =
           gatewayStatus === 'online'
             ? `${logTime()} Gateway connected safely | End-to-End Encrypted.`
-            : `${logTime()} Gateway ${gatewayStatus === 'offline' ? 'offline' : 'reconnecting'} — retrying…`;
+            : `${logTime()} Gateway ${gatewayStatus === 'offline' ? 'offline' : 'reconnecting'}, retrying…`;
         const toolsLine = connectedTools.length
           ? `${logTime()} ${connectedTools.length} tool${connectedTools.length === 1 ? '' : 's'} active (${connectedTools.map((p) => p.name).join(', ')}).`
           : `${logTime()} 0 tools active.`;
@@ -427,7 +432,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             from: 'agent',
             terminalLog: [gatewayLine, toolsLine],
             text:
-              "Hi Ellie. I'm connected to your Mac mini gateway, but I couldn't find any connected tools yet. Don't worry — I can still monitor your server infrastructure or help you set up your core workflows via desktop.",
+              "Hi Ellie. I'm connected to your Mac mini gateway, but I couldn't find any connected tools yet. Don't worry, I can still monitor your server infrastructure or help you set up your core workflows via desktop.",
             suggestions: [
               'Run a system health check on my Mac mini',
               'Show me how to connect tools on the desktop web',
@@ -452,7 +457,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         title: seeded ? seeded.slice(0, 32) : 'New chat',
         lastPreview: seeded ?? greeting?.text ?? 'Start a conversation…',
         updatedAt: 'now',
-        emoji: '💬',
+        icon: 'chatbubble-outline',
         messages: seeded
           ? [{ id: nextId('c'), from: 'user', text: seeded }]
           : greeting
@@ -504,7 +509,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         from: 'agent',
         text: approved
           ? `Thanks! Access granted. I'll get right on it.`
-          : `No problem — I won't do that.`,
+          : `No problem, I won't do that.`,
       });
     },
     [appendToThread, resolveApproval]
@@ -534,7 +539,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       appendToThread(threadId, {
         id: nextId('c'),
         from: 'agent',
-        text: `Booked — "${schedule.title}" ${dayWord} at ${slot}. 📅`,
+        text: `Booked: "${schedule.title}" ${dayWord} at ${slot}.`,
       });
     },
     [threads, addCalendarEvent, appendToThread]

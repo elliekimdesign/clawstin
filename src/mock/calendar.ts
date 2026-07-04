@@ -8,6 +8,8 @@ export type CalendarEvent = {
   allDay?: boolean;
   location?: string;
   color: 'brand' | 'yellow' | 'mint';
+  /** where this event syncs from; the backend mirrors Apple/Google Calendar */
+  source?: 'google' | 'apple';
 };
 
 export type CalendarDay = {
@@ -19,19 +21,26 @@ export type CalendarDay = {
 
 export const CAL_MONTH = 'July 2026';
 
+/**
+ * A month in the life of the user: senior software engineer in San Francisco.
+ * Work events sync from Google Calendar, personal ones from Apple Calendar.
+ * The backend mirrors both; clawstin never owns these events.
+ */
 export const initialCalendarDays: CalendarDay[] = [
   {
     id: 'd-0701',
     weekday: 'Wednesday',
     date: 1,
     events: [
+      { id: 'e1a', title: 'Team standup', start: '9:30 AM', end: '9:45 AM', color: 'brand', source: 'google' },
       {
-        id: 'e1',
+        id: 'e1b',
         title: 'Design review',
         start: '2:00 PM',
         end: '3:00 PM',
         location: 'Figma huddle',
         color: 'brand',
+        source: 'google',
       },
     ],
   },
@@ -40,14 +49,16 @@ export const initialCalendarDays: CalendarDay[] = [
     weekday: 'Thursday',
     date: 2,
     events: [
-      { id: 'e2', title: 'Team standup', start: '9:30 AM', end: '9:45 AM', color: 'brand' },
+      { id: 'e2a', title: 'Team standup', start: '9:30 AM', end: '9:45 AM', color: 'brand', source: 'google' },
+      { id: 'e2b', title: '1:1 with Sarah Chen', start: '2:00 PM', end: '2:30 PM', color: 'brand', source: 'google' },
       {
-        id: 'e3',
-        title: 'Dentist',
-        start: '4:30 PM',
-        end: '5:15 PM',
-        location: 'Gangnam Smile Clinic',
+        id: 'e2c',
+        title: 'Climbing at Mission Cliffs',
+        start: '7:00 PM',
+        end: '9:00 PM',
+        location: 'Mission Cliffs',
         color: 'mint',
+        source: 'apple',
       },
     ],
   },
@@ -55,7 +66,9 @@ export const initialCalendarDays: CalendarDay[] = [
     id: 'd-0703',
     weekday: 'Friday',
     date: 3,
-    events: [{ id: 'e4', title: 'Rent', allDay: true, color: 'yellow' }],
+    events: [
+      { id: 'e3a', title: 'Rent', allDay: true, color: 'yellow', source: 'apple' },
+    ],
   },
   { id: 'd-0704', weekday: 'Saturday', date: 4, events: [] },
   { id: 'd-0705', weekday: 'Sunday', date: 5, events: [] },
@@ -64,41 +77,240 @@ export const initialCalendarDays: CalendarDay[] = [
     weekday: 'Monday',
     date: 6,
     events: [
-      { id: 'e5', title: 'Portfolio review', start: '10:00 AM', end: '10:30 AM', color: 'brand' },
+      { id: 'e6a', title: 'Sprint planning', start: '10:00 AM', end: '11:00 AM', color: 'brand', source: 'google' },
+      { id: 'e6b', title: 'PR review block', start: '3:00 PM', end: '4:00 PM', color: 'brand', source: 'google' },
     ],
   },
-  { id: 'd-0707', weekday: 'Tuesday', date: 7, events: [] },
+  {
+    id: 'd-0707',
+    weekday: 'Tuesday',
+    date: 7,
+    events: [
+      {
+        id: 'e7a',
+        title: 'Pair with Priya on auth refactor',
+        start: '11:00 AM',
+        end: '12:30 PM',
+        color: 'brand',
+        source: 'google',
+      },
+      {
+        id: 'e7b',
+        title: 'Dinner with Jenna',
+        start: '7:00 PM',
+        end: '9:00 PM',
+        location: 'Tartine Manufactory',
+        color: 'yellow',
+        source: 'apple',
+      },
+    ],
+  },
   {
     id: 'd-0708',
     weekday: 'Wednesday',
     date: 8,
     events: [
       {
-        id: 'e6',
-        title: 'Flight to Jeju',
-        start: '7:40 AM',
-        end: '8:50 AM',
-        location: 'GMP → CJU',
+        id: 'e8a',
+        title: 'Q3 roadmap offsite',
+        start: '9:00 AM',
+        end: '4:00 PM',
+        location: 'Mountain View campus',
         color: 'mint',
+        source: 'google',
       },
     ],
   },
-  { id: 'd-0709', weekday: 'Thursday', date: 9, events: [] },
+  {
+    id: 'd-0709',
+    weekday: 'Thursday',
+    date: 9,
+    events: [
+      { id: 'e9a', title: '1:1 with Sarah Chen', start: '2:00 PM', end: '2:30 PM', color: 'brand', source: 'google' },
+    ],
+  },
   { id: 'd-0710', weekday: 'Friday', date: 10, events: [] },
   {
     id: 'd-0711',
     weekday: 'Saturday',
     date: 11,
-    events: [{ id: 'e7', title: "Hana's birthday", allDay: true, color: 'yellow' }],
+    events: [
+      {
+        id: 'e11a',
+        title: 'Fort Funston hike',
+        start: '10:00 AM',
+        end: '12:00 PM',
+        color: 'mint',
+        source: 'apple',
+      },
+      {
+        id: 'e11b',
+        title: "Maya's birthday dinner",
+        start: '7:00 PM',
+        location: 'Foreign Cinema',
+        color: 'yellow',
+        source: 'apple',
+      },
+    ],
   },
-  { id: 'd-0712', weekday: 'Sunday', date: 12, events: [] },
+  {
+    id: 'd-0712',
+    weekday: 'Sunday',
+    date: 12,
+    events: [
+      {
+        id: 'e12a',
+        title: 'Brunch with Dev and Maya',
+        start: '11:00 AM',
+        location: 'Zazie, Cole Valley',
+        color: 'yellow',
+        source: 'apple',
+      },
+    ],
+  },
   { id: 'd-0713', weekday: 'Monday', date: 13, events: [] },
   {
     id: 'd-0714',
     weekday: 'Tuesday',
     date: 14,
     events: [
-      { id: 'e8', title: 'Sprint planning', start: '11:00 AM', end: '12:00 PM', color: 'brand' },
+      { id: 'e14a', title: 'Sprint planning', start: '11:00 AM', end: '12:00 PM', color: 'brand', source: 'google' },
+      {
+        id: 'e14b',
+        title: 'Dentist',
+        start: '4:30 PM',
+        end: '5:15 PM',
+        location: 'SoMa Dental',
+        color: 'mint',
+        source: 'apple',
+      },
+    ],
+  },
+  { id: 'd-0715', weekday: 'Wednesday', date: 15, events: [] },
+  {
+    id: 'd-0716',
+    weekday: 'Thursday',
+    date: 16,
+    events: [
+      {
+        id: 'e16a',
+        title: 'Coffee chat with Stripe recruiter',
+        start: '8:30 AM',
+        end: '9:15 AM',
+        location: 'Blue Bottle, SoMa',
+        color: 'yellow',
+        source: 'apple',
+      },
+      { id: 'e16b', title: '1:1 with Sarah Chen', start: '2:00 PM', end: '2:30 PM', color: 'brand', source: 'google' },
+    ],
+  },
+  {
+    id: 'd-0717',
+    weekday: 'Friday',
+    date: 17,
+    events: [
+      { id: 'e17a', title: 'Demo Friday', start: '4:00 PM', end: '5:00 PM', color: 'brand', source: 'google' },
+      { id: 'e17b', title: 'On-call handoff', start: '5:00 PM', end: '5:15 PM', color: 'brand', source: 'google' },
+    ],
+  },
+  {
+    id: 'd-0718',
+    weekday: 'Saturday',
+    date: 18,
+    events: [
+      {
+        id: 'e18a',
+        title: 'Run in Golden Gate Park',
+        start: '9:00 AM',
+        end: '10:00 AM',
+        color: 'mint',
+        source: 'apple',
+      },
+    ],
+  },
+  { id: 'd-0719', weekday: 'Sunday', date: 19, events: [] },
+  {
+    id: 'd-0720',
+    weekday: 'Monday',
+    date: 20,
+    events: [
+      { id: 'e20a', title: 'Sprint planning', start: '10:00 AM', end: '11:00 AM', color: 'brand', source: 'google' },
+      {
+        id: 'e20b',
+        title: 'Architecture review: billing service',
+        start: '2:00 PM',
+        end: '3:30 PM',
+        color: 'brand',
+        source: 'google',
+      },
+    ],
+  },
+  { id: 'd-0721', weekday: 'Tuesday', date: 21, events: [] },
+  {
+    id: 'd-0722',
+    weekday: 'Wednesday',
+    date: 22,
+    events: [
+      {
+        id: 'e22a',
+        title: 'Design review',
+        start: '2:00 PM',
+        end: '3:00 PM',
+        location: 'Figma huddle',
+        color: 'brand',
+        source: 'google',
+      },
+    ],
+  },
+  { id: 'd-0723', weekday: 'Thursday', date: 23, events: [] },
+  {
+    id: 'd-0724',
+    weekday: 'Friday',
+    date: 24,
+    events: [
+      {
+        id: 'e24a',
+        title: 'Giants game with Dev',
+        start: '6:45 PM',
+        location: 'Oracle Park',
+        color: 'yellow',
+        source: 'apple',
+      },
+    ],
+  },
+  { id: 'd-0725', weekday: 'Saturday', date: 25, events: [] },
+  { id: 'd-0726', weekday: 'Sunday', date: 26, events: [] },
+  {
+    id: 'd-0727',
+    weekday: 'Monday',
+    date: 27,
+    events: [
+      { id: 'e27a', title: 'Sprint planning', start: '10:00 AM', end: '11:00 AM', color: 'brand', source: 'google' },
+    ],
+  },
+  { id: 'd-0728', weekday: 'Tuesday', date: 28, events: [] },
+  {
+    id: 'd-0729',
+    weekday: 'Wednesday',
+    date: 29,
+    events: [
+      { id: 'e29a', title: 'Perf review drafts due', allDay: true, color: 'yellow', source: 'google' },
+    ],
+  },
+  { id: 'd-0730', weekday: 'Thursday', date: 30, events: [] },
+  {
+    id: 'd-0731',
+    weekday: 'Friday',
+    date: 31,
+    events: [
+      {
+        id: 'e31a',
+        title: 'Team offsite dinner',
+        start: '6:00 PM',
+        location: 'Mission Chinese Food',
+        color: 'yellow',
+        source: 'google',
+      },
     ],
   },
 ];

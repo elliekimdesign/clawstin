@@ -1,3 +1,4 @@
+import { Ionicons } from '@expo/vector-icons';
 import { ScrollView, Text, View } from 'react-native';
 
 import { Card } from '@/components/ui/card';
@@ -15,7 +16,7 @@ const GROUPS: { key: ActivityDay; label: string }[] = [
   { key: 'yesterday', label: 'YESTERDAY' },
 ];
 
-/** One timeline row: circle emoji avatar (crew) + title + "{crew} · {time}". */
+/** One timeline row: circle icon avatar (crew) + title + "{crew} · {time}". */
 function ActivityRow({ item, first }: { item: ActivityItem; first: boolean }) {
   return (
     <View
@@ -36,7 +37,7 @@ function ActivityRow({ item, first }: { item: ActivityItem; first: boolean }) {
           alignItems: 'center',
           justifyContent: 'center',
         }}>
-        <Text style={{ fontSize: 18 }}>{item.emoji}</Text>
+        <Ionicons name={item.icon} size={18} color={colors.text} />
       </View>
       <View style={{ flex: 1 }}>
         <Text

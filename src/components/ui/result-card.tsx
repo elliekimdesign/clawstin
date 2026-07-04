@@ -1,7 +1,7 @@
 import { Linking, Pressable, Text, View } from 'react-native';
 
 import type { ResultCard as ResultCardData } from '@/mock/chat';
-import { colors, fontFamily, fontSize, radius, spacing } from '@/theme/theme';
+import { darkChat, fontFamily, fontSize, radius, spacing } from '@/theme/theme';
 
 const MONO = 'Menlo';
 
@@ -16,10 +16,10 @@ export function ResultCard({ result }: { result: ResultCardData }) {
     <View
       style={{
         minWidth: 232,
-        backgroundColor: colors.card,
+        backgroundColor: darkChat.surface,
         borderRadius: radius.lg,
         borderWidth: 1,
-        borderColor: colors.border,
+        borderColor: darkChat.glassBorder,
         paddingVertical: spacing.sm,
         paddingHorizontal: spacing.lg,
       }}>
@@ -33,7 +33,7 @@ export function ResultCard({ result }: { result: ResultCardData }) {
             gap: spacing.md,
             paddingVertical: spacing.md,
             borderTopWidth: i === 0 ? 0 : 1,
-            borderTopColor: colors.divider,
+            borderTopColor: darkChat.divider,
           }}>
           <Text
             numberOfLines={1}
@@ -41,7 +41,7 @@ export function ResultCard({ result }: { result: ResultCardData }) {
               flexShrink: 1,
               fontSize: fontSize.body,
               fontFamily: fontFamily.medium,
-              color: colors.text,
+              color: darkChat.text,
             }}>
             {item.label}
           </Text>
@@ -51,7 +51,7 @@ export function ResultCard({ result }: { result: ResultCardData }) {
                 fontFamily: MONO,
                 fontSize: 12,
                 letterSpacing: 0.4,
-                color: colors.textSecondary,
+                color: darkChat.textSecondary,
               }}>
               {item.detail}
             </Text>
@@ -70,14 +70,14 @@ export function ResultCard({ result }: { result: ResultCardData }) {
           style={({ pressed }) => ({
             paddingVertical: spacing.md,
             borderTopWidth: 1,
-            borderTopColor: colors.divider,
+            borderTopColor: darkChat.divider,
             opacity: pressed ? 0.5 : 1,
           })}>
           <Text
             style={{
               fontSize: fontSize.small,
               fontFamily: fontFamily.semibold,
-              color: colors.text,
+              color: darkChat.text,
             }}>
             {result.action.label}
           </Text>

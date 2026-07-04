@@ -1,4 +1,7 @@
 import { Ionicons } from "@expo/vector-icons";
+import { router } from "expo-router";
+
+import { GlassIconButton } from '@/components/ui/glass-icon-button';
 import { useEffect, useState } from "react";
 import {
   Linking,
@@ -446,17 +449,27 @@ export default function AccessScreen() {
       <View
         style={{
           height: 44,
-          paddingHorizontal: spacing.lg,
           flexDirection: "row",
           alignItems: "center",
-          justifyContent: "center",
+          paddingHorizontal: spacing.md,
         }}
       >
+        <GlassIconButton
+          icon="chevron-back"
+          onPress={() => router.back()}
+          iconColor={colors.text}
+          iconSize={22}
+          hitSlop={10}
+        />
         <Text
+          numberOfLines={1}
           style={{
+            flex: 1,
+            textAlign: "center",
             color: colors.text,
             fontSize: fontSize.bodyLg,
             fontWeight: fontWeight.semibold,
+            marginRight: 44,
           }}
         >
           Access
@@ -649,7 +662,7 @@ export default function AccessScreen() {
               marginBottom: copiedToast || syncingPermission ? 0 : spacing.xxl,
             }}
           >
-            Set these up on OpenClaw Web — changes sync back here automatically.
+            Set these up on OpenClaw Web. Changes sync back here automatically.
           </Text>
         ) : null}
 
@@ -676,7 +689,7 @@ export default function AccessScreen() {
                 letterSpacing: 0.2,
               }}
             >
-              Link copied ↗ — paste it in your browser
+              Link copied ↗, paste it in your browser
             </Text>
           </Animated.View>
         ) : null}

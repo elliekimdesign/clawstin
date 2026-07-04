@@ -39,6 +39,24 @@ export const colors = {
   bubbleAgentText: '#16181D',
 } as const;
 
+/**
+ * Dark palette for the chat thread screen only — a moody slate-teal look
+ * with glassy translucent surfaces. The rest of the app stays light.
+ */
+export const darkChat = {
+  base: '#38454A', // dark slate-teal base under the gradient
+  text: '#EDF1EE',
+  textSecondary: 'rgba(236,241,238,0.65)',
+  textTertiary: 'rgba(236,241,238,0.45)',
+  glassBg: 'rgba(255,255,255,0.10)', // translucent glass pill/button fill
+  glassBorder: 'rgba(255,255,255,0.28)',
+  surface: 'rgba(255,255,255,0.08)', // card fill on the dark gradient
+  solidSurface: '#2C393E', // opaque sheet (popovers) — no bleed-through
+  divider: 'rgba(255,255,255,0.12)',
+  onLight: '#26333C', // text/icon on a light fill (inverted buttons)
+  success: '#5FD9A4', // lightened for contrast on dark
+} as const;
+
 export const spacing = {
   xs: 4,
   sm: 8,
@@ -81,6 +99,9 @@ export const fontFamily = {
   medium: 'InstrumentSans-Medium',
   semibold: 'InstrumentSans-SemiBold',
   bold: 'InstrumentSans-Bold',
+  // System monospace — used for terminal-log lines, command-line style
+  // messages, and tabular values (tokens, times, pipeline step tags).
+  mono: 'Menlo',
 } as const;
 
 /** Gentle iOS-like shadow for cards. */

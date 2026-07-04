@@ -1,10 +1,8 @@
 import { Pressable, Text, View } from 'react-native';
 
 import type { CalendarEvent, ScheduleSuggestion } from '@/mock/calendar';
-import { colors, fontFamily, fontSize, radius, spacing } from '@/theme/theme';
+import { darkChat, fontFamily, fontSize, radius, spacing } from '@/theme/theme';
 
-const BRAND = '#FF4A32';
-const CHARCOAL = '#1A1C21';
 const MONO = 'Menlo';
 
 /** Sort key: all-day items first, then by clock time. */
@@ -37,10 +35,10 @@ export function ScheduleCard({
     <View
       style={{
         minWidth: 232,
-        backgroundColor: colors.card,
+        backgroundColor: darkChat.surface,
         borderRadius: radius.lg,
         borderWidth: 1,
-        borderColor: colors.border,
+        borderColor: darkChat.glassBorder,
         padding: spacing.lg,
       }}>
       {/* Big date + weekday */}
@@ -51,7 +49,7 @@ export function ScheduleCard({
             lineHeight: 34,
             fontFamily: fontFamily.bold,
             letterSpacing: -0.5,
-            color: BRAND,
+            color: darkChat.text,
           }}>
           {schedule.date}
         </Text>
@@ -59,7 +57,7 @@ export function ScheduleCard({
           style={{
             fontSize: fontSize.small,
             fontFamily: fontFamily.semibold,
-            color: colors.text,
+            color: darkChat.text,
             paddingTop: 4,
           }}>
           {weekday}
@@ -69,7 +67,7 @@ export function ScheduleCard({
       {/* That day's timeline (live — a booked slot shows up here) */}
       <View style={{ marginTop: spacing.md, gap: spacing.sm }}>
         {sorted.length === 0 ? (
-          <Text style={{ color: colors.textTertiary, fontSize: fontSize.small }}>
+          <Text style={{ color: darkChat.textTertiary, fontSize: fontSize.small }}>
             Nothing scheduled yet.
           </Text>
         ) : (
@@ -81,13 +79,13 @@ export function ScheduleCard({
                   fontFamily: MONO,
                   fontSize: 12.5,
                   letterSpacing: 0.4,
-                  color: BRAND,
+                  color: darkChat.textSecondary,
                 }}>
                 {e.start ?? 'TODO'}
               </Text>
               <Text
                 numberOfLines={1}
-                style={{ flex: 1, fontSize: fontSize.body, color: colors.text }}>
+                style={{ flex: 1, fontSize: fontSize.body, color: darkChat.text }}>
                 {e.title}
               </Text>
             </View>
@@ -100,7 +98,7 @@ export function ScheduleCard({
         <Text
           style={{
             marginTop: spacing.md,
-            color: colors.success,
+            color: darkChat.success,
             fontSize: fontSize.small,
             fontFamily: fontFamily.semibold,
           }}>
@@ -110,7 +108,7 @@ export function ScheduleCard({
         <View style={{ marginTop: spacing.lg }}>
           <Text
             style={{
-              color: colors.textTertiary,
+              color: darkChat.textTertiary,
               fontSize: fontSize.caption,
               fontFamily: fontFamily.semibold,
               letterSpacing: 1,
@@ -123,7 +121,7 @@ export function ScheduleCard({
                 key={slot}
                 onPress={() => onBook(slot)}
                 style={({ pressed }) => ({
-                  backgroundColor: CHARCOAL,
+                  backgroundColor: darkChat.text,
                   borderRadius: radius.pill,
                   paddingVertical: 7,
                   paddingHorizontal: spacing.md,
@@ -131,7 +129,7 @@ export function ScheduleCard({
                 })}>
                 <Text
                   style={{
-                    color: '#FFFFFF',
+                    color: darkChat.onLight,
                     fontSize: fontSize.small,
                     fontFamily: fontFamily.semibold,
                   }}>

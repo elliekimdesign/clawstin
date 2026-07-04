@@ -8,7 +8,7 @@ import Animated, {
   withSequence,
   withTiming,
 } from 'react-native-reanimated';
-import { colors, spacing } from '@/theme/theme';
+import { darkChat, spacing } from '@/theme/theme';
 
 function Dot({ delay }: { delay: number }) {
   const o = useSharedValue(0.3);
@@ -21,7 +21,7 @@ function Dot({ delay }: { delay: number }) {
   const style = useAnimatedStyle(() => ({ opacity: o.value }));
   return (
     <Animated.View
-      style={[{ width: 7, height: 7, borderRadius: 999, backgroundColor: colors.textTertiary }, style]}
+      style={[{ width: 7, height: 7, borderRadius: 999, backgroundColor: darkChat.textSecondary }, style]}
     />
   );
 }

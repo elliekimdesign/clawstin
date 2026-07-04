@@ -8,8 +8,8 @@ export type Thread = {
   lastPreview: string;
   /** human-friendly relative time, shown in the list */
   updatedAt: string;
-  /** avatar accent for the thread row */
-  emoji: string;
+  /** avatar icon for the thread row */
+  icon: keyof typeof Ionicons.glyphMap;
   messages: ChatMessage[];
 };
 
@@ -35,13 +35,23 @@ export const initialThreads: Thread[] = [
     title: 'Inbox cleanup',
     lastPreview: 'Summarized 4 new emails and archived 12.',
     updatedAt: '2m',
-    emoji: '📥',
+    icon: 'mail-outline',
     messages: [
-      { id: 't1-m1', from: 'user', text: 'Can you clean up my inbox?' },
+      {
+        id: 't1-m1',
+        from: 'user',
+        terminalLog: [
+          '[09:12:04] Gateway connected safely | End-to-End Encrypted.',
+          '[09:12:04] 2 tools active (Gmail, Calendar).',
+        ],
+        text: 'Can you clean up my inbox?',
+      },
       {
         id: 't1-m2',
         from: 'agent',
-        text: 'Done — I summarized 4 new emails and archived 12 promotions. Want the summary?',
+        // two crews worked on this one (triage + writer) — shows the "+1" mark
+        crewCount: 2,
+        text: 'Done. I summarized 4 new emails and archived 12 promotions. Want the summary?',
       },
     ],
   },
@@ -50,9 +60,17 @@ export const initialThreads: Thread[] = [
     title: 'Trip to Seoul',
     lastPreview: 'I found 3 flight options under your budget.',
     updatedAt: '1h',
-    emoji: '✈️',
+    icon: 'airplane-outline',
     messages: [
-      { id: 't2-m1', from: 'user', text: 'Help me plan a trip to Seoul next month.' },
+      {
+        id: 't2-m1',
+        from: 'user',
+        terminalLog: [
+          '[08:03:51] Gateway connected safely | End-to-End Encrypted.',
+          '[08:03:51] 2 tools active (Calendar, Contacts).',
+        ],
+        text: 'Help me plan a trip to Seoul next month.',
+      },
       {
         id: 't2-m2',
         from: 'agent',
@@ -65,9 +83,17 @@ export const initialThreads: Thread[] = [
     title: 'Weekly review',
     lastPreview: 'Here are your top 3 priorities for the week.',
     updatedAt: 'Mon',
-    emoji: '🗓️',
+    icon: 'calendar-clear-outline',
     messages: [
-      { id: 't3-m1', from: 'user', text: "What should I focus on this week?" },
+      {
+        id: 't3-m1',
+        from: 'user',
+        terminalLog: [
+          '[07:45:22] Gateway connected safely | End-to-End Encrypted.',
+          '[07:45:22] 2 tools active (Calendar, Contacts).',
+        ],
+        text: "What should I focus on this week?",
+      },
       {
         id: 't3-m2',
         from: 'agent',

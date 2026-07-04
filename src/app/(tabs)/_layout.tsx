@@ -12,23 +12,13 @@ export default function TabsLayout() {
       </NativeTabs.Trigger>
 
       <NativeTabs.Trigger name="activity">
-        <NativeTabs.Trigger.Label>Activity</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon sf="bolt" />
-      </NativeTabs.Trigger>
-
-      <NativeTabs.Trigger name="memory">
-        <NativeTabs.Trigger.Label>Memory</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon sf="sparkles" />
+        <NativeTabs.Trigger.Label>Logs</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf="terminal" />
       </NativeTabs.Trigger>
 
       <NativeTabs.Trigger name="crew">
         <NativeTabs.Trigger.Label>Crew</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf="person.2" />
-      </NativeTabs.Trigger>
-
-      <NativeTabs.Trigger name="access">
-        <NativeTabs.Trigger.Label>Access</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon sf="key" />
       </NativeTabs.Trigger>
     </NativeTabs>
   );

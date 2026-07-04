@@ -1,5 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
+
+import { GlassIconButton } from '@/components/ui/glass-icon-button';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -42,9 +44,13 @@ export default function ApprovalReviewScreen() {
           borderBottomWidth: 1,
           borderBottomColor: colors.divider,
         }}>
-        <Pressable onPress={() => router.back()} hitSlop={10}>
-          <Ionicons name="chevron-back" size={26} color={colors.text} />
-        </Pressable>
+        <GlassIconButton
+          icon="chevron-back"
+          onPress={() => router.back()}
+          iconColor={colors.text}
+          iconSize={22}
+          hitSlop={10}
+        />
         <Text
           style={{
             flex: 1,
@@ -52,7 +58,7 @@ export default function ApprovalReviewScreen() {
             color: colors.text,
             fontSize: fontSize.bodyLg,
             fontWeight: fontWeight.semibold,
-            marginRight: 26,
+            marginRight: 44,
           }}>
           Review request
         </Text>

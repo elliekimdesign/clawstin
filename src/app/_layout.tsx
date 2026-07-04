@@ -28,6 +28,7 @@ export default function RootLayout() {
             <Stack.Screen name="approval/[id]" options={{ presentation: 'card' }} />
             <Stack.Screen name="crew/[id]" options={{ presentation: 'card' }} />
             <Stack.Screen name="calendar" options={{ presentation: 'card' }} />
+            <Stack.Screen name="access" options={{ presentation: 'card' }} />
           </Stack>
           {/* Above the Stack so it renders over every tab/screen, notch-drop
               style — reads gatewayStatus directly from the store. */}

@@ -73,7 +73,7 @@ function ServiceRow({ s, boundary }: { s: ServiceStatus; boundary?: boolean }) {
 /**
  * Engineer-style connection status panel: a dark, dense dropdown grouped into
  * CORE SERVICES / LLM INFRASTRUCTURE. When anything is degraded/down it offers a
- * "Manage access →" deep-link to the Access tab. Tapping the scrim dismisses it.
+ * "Manage access →" deep-link to the Access screen. Tapping the scrim dismisses it.
  */
 export function StatusPopover({ services, onClose, onManageAccess, topOffset }: Props) {
   const worst = worstServiceState(services);
@@ -132,7 +132,7 @@ export function StatusPopover({ services, onClose, onManageAccess, topOffset }: 
           ))}
         </View>
 
-        {/* Deep-link to Access when something is wrong */}
+        {/* Deep-link to the Access screen when something is wrong */}
         {!healthy ? (
           <Pressable
             onPress={onManageAccess}

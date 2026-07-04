@@ -1,10 +1,12 @@
+import { Ionicons } from '@expo/vector-icons';
+
 export type CrewSkill = { label: string; on: boolean };
 
 export type CrewMember = {
   id: string;
   name: string;
-  /** circle face emoji — temporary placeholder for the crew profile pic (user swaps later) */
-  emoji: string;
+  /** avatar icon — placeholder for the crew profile pic (user swaps later) */
+  icon: keyof typeof Ionicons.glyphMap;
   /** one-line tagline shown under the name */
   role: string;
   skills: CrewSkill[];
@@ -15,7 +17,7 @@ export const initialCrew: CrewMember[] = [
   {
     id: 'muppet',
     name: 'Muppet',
-    emoji: '🧑‍🚀',
+    icon: 'rocket-outline',
     role: 'Orchestrator · coordinates the crew',
     skills: [
       { label: 'Delegate tasks', on: true },
@@ -27,7 +29,7 @@ export const initialCrew: CrewMember[] = [
   {
     id: 'scout',
     name: 'Scout',
-    emoji: '🔎',
+    icon: 'search-outline',
     role: 'Researcher · digs up the facts',
     skills: [
       { label: 'Web research', on: true },
@@ -39,7 +41,7 @@ export const initialCrew: CrewMember[] = [
   {
     id: 'quill',
     name: 'Quill',
-    emoji: '📝',
+    icon: 'create-outline',
     role: 'Summarizer · turns noise into notes',
     skills: [
       { label: 'Summarize emails', on: true },
@@ -51,7 +53,7 @@ export const initialCrew: CrewMember[] = [
   {
     id: 'pilot',
     name: 'Pilot',
-    emoji: '🗓️',
+    icon: 'calendar-clear-outline',
     role: 'Scheduler · guards your calendar',
     skills: [
       { label: 'Book meetings', on: true },

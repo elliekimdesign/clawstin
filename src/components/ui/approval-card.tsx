@@ -1,10 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, Text, View } from 'react-native';
-import { colors, fontSize, fontWeight, radius, spacing } from '@/theme/theme';
-
-// Brand accent (orange) — used only for the tiny risk dot.
-const BRAND = '#FF4A32';
-const DANGER = '#F23F5D';
+import { colors, darkChat, fontFamily, fontSize, fontWeight, radius, spacing } from '@/theme/theme';
 
 /** Risk tier — drives how much friction the approval needs. */
 export type RiskLevel = 'read' | 'write' | 'exec';
@@ -34,61 +30,87 @@ type Props = {
   onReview?: (a: Approval) => void;
   /** compact = used inline inside a chat bubble */
   compact?: boolean;
+  /** rendered on the chat screen's dark gradient — switch to the dark palette */
+  onDark?: boolean;
 };
 
-// Tiny risk dot color per tier (muted tone — the dot is the only color).
-const RISK_DOT = { read: colors.textTertiary, write: BRAND, exec: DANGER } as const;
-// Soft-tint tile background per tier (color-block look, buttons stay readable).
-const RISK_BG = {
-  read: '#F2EFE9',
-  write: 'rgba(255,74,50,0.10)',
-  exec: 'rgba(242,63,93,0.10)',
-} as const;
-
 /**
- * Minimal-row approval card (Figma A1 + A2 combo): small icon chip, title/detail,
- * a tiny risk dot, and compact text buttons. read = Deny · Approve; write/exec =
- * Deny · Review → (opens the guardrail detail screen).
+ * Minimal-row approval card: small icon chip, title/detail, a plain-text
+ * risk tag, and compact text buttons. read = Deny · Approve; write/exec =
+ * Deny · Review → (opens the guardrail detail screen). Neutral card shell
+ * (no colored risk tints/dots) — reads as structured log output, like the
+ * pipeline card's plain status tags, rather than a colorful app widget.
  */
-export function ApprovalCard({ approval, onApprove, onDeny, onReview, compact }: Props) {
+export function ApprovalCard({ approval, onApprove, onDeny, onReview, compact, onDark }: Props) {
   const risk = approval.risk ?? 'read';
   const needsReview = risk === 'write' || risk === 'exec';
+
+  // Palette flips as one unit so the card stays coherent on either background.
+  const c = onDark
+    ? {
+        bg: darkChat.surface,
+        border: darkChat.glassBorder,
+        chip: 'rgba(255,255,255,0.12)',
+        text: darkChat.text,
+        secondary: darkChat.textSecondary,
+        tertiary: darkChat.textTertiary,
+      }
+    : {
+        bg: compact ? colors.cardAlt : colors.card,
+        border: colors.border,
+        chip: '#FFFFFF',
+        text: colors.text,
+        secondary: colors.textSecondary,
+        tertiary: colors.textTertiary,
+      };
 
   return (
     <View
       style={{
-        backgroundColor: compact ? colors.cardAlt : RISK_BG[risk],
+        backgroundColor: c.bg,
         borderRadius: radius.md,
+        borderWidth: compact && !onDark ? 0 : 1,
+        borderColor: c.border,
         paddingVertical: spacing.md,
         paddingHorizontal: spacing.md,
         gap: spacing.sm,
       }}>
-      {/* Row: icon chip · title/detail · risk dot */}
+      {/* Row: icon chip · title/detail · risk tag */}
       <View style={{ flexDirection: 'row', gap: spacing.md, alignItems: 'center' }}>
         <View
           style={{
             width: 30,
             height: 30,
             borderRadius: radius.sm,
-            backgroundColor: '#FFFFFF',
+            backgroundColor: c.chip,
             alignItems: 'center',
             justifyContent: 'center',
           }}>
-          <Ionicons name={approval.icon} size={15} color={colors.text} />
+          <Ionicons name={approval.icon} size={15} color={c.text} />
         </View>
         <View style={{ flex: 1 }}>
           <Text
-            style={{ color: colors.text, fontSize: fontSize.body, fontWeight: fontWeight.semibold }}
+            style={{ color: c.text, fontSize: fontSize.body, fontWeight: fontWeight.semibold }}
             numberOfLines={1}>
             {approval.title}
           </Text>
           <Text
-            style={{ color: colors.textSecondary, fontSize: fontSize.small, marginTop: 1 }}
+            style={{ color: c.secondary, fontSize: fontSize.small, marginTop: 1 }}
             numberOfLines={1}>
             {approval.detail}
           </Text>
         </View>
-        <View style={{ width: 7, height: 7, borderRadius: 999, backgroundColor: RISK_DOT[risk] }} />
+        {risk !== 'read' ? (
+          <Text
+            style={{
+              fontFamily: fontFamily.mono,
+              fontSize: 11,
+              letterSpacing: 0.4,
+              color: c.tertiary,
+            }}>
+            [{risk.toUpperCase()}]
+          </Text>
+        ) : null}
       </View>
 
       {/* Compact text buttons, right-aligned */}
@@ -97,7 +119,7 @@ export function ApprovalCard({ approval, onApprove, onDeny, onReview, compact }:
           {({ pressed }) => (
             <Text
               style={{
-                color: colors.textSecondary,
+                color: c.secondary,
                 fontSize: fontSize.small,
                 fontWeight: fontWeight.semibold,
                 opacity: pressed ? 0.5 : 1,
@@ -112,11 +134,11 @@ export function ApprovalCard({ approval, onApprove, onDeny, onReview, compact }:
           {({ pressed }) => (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, opacity: pressed ? 0.5 : 1 }}>
               <Text
-                style={{ color: colors.text, fontSize: fontSize.small, fontWeight: fontWeight.semibold }}>
+                style={{ color: c.text, fontSize: fontSize.small, fontWeight: fontWeight.semibold }}>
                 {needsReview ? 'Review' : 'Approve'}
               </Text>
               {needsReview ? (
-                <Ionicons name="arrow-forward" size={13} color={colors.text} />
+                <Ionicons name="arrow-forward" size={13} color={c.text} />
               ) : null}
             </View>
           )}

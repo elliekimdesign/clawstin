@@ -1,14 +1,14 @@
-import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+
+import { GlassIconButton } from '@/components/ui/glass-icon-button';
+import { ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { CAL_MONTH, CalendarDay } from '@/mock/calendar';
 import { useAppStore } from '@/store/app-store';
-import { colors, fontFamily, fontSize, fontWeight, shadow, spacing } from '@/theme/theme';
+import { colors, fontFamily, fontSize, fontWeight, spacing } from '@/theme/theme';
 
 const BRAND = '#FF4A32';
-const CHARCOAL = '#1A1C21';
 const DIM = '#D5D8DE'; // ghosted empty days, like the reference
 const LABEL_W = 68;
 
@@ -101,9 +101,13 @@ export default function CalendarScreen() {
           borderBottomWidth: 1,
           borderBottomColor: colors.divider,
         }}>
-        <Pressable onPress={() => router.back()} hitSlop={10}>
-          <Ionicons name="chevron-back" size={26} color={colors.text} />
-        </Pressable>
+        <GlassIconButton
+          icon="chevron-back"
+          onPress={() => router.back()}
+          iconColor={colors.text}
+          iconSize={22}
+          hitSlop={10}
+        />
         <Text
           numberOfLines={1}
           style={{
@@ -112,7 +116,7 @@ export default function CalendarScreen() {
             color: colors.text,
             fontSize: fontSize.bodyLg,
             fontWeight: fontWeight.semibold,
-            marginRight: 26,
+            marginRight: 44,
           }}>
           {CAL_MONTH}
         </Text>
@@ -132,23 +136,14 @@ export default function CalendarScreen() {
         </ScrollView>
 
         {/* Chat FAB — talk to Muppet; schedule-sounding messages land right here */}
-        <Pressable
+        <GlassIconButton
+          icon="chatbubble-ellipses"
           onPress={() => router.push(`/chat/${createThread()}`)}
-          style={({ pressed }) => ({
-            position: 'absolute',
-            right: spacing.xl,
-            bottom: spacing.xl,
-            width: 56,
-            height: 56,
-            borderRadius: 28,
-            backgroundColor: CHARCOAL,
-            alignItems: 'center',
-            justifyContent: 'center',
-            opacity: pressed ? 0.9 : 1,
-            ...shadow.card,
-          })}>
-          <Ionicons name="chatbubble-ellipses" size={22} color="#FFFFFF" />
-        </Pressable>
+          size={56}
+          iconSize={22}
+          iconColor={colors.text}
+          style={{ position: 'absolute', right: spacing.xl, bottom: spacing.xl }}
+        />
       </View>
     </SafeAreaView>
   );

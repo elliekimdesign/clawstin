@@ -12,7 +12,7 @@ const HEIGHT = 64;
  * App-wide notice that drops down from behind the notch, like iOS's system
  * in-call/recording banner — mounted once above the root Stack (not inside
  * any one screen's SafeAreaView) so it renders over every tab. Pure status
- * notice, no buttons here — Reconnect/Reboot live on the Access tab's
+ * notice, no buttons here — Reconnect/Reboot live on the Access screen's
  * metrics widget per the spec this was built from.
  */
 export function GatewayBanner() {
