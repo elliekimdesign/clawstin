@@ -13,7 +13,7 @@ import {
 import { GlassView, isGlassEffectAPIAvailable } from 'expo-glass-effect';
 import { StatusBar } from 'expo-status-bar';
 import { Platform } from 'react-native';
-import Svg, { Defs, LinearGradient as SvgGradient, Rect, Stop } from 'react-native-svg';
+import Svg, { Defs, LinearGradient as SvgGradient, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { DevReset } from '@/components/dev/dev-reset';
@@ -21,13 +21,12 @@ import { ApprovalCard } from '@/components/ui/approval-card';
 import { AuroraLine } from '@/components/ui/aurora-line';
 import { Card } from '@/components/ui/card';
 import { GlassIconButton } from '@/components/ui/glass-icon-button';
-import { HomeBg } from '@/components/ui/home-bg';
-import { MeshBg } from '@/components/ui/mesh-bg';
+import { LavenderSwooshBg } from '@/components/ui/lavender-swoosh-bg';
 import { PulseMark } from '@/components/ui/pulse-mark';
 import { SectionHeader } from '@/components/ui/section-header';
 import { StatusPopover, worstServiceState } from '@/components/ui/status-popover';
 import { useAppStore } from '@/store/app-store';
-import { colors, fontFamily, fontSize, fontWeight, radius, shadow, spacing } from '@/theme/theme';
+import { colors, darkChat, fontFamily, fontSize, fontWeight, radius, shadow, spacing } from '@/theme/theme';
 
 const USER_NAME = 'Seohyeon';
 const AGENT_NAME = 'Muppet';
@@ -66,192 +65,273 @@ const AGENT_MARK = BRAND;
 // Figma-exact text color for step 2.
 const FIG_TEXT = '#1A1C21';
 
-// "Control room" language: dark field, transparent GLASS cards with real
-// background blur, regions defined by thin luminous strokes, and neon
-// indicators reserved for the few numbers that matter.
-const CTRL = {
-  bg: '#0F1522',
-  stroke: 'rgba(255,255,255,0.14)',
-  glassFallback: 'rgba(255,255,255,0.06)',
-  chipBg: 'rgba(255,255,255,0.08)',
-  text: '#F2F6FA',
-  dim: 'rgba(242,246,250,0.6)',
-  faint: 'rgba(242,246,250,0.4)',
-  neonGreen: '#4ADE80',
-  neonCyan: '#5EEAFF',
-  line: 'rgba(255,255,255,0.08)',
+// "Liquid glass" language (Figma frame T over the S background): milky
+// translucent windows floating on the lavender-to-blue field. Exactly one
+// signal on the whole board: a red corner dot on the card that needs the
+// user (approvals waiting). Everything else speaks through its content.
+const GLASS = {
+  bg: '#B7BFDE', // behind the SVG field, matches its midpoint
+  text: '#2E3252',
+  title: '#3A3F63',
+  dim: 'rgba(46,50,82,0.6)',
+  faint: 'rgba(46,50,82,0.45)',
+  // The chat tab's visible sky blue (chatThemes.blueCloudOs.base) — every
+  // blue accent on home (numbers, circles, chip) matches it for continuity.
+  blue: darkChat.base,
+  blueLight: darkChat.base,
+  ink: '#2E3252', // pills/CTAs
+  dotAlert: '#E0685C', // muted coral: attention without fighting the field
+  cardBorder: 'rgba(255,255,255,0.75)',
+  cardFallback: 'rgba(255,255,255,0.5)',
+  line: 'rgba(46,50,82,0.12)',
 };
 
 // expo-glass-effect is iOS-only; fall back to a translucent dark fill.
 const GLASS_AVAILABLE = Platform.OS === 'ios' && isGlassEffectAPIAvailable();
 
-/** A transparent glass card: native background blur (where available)
- * behind the content, a 1px luminous stroke defining the region, and no
- * fill of its own — the background gradient breathes through. */
-function GlassCard({
+// Cloud wisps for the hero card, as fractions of the card size.
+// [cx, cy, rx, ry, rotation, peak opacity]
+const CARD_CLOUDS: [number, number, number, number, number, number][] = [
+  [0.12, 0.18, 0.42, 0.34, -10, 0.5],
+  [0.62, 0.1, 0.46, 0.36, -8, 0.42],
+  [0.34, 0.58, 0.5, 0.3, -12, 0.35],
+  [0.82, 0.78, 0.4, 0.28, -6, 0.3],
+];
+
+/** One liquid-glass window: native background blur (where available)
+ * under a milky white veil, a bright hairline border with a brighter top
+ * rim, a title row with its status dot on the right, and an optional blue
+ * tint that turns the whole card into colored glass (the hero). */
+function LiquidCard({
+  title,
+  dot,
+  tint,
+  clouds,
   onPress,
   style,
+  contentStyle,
   children,
 }: {
+  title?: string;
+  /** alert dot at the right end of the title row (approvals only) */
+  dot?: string;
+  /** [top, bottom] gradient that tints the whole card (hero) */
+  tint?: [string, string];
+  /** soft cloud wisps over the tint, like the chat tab's CloudBg */
+  clouds?: boolean;
   onPress?: () => void;
   style?: ViewStyle;
+  contentStyle?: ViewStyle;
   children: ReactNode;
 }) {
+  const onTint = !!tint;
+  // Measured so the gradient border SVG can be drawn at exact size.
+  const [size, setSize] = useState<{ w: number; h: number } | null>(null);
+  // Figma glass spec (all cards): border gradient white 0.95->0.25 at
+  // 1.2px, shadow 0 12 30 rgba(46,50,82,0.16), inset top rim, blur.
+  // Fill: light cards white 0.55->0.30; hero the blue tint at 0.92.
   const base: ViewStyle = {
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: CTRL.stroke,
-    padding: spacing.xl,
+    borderRadius: 22,
     overflow: 'hidden',
-    backgroundColor: GLASS_AVAILABLE ? 'transparent' : CTRL.glassFallback,
+    // A low-alpha base gives iOS a layer to draw the drop shadow from
+    // (children are clipped by overflow, so they can't cast it).
+    backgroundColor: onTint ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.15)',
+    shadowColor: '#2E3252',
+    shadowOpacity: 0.13,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 6,
     ...style,
   };
+  const onLayout = (e: { nativeEvent: { layout: { width: number; height: number } } }) =>
+    setSize({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height });
   const inner = (
     <>
       {GLASS_AVAILABLE ? (
         <GlassView
-          glassEffectStyle="regular"
-          colorScheme="dark"
+          // "clear" is Apple's truly transparent Liquid Glass variant;
+          // "regular" carries built-in frost, kept only for the tinted hero.
+          glassEffectStyle={onTint ? 'regular' : 'clear'}
+          colorScheme="light"
           style={StyleSheet.absoluteFill}
           pointerEvents="none"
         />
       ) : null}
-      {children}
+      {/* a whisper of white veil (light cards), or the blue tint for the
+          hero, over the glass */}
+      <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
+        <Defs>
+          <SvgGradient id="veil" x1="0" y1="0" x2="0" y2="1">
+            <Stop
+              offset="0%"
+              stopColor={tint ? tint[0] : '#FFFFFF'}
+              stopOpacity={tint ? 0.92 : 0.12}
+            />
+            <Stop
+              offset="100%"
+              stopColor={tint ? tint[1] : '#FFFFFF'}
+              stopOpacity={tint ? 0.92 : 0}
+            />
+          </SvgGradient>
+        </Defs>
+        <Rect x="0" y="0" width="100%" height="100%" fill="url(#veil)" />
+      </Svg>
+      {/* soft cloud wisps, same construction as the chat's CloudBg */}
+      {clouds && size ? (
+        <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
+          <Defs>
+            {CARD_CLOUDS.map(([cx, cy, rx, ry, rot, op], i) => (
+              <RadialGradient
+                key={i}
+                id={`cc${i}`}
+                gradientUnits="userSpaceOnUse"
+                cx={cx * size.w}
+                cy={cy * size.h}
+                rx={rx * size.w}
+                ry={ry * size.h}
+                gradientTransform={`rotate(${rot} ${cx * size.w} ${cy * size.h})`}>
+                <Stop offset="0%" stopColor="#FFFFFF" stopOpacity={op} />
+                <Stop offset="60%" stopColor="#FFFFFF" stopOpacity={op * 0.45} />
+                <Stop offset="100%" stopColor="#FFFFFF" stopOpacity={0} />
+              </RadialGradient>
+            ))}
+          </Defs>
+          {CARD_CLOUDS.map((_, i) => (
+            <Rect key={i} x="0" y="0" width="100%" height="100%" fill={`url(#cc${i})`} />
+          ))}
+        </Svg>
+      ) : null}
+      {/* glass edge: one hairline border, bright at the top and fading
+          down, plus a soft inner glow that FOLLOWS the corner curve (a
+          straight strip here used to crush against the rounded corners) */}
+      {size ? (
+        <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
+          <Defs>
+            <SvgGradient id="rim" x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="0%" stopColor="#FFFFFF" stopOpacity={0.8} />
+              <Stop offset="100%" stopColor="#FFFFFF" stopOpacity={0.15} />
+            </SvgGradient>
+            <SvgGradient id="rimIn" x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="0%" stopColor="#FFFFFF" stopOpacity={0.5} />
+              <Stop offset="35%" stopColor="#FFFFFF" stopOpacity={0} />
+            </SvgGradient>
+            {/* whisper of shade on the bottom edge: with the bright top
+                rim, this is what makes the glass sit proud of the field */}
+            <SvgGradient id="rimShade" x1="0" y1="0" x2="0" y2="1">
+              <Stop offset="55%" stopColor="#2E3252" stopOpacity={0} />
+              <Stop offset="100%" stopColor="#2E3252" stopOpacity={0.18} />
+            </SvgGradient>
+          </Defs>
+          <Rect
+            x={0.6}
+            y={0.6}
+            width={size.w - 1.2}
+            height={size.h - 1.2}
+            rx={21.4}
+            ry={21.4}
+            fill="none"
+            stroke="url(#rim)"
+            strokeWidth={1.2}
+          />
+          <Rect
+            x={2}
+            y={2}
+            width={size.w - 4}
+            height={size.h - 4}
+            rx={20}
+            ry={20}
+            fill="none"
+            stroke="url(#rimIn)"
+            strokeWidth={2}
+          />
+          <Rect
+            x={0.6}
+            y={0.6}
+            width={size.w - 1.2}
+            height={size.h - 1.2}
+            rx={21.4}
+            ry={21.4}
+            fill="none"
+            stroke="url(#rimShade)"
+            strokeWidth={1.2}
+          />
+        </Svg>
+      ) : null}
+      {title ? (
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            paddingHorizontal: 14,
+            paddingTop: 9,
+          }}>
+          <Text
+            style={{
+              color: onTint ? 'rgba(255,255,255,0.85)' : GLASS.title,
+              fontSize: 11,
+              fontFamily: fontFamily.semibold,
+              letterSpacing: 1,
+            }}>
+            {title}
+          </Text>
+          {dot ? (
+            <View style={{ width: 8, height: 8, borderRadius: 999, backgroundColor: dot }} />
+          ) : null}
+        </View>
+      ) : null}
+      <View style={{ padding: spacing.lg, paddingTop: spacing.md, ...contentStyle }}>
+        {children}
+      </View>
     </>
   );
-  if (!onPress) return <View style={base}>{inner}</View>;
+  if (!onPress)
+    return (
+      <View style={base} onLayout={onLayout}>
+        {inner}
+      </View>
+    );
   return (
-    <Pressable onPress={onPress} style={({ pressed }) => ({ ...base, opacity: pressed ? 0.85 : 1 })}>
+    <Pressable
+      onPress={onPress}
+      onLayout={onLayout}
+      style={({ pressed }) => ({ ...base, opacity: pressed ? 0.85 : 1 })}>
       {inner}
     </Pressable>
   );
 }
 
-// Box-art tile palette (classic Windows: orange / sky / black / lime /
-// yellow) — vivid color squares floating on the dark control-room field.
-type Shade = [string, string];
-const BENTO = {
-  heroBand: 'rgba(246,140,90,0.6)',
-  heroInner: ['rgba(240,102,46,0.96)', 'rgba(232,88,32,0.98)'] as Shade,
-  skyBand: 'rgba(150,212,240,0.6)',
-  skyInner: ['rgba(79,174,224,0.95)', 'rgba(58,156,210,0.97)'] as Shade,
-  navyBand: 'rgba(120,128,138,0.5)',
-  navyInner: ['rgba(38,42,48,0.96)', 'rgba(28,31,36,0.98)'] as Shade,
-  greenBand: 'rgba(200,228,140,0.65)',
-  greenInner: ['rgba(150,196,80,0.92)', 'rgba(132,182,62,0.95)'] as Shade,
-  paperBand: 'rgba(250,222,120,0.65)',
-  paperInner: ['rgba(246,200,64,0.9)', 'rgba(240,188,44,0.93)'] as Shade,
-  orangeDot: '#F0662E',
-  navy: '#23272E', // chips, pills, corner circles (the black anchor)
-  onDark: '#FFFFFF',
-  onDarkDim: 'rgba(255,255,255,0.72)',
-  onLight: '#23272E',
-  onLightDim: 'rgba(35,39,46,0.65)',
-  greenText: '#2B3D20',
-  greenTextDim: 'rgba(43,61,32,0.7)',
-  paperLine: 'rgba(35,39,46,0.10)',
-};
-
-/** A box-art square: a thick lighter band frames an inner face with a
- * subtle deeper gradient. Pressable when onPress is given. */
-const BAND = 10;
-function Tile({
-  band,
-  inner,
-  onPress,
-  style,
-  innerStyle,
-  children,
-}: {
-  band: string;
-  inner: Shade;
-  onPress?: () => void;
-  style?: ViewStyle;
-  innerStyle?: ViewStyle;
-  children: ReactNode;
-}) {
-  const outer: ViewStyle = {
-    backgroundColor: band,
-    borderRadius: 6,
-    padding: BAND,
-    ...style,
-  };
-  const face = (
-    <View style={{ flexGrow: 1, borderRadius: 4, overflow: 'hidden', padding: spacing.lg, ...innerStyle }}>
-      <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
-        <Defs>
-          <SvgGradient id="g" x1="0" y1="0" x2="1" y2="1">
-            <Stop offset="0%" stopColor={inner[0]} />
-            <Stop offset="100%" stopColor={inner[1]} />
-          </SvgGradient>
-        </Defs>
-        <Rect x="0" y="0" width="100%" height="100%" fill="url(#g)" />
-      </Svg>
-      {children}
-    </View>
-  );
-  if (!onPress) return <View style={outer}>{face}</View>;
-  return (
-    <Pressable onPress={onPress} style={({ pressed }) => ({ ...outer, opacity: pressed ? 0.9 : 1 })}>
-      {face}
-    </Pressable>
-  );
-}
-
-/** Small uppercase eyebrow label used on every tile. */
-function Eyebrow({ children, color }: { children: ReactNode; color: string }) {
-  return (
-    <Text
-      style={{
-        color,
-        fontSize: fontSize.caption,
-        fontFamily: fontFamily.semibold,
-        letterSpacing: 0.8,
-      }}>
-      {children}
-    </Text>
-  );
-}
-
-/** Top-right corner affordance: a small circle holding an icon (or a dot). */
-function Corner({
+/** Round action circle pinned to the card content's top-right. */
+function CornerCircle({
   icon,
   iconColor,
   bg,
-  border,
   rotate,
-  dot,
 }: {
-  icon?: keyof typeof Ionicons.glyphMap;
-  iconColor?: string;
-  bg?: string;
-  border?: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  iconColor: string;
+  bg: string;
   rotate?: boolean;
-  dot?: string;
 }) {
   return (
     <View
       style={{
         position: 'absolute',
-        top: spacing.lg,
+        top: 12,
         right: spacing.lg,
-        width: dot ? 10 : 30,
-        height: dot ? 10 : 30,
+        width: 30,
+        height: 30,
         borderRadius: 999,
-        backgroundColor: dot ?? bg ?? 'transparent',
-        borderWidth: border ? 1 : 0,
-        borderColor: border,
+        backgroundColor: bg,
         alignItems: 'center',
         justifyContent: 'center',
       }}>
-      {icon ? (
-        <Ionicons
-          name={icon}
-          size={16}
-          color={iconColor}
-          style={rotate ? { transform: [{ rotate: '45deg' }] } : undefined}
-        />
-      ) : null}
+      <Ionicons
+        name={icon}
+        size={16}
+        color={iconColor}
+        style={rotate ? { transform: [{ rotate: '45deg' }] } : undefined}
+      />
     </View>
   );
 }
@@ -310,16 +390,14 @@ export default function HomeScreen() {
   const scrollToApprovals = () => scrollRef.current?.scrollTo({ y: approvalsY, animated: true });
 
   return (
-    <SafeAreaView
-      style={{ flex: 1, backgroundColor: connected ? CTRL.bg : colors.background }}
-      edges={['top']}>
-      {connected ? <StatusBar style="light" /> : null}
-      {/* Pearl gradient behind onboarding only (state board stays plain) */}
-      {!connected && <MeshBg variant="skyBlue" />}
+    <SafeAreaView style={{ flex: 1, backgroundColor: GLASS.bg }} edges={['top']}>
+      {connected ? <StatusBar style="dark" /> : null}
+      {/* The whole first-run flow lives on the same lavender_swoosh field */}
+      {!connected && <LavenderSwooshBg />}
       {connected ? (
         // ───────────────────────── State board ─────────────────────────
         <>
-          <HomeBg />
+          <LavenderSwooshBg />
           <ScrollView
             ref={scrollRef}
             contentContainerStyle={{ padding: spacing.lg, paddingBottom: 110 }}
@@ -336,15 +414,14 @@ export default function HomeScreen() {
                 <GlassIconButton
                   icon="person-circle-outline"
                   onPress={() => router.push('/access')}
-                  onDark
                   size={34}
                   iconSize={22}
-                  iconColor={CTRL.dim}
+                  iconColor={GLASS.blue}
                   style={{ marginTop: 2 }}
                 />
                 <Text
                   style={{
-                    color: CTRL.text,
+                    color: GLASS.text,
                     fontSize: fontSize.largeTitle,
                     fontWeight: fontWeight.bold,
                     letterSpacing: -0.5,
@@ -356,7 +433,7 @@ export default function HomeScreen() {
               </View>
 
               <View style={{ alignItems: 'flex-end', paddingTop: 4 }}>
-                <Text style={{ color: CTRL.faint, fontSize: fontSize.small }}>
+                <Text style={{ color: GLASS.faint, fontSize: fontSize.small }}>
                   {dateLabel}
                 </Text>
                 <Pressable
@@ -372,119 +449,112 @@ export default function HomeScreen() {
                   <View
                     style={{ width: 7, height: 7, borderRadius: 999, backgroundColor: statusDot }}
                   />
-                  <Text style={{ color: CTRL.dim, fontSize: fontSize.small }}>
+                  <Text style={{ color: GLASS.dim, fontSize: fontSize.small }}>
                     {statusLabel}
                   </Text>
-                  <Ionicons name="chevron-down" size={12} color={CTRL.faint} />
+                  <Ionicons name="chevron-down" size={12} color={GLASS.faint} />
                 </Pressable>
               </View>
             </View>
 
-            {/* HERO — Ask (orange color block) */}
-            <Tile
-              band={BENTO.heroBand}
-              inner={BENTO.heroInner}
+            {/* HERO — the chat-blue tinted glass window, opens a new chat */}
+            <LiquidCard
+              title="ORCHESTRATE"
+              tint={['#5D89BE', '#4F7CB4']}
+              clouds
               onPress={startChat}
-              style={{ marginTop: spacing.xl }}
-              innerStyle={{ paddingVertical: spacing.xxl }}>
-              <Corner icon="arrow-up" iconColor={BENTO.orangeDot} bg={BENTO.onDark} rotate />
-              <Eyebrow color={BENTO.onDarkDim}>ORCHESTRATE</Eyebrow>
+              style={{ marginTop: spacing.xl, height: 150 }}
+              contentStyle={{
+                flex: 1,
+                justifyContent: 'flex-end',
+                paddingHorizontal: 20,
+                paddingBottom: 32,
+              }}>
+              <CornerCircle icon="arrow-up" iconColor={GLASS.blue} bg="#FFFFFF" rotate />
               <Text
                 style={{
-                  color: BENTO.onDark,
+                  color: '#FFFFFF',
                   fontSize: 30,
                   lineHeight: 34,
-                  minHeight: 68, // keep the original 2-line hero height
                   letterSpacing: -0.5,
                   fontFamily: fontFamily.bold,
-                  marginTop: spacing.sm,
                 }}>
                 Start a task
               </Text>
-            </Tile>
+            </LiquidCard>
 
-            {/* Action row: New task (yellow) + Approvals count (charcoal) */}
+            {/* Action row: tasks state + approvals count */}
             <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.md }}>
-              <Tile
-                band={BENTO.skyBand}
-                inner={BENTO.skyInner}
+              <LiquidCard
+                title={running.length > 0 ? 'RUNNING NOW' : 'ALL CLEAR'}
                 onPress={() => router.navigate('/(tabs)/activity')}
-                style={{ flex: 1 }}>
-                <Corner
+                style={{ flex: 1, height: 124 }}
+                contentStyle={{ flex: 1, justifyContent: 'flex-end', paddingBottom: 21 }}>
+                <CornerCircle
                   icon={running.length > 0 ? 'sync' : 'checkmark'}
-                  iconColor={BENTO.onDark}
-                  bg={BENTO.navy}
+                  iconColor="#FFFFFF"
+                  bg={GLASS.blue}
                 />
-                <Eyebrow color={BENTO.onDarkDim}>
-                  {running.length > 0 ? 'RUNNING NOW' : 'ALL CLEAR'}
-                </Eyebrow>
                 <Text
                   style={{
-                    color: BENTO.onDark,
+                    color: GLASS.text,
                     fontSize: fontSize.title,
                     fontFamily: fontFamily.bold,
-                    marginTop: spacing.xl,
                   }}>
                   {running.length > 0 ? `${running.length} active` : 'No tasks'}
                 </Text>
-              </Tile>
+              </LiquidCard>
 
-              <Tile
-                band={BENTO.navyBand}
-                inner={BENTO.navyInner}
+              <LiquidCard
+                title="NEEDS APPROVAL"
+                dot={approvals.length > 0 ? GLASS.dotAlert : undefined}
                 onPress={scrollToApprovals}
-                style={{ flex: 1 }}>
-                {approvals.length > 0 ? (
-                  <Corner dot={BENTO.orangeDot} />
-                ) : (
-                  <Corner icon="checkmark" iconColor={BENTO.onDark} bg="rgba(255,255,255,0.14)" />
-                )}
-                <Eyebrow color={BENTO.onDarkDim}>NEEDS APPROVAL</Eyebrow>
+                style={{ flex: 1, height: 124 }}
+                contentStyle={{ flex: 1, justifyContent: 'flex-end', paddingBottom: 21 }}>
                 <Text
                   style={{
-                    color: BENTO.onDark,
-                    fontSize: 40,
-                    lineHeight: 44,
+                    color: GLASS.blue,
+                    fontSize: 38,
+                    lineHeight: 42,
                     fontFamily: fontFamily.bold,
-                    marginTop: spacing.sm,
                   }}>
                   {approvals.length}
                 </Text>
-                <Text style={{ color: BENTO.onDarkDim, fontSize: fontSize.caption, marginTop: 2 }}>
+                <Text style={{ color: GLASS.dim, fontSize: fontSize.caption, marginTop: 2 }}>
                   waiting for you
                 </Text>
-              </Tile>
+              </LiquidCard>
             </View>
 
-            {/* Agent voice block (mint) — opens Muppet's calendar view */}
-            <Tile
-              band={BENTO.greenBand}
-              inner={BENTO.greenInner}
+            {/* Agent voice window — opens Muppet's calendar view */}
+            <LiquidCard
+              title={AGENT_NAME.toUpperCase()}
               onPress={() => router.push('/calendar')}
-              style={{ marginTop: spacing.md }}>
+              style={{ marginTop: spacing.md, height: 136 }}
+              contentStyle={{ flex: 1, paddingBottom: 22 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
                 <View
                   style={{
                     width: 26,
                     height: 26,
-                    borderRadius: radius.sm,
-                    backgroundColor: BENTO.navy,
+                    borderRadius: 9,
+                    backgroundColor: GLASS.blueLight,
                     alignItems: 'center',
                     justifyContent: 'center',
                   }}>
-                  <Ionicons name="sparkles" size={13} color={BENTO.onDark} />
+                  <Ionicons name="sparkles" size={13} color="#FFFFFF" />
                 </View>
-                <Eyebrow color={BENTO.greenTextDim}>{AGENT_NAME.toUpperCase()}</Eyebrow>
+                <Text
+                  style={{
+                    color: GLASS.text,
+                    fontSize: fontSize.bodyLg,
+                    fontFamily: fontFamily.semibold,
+                    flex: 1,
+                  }}
+                  numberOfLines={1}>
+                  {running.length > 0 ? running[0].label : 'Ready when you are.'}
+                </Text>
               </View>
-              <Text
-                style={{
-                  color: BENTO.greenText,
-                  fontSize: fontSize.bodyLg,
-                  fontFamily: fontFamily.semibold,
-                  marginTop: spacing.md,
-                }}>
-                {running.length > 0 ? running[0].label : 'Ready when you are.'}
-              </Text>
               <Pressable
                 onPress={startChat}
                 style={({ pressed }) => ({
@@ -493,15 +563,15 @@ export default function HomeScreen() {
                   alignSelf: 'flex-start',
                   gap: 6,
                   marginTop: spacing.lg,
-                  backgroundColor: BENTO.navy,
+                  backgroundColor: GLASS.ink,
                   borderRadius: radius.pill,
                   paddingVertical: 8,
-                  paddingHorizontal: spacing.md,
+                  paddingHorizontal: 14,
                   opacity: pressed ? 0.9 : 1,
                 })}>
                 <Text
                   style={{
-                    color: BENTO.onDark,
+                    color: '#FFFFFF',
                     fontSize: fontSize.small,
                     fontFamily: fontFamily.semibold,
                   }}>
@@ -510,28 +580,24 @@ export default function HomeScreen() {
                 <Ionicons
                   name="arrow-up"
                   size={13}
-                  color={BENTO.onDark}
+                  color="#FFFFFF"
                   style={{ transform: [{ rotate: '45deg' }] }}
                 />
               </Pressable>
-            </Tile>
+            </LiquidCard>
 
-            {/* Recent (cream list block) */}
-            <Tile
-              band={BENTO.paperBand}
-              inner={BENTO.paperInner}
+            {/* Recent (glass list window) */}
+            <LiquidCard
+              title="RECENT"
               style={{ marginTop: spacing.md }}
-              innerStyle={{ padding: 0 }}>
-              <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: spacing.sm }}>
-                <Eyebrow color={BENTO.onLightDim}>RECENT</Eyebrow>
-              </View>
+              contentStyle={{ padding: 0, paddingTop: spacing.sm, paddingBottom: spacing.xl }}>
               {threads.length === 0 ? (
                 <Text
                   style={{
-                    color: BENTO.onLightDim,
+                    color: GLASS.dim,
                     fontSize: fontSize.body,
                     padding: spacing.lg,
-                    paddingTop: 0,
+                    paddingTop: spacing.sm,
                   }}>
                   No conversations yet.
                 </Text>
@@ -547,13 +613,13 @@ export default function HomeScreen() {
                       paddingHorizontal: spacing.lg,
                       paddingVertical: spacing.md,
                       borderTopWidth: i === 0 ? 0 : 1,
-                      borderTopColor: BENTO.paperLine,
+                      borderTopColor: GLASS.line,
                       opacity: pressed ? 0.5 : 1,
                     })}>
                     <View style={{ flex: 1 }}>
                       <Text
                         style={{
-                          color: BENTO.onLight,
+                          color: GLASS.text,
                           fontSize: fontSize.body,
                           fontWeight: fontWeight.semibold,
                         }}
@@ -561,19 +627,19 @@ export default function HomeScreen() {
                         {t.title}
                       </Text>
                       <Text
-                        style={{ color: BENTO.onLightDim, fontSize: fontSize.small, marginTop: 2 }}
+                        style={{ color: GLASS.dim, fontSize: fontSize.small, marginTop: 2 }}
                         numberOfLines={1}>
                         {t.lastPreview}
                       </Text>
                     </View>
                     <Text
-                      style={{ color: BENTO.onLightDim, fontSize: fontSize.caption, marginTop: 1 }}>
+                      style={{ color: GLASS.faint, fontSize: fontSize.caption, marginTop: 1 }}>
                       {t.updatedAt}
                     </Text>
                   </Pressable>
                 ))
               )}
-            </Tile>
+            </LiquidCard>
 
             {/* Needs your approval — kept as ApprovalCard rows (Deny/Review intact) */}
             <View onLayout={(e) => setApprovalsY(e.nativeEvent.layout.y)}>
@@ -582,17 +648,16 @@ export default function HomeScreen() {
                 trailing={approvals.length ? `${approvals.length}` : undefined}
               />
               {approvals.length === 0 ? (
-                <GlassCard>
-                  <Text style={{ color: CTRL.dim, fontSize: fontSize.body }}>
+                <LiquidCard contentStyle={{ paddingTop: spacing.lg }}>
+                  <Text style={{ color: GLASS.dim, fontSize: fontSize.body }}>
                     You’re all caught up.
                   </Text>
-                </GlassCard>
+                </LiquidCard>
               ) : (
                 <View style={{ gap: spacing.md }}>
                   {approvals.map((a) => (
                     <ApprovalCard
                       key={a.id}
-                      onDark
                       approval={a}
                       onApprove={(x) => resolveApproval(x, true)}
                       onDeny={(x) => resolveApproval(x, false)}
