@@ -65,10 +65,11 @@ const AGENT_MARK = BRAND;
 // Figma-exact text color for step 2.
 const FIG_TEXT = '#1A1C21';
 
-// "Liquid glass" language (Figma frame T over the S background): milky
-// translucent windows floating on the lavender-to-blue field. Exactly one
-// signal on the whole board: a red corner dot on the card that needs the
-// user (approvals waiting). Everything else speaks through its content.
+// "defaultskin" — the app's default home theme: clear liquid glass windows
+// floating on the lavender_swoosh field (see lavender-swoosh-bg.tsx).
+// Exactly one signal on the whole board: a coral dot on the card that
+// needs the user (approvals waiting). Everything else speaks through its
+// content. Future skins (e.g. acid pop) swap this palette + the field art.
 const GLASS = {
   bg: '#B7BFDE', // behind the SVG field, matches its midpoint
   text: '#2E3252',

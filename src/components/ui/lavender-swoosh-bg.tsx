@@ -2,7 +2,8 @@ import { StyleSheet, View } from 'react-native';
 import Svg, { Defs, LinearGradient, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
 
 /**
- * "lavender_swoosh" — the home tab background art: the home's lavender melting
+ * "lavender_swoosh" — the field art of the app's default home theme
+ * ("defaultskin"): the home's lavender melting
  * diagonally into the chat tab's bluecloud blue, with a few GRAPHIC swoosh
  * ribbons in the AquaBg style (see aqua-bg.tsx) over soft dreamy glows.
  * Composition rules shared with the chat art: every band flows THROUGH the
