@@ -4,11 +4,16 @@ import { ReactNode, useEffect, useRef, useState } from 'react';
 import {
   Pressable,
   ScrollView,
+  StyleSheet,
   Text,
   useWindowDimensions,
   View,
   type ViewStyle,
 } from 'react-native';
+import { GlassView, isGlassEffectAPIAvailable } from 'expo-glass-effect';
+import { StatusBar } from 'expo-status-bar';
+import { Platform } from 'react-native';
+import Svg, { Defs, LinearGradient as SvgGradient, Rect, Stop } from 'react-native-svg';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { DevReset } from '@/components/dev/dev-reset';
@@ -16,6 +21,7 @@ import { ApprovalCard } from '@/components/ui/approval-card';
 import { AuroraLine } from '@/components/ui/aurora-line';
 import { Card } from '@/components/ui/card';
 import { GlassIconButton } from '@/components/ui/glass-icon-button';
+import { HomeBg } from '@/components/ui/home-bg';
 import { MeshBg } from '@/components/ui/mesh-bg';
 import { PulseMark } from '@/components/ui/pulse-mark';
 import { SectionHeader } from '@/components/ui/section-header';
@@ -60,43 +66,134 @@ const AGENT_MARK = BRAND;
 // Figma-exact text color for step 2.
 const FIG_TEXT = '#1A1C21';
 
-// Color-block bento palette (trakmac-style vivid tiles).
-const BENTO = {
-  orange: '#FF4A32',
-  yellow: '#E8B93E',
-  mint: '#C9E3DA',
-  charcoal: '#1A1C21',
-  cream: '#F2EFE9',
-  onDark: '#FFFFFF',
-  onDarkDim: 'rgba(255,255,255,0.72)',
-  onLight: '#16181D',
-  onLightDim: 'rgba(22,24,29,0.60)',
-  creamLine: 'rgba(22,24,29,0.06)',
+// "Control room" language: dark field, transparent GLASS cards with real
+// background blur, regions defined by thin luminous strokes, and neon
+// indicators reserved for the few numbers that matter.
+const CTRL = {
+  bg: '#0F1522',
+  stroke: 'rgba(255,255,255,0.14)',
+  glassFallback: 'rgba(255,255,255,0.06)',
+  chipBg: 'rgba(255,255,255,0.08)',
+  text: '#F2F6FA',
+  dim: 'rgba(242,246,250,0.6)',
+  faint: 'rgba(242,246,250,0.4)',
+  neonGreen: '#4ADE80',
+  neonCyan: '#5EEAFF',
+  line: 'rgba(255,255,255,0.08)',
 };
 
-/** A flat color-block tile. Pressable when onPress is given. */
-function Tile({
-  bg,
+// expo-glass-effect is iOS-only; fall back to a translucent dark fill.
+const GLASS_AVAILABLE = Platform.OS === 'ios' && isGlassEffectAPIAvailable();
+
+/** A transparent glass card: native background blur (where available)
+ * behind the content, a 1px luminous stroke defining the region, and no
+ * fill of its own — the background gradient breathes through. */
+function GlassCard({
   onPress,
   style,
   children,
 }: {
-  bg: string;
   onPress?: () => void;
   style?: ViewStyle;
   children: ReactNode;
 }) {
   const base: ViewStyle = {
-    backgroundColor: bg,
-    borderRadius: radius.xl,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: CTRL.stroke,
     padding: spacing.xl,
     overflow: 'hidden',
+    backgroundColor: GLASS_AVAILABLE ? 'transparent' : CTRL.glassFallback,
     ...style,
   };
-  if (!onPress) return <View style={base}>{children}</View>;
-  return (
-    <Pressable onPress={onPress} style={({ pressed }) => ({ ...base, opacity: pressed ? 0.9 : 1 })}>
+  const inner = (
+    <>
+      {GLASS_AVAILABLE ? (
+        <GlassView
+          glassEffectStyle="regular"
+          colorScheme="dark"
+          style={StyleSheet.absoluteFill}
+          pointerEvents="none"
+        />
+      ) : null}
       {children}
+    </>
+  );
+  if (!onPress) return <View style={base}>{inner}</View>;
+  return (
+    <Pressable onPress={onPress} style={({ pressed }) => ({ ...base, opacity: pressed ? 0.85 : 1 })}>
+      {inner}
+    </Pressable>
+  );
+}
+
+// Box-art tile palette (classic Windows: orange / sky / black / lime /
+// yellow) — vivid color squares floating on the dark control-room field.
+type Shade = [string, string];
+const BENTO = {
+  heroBand: 'rgba(246,140,90,0.6)',
+  heroInner: ['rgba(240,102,46,0.96)', 'rgba(232,88,32,0.98)'] as Shade,
+  skyBand: 'rgba(150,212,240,0.6)',
+  skyInner: ['rgba(79,174,224,0.95)', 'rgba(58,156,210,0.97)'] as Shade,
+  navyBand: 'rgba(120,128,138,0.5)',
+  navyInner: ['rgba(38,42,48,0.96)', 'rgba(28,31,36,0.98)'] as Shade,
+  greenBand: 'rgba(200,228,140,0.65)',
+  greenInner: ['rgba(150,196,80,0.92)', 'rgba(132,182,62,0.95)'] as Shade,
+  paperBand: 'rgba(250,222,120,0.65)',
+  paperInner: ['rgba(246,200,64,0.9)', 'rgba(240,188,44,0.93)'] as Shade,
+  orangeDot: '#F0662E',
+  navy: '#23272E', // chips, pills, corner circles (the black anchor)
+  onDark: '#FFFFFF',
+  onDarkDim: 'rgba(255,255,255,0.72)',
+  onLight: '#23272E',
+  onLightDim: 'rgba(35,39,46,0.65)',
+  greenText: '#2B3D20',
+  greenTextDim: 'rgba(43,61,32,0.7)',
+  paperLine: 'rgba(35,39,46,0.10)',
+};
+
+/** A box-art square: a thick lighter band frames an inner face with a
+ * subtle deeper gradient. Pressable when onPress is given. */
+const BAND = 10;
+function Tile({
+  band,
+  inner,
+  onPress,
+  style,
+  innerStyle,
+  children,
+}: {
+  band: string;
+  inner: Shade;
+  onPress?: () => void;
+  style?: ViewStyle;
+  innerStyle?: ViewStyle;
+  children: ReactNode;
+}) {
+  const outer: ViewStyle = {
+    backgroundColor: band,
+    borderRadius: 6,
+    padding: BAND,
+    ...style,
+  };
+  const face = (
+    <View style={{ flexGrow: 1, borderRadius: 4, overflow: 'hidden', padding: spacing.lg, ...innerStyle }}>
+      <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
+        <Defs>
+          <SvgGradient id="g" x1="0" y1="0" x2="1" y2="1">
+            <Stop offset="0%" stopColor={inner[0]} />
+            <Stop offset="100%" stopColor={inner[1]} />
+          </SvgGradient>
+        </Defs>
+        <Rect x="0" y="0" width="100%" height="100%" fill="url(#g)" />
+      </Svg>
+      {children}
+    </View>
+  );
+  if (!onPress) return <View style={outer}>{face}</View>;
+  return (
+    <Pressable onPress={onPress} style={({ pressed }) => ({ ...outer, opacity: pressed ? 0.9 : 1 })}>
+      {face}
     </Pressable>
   );
 }
@@ -121,12 +218,14 @@ function Corner({
   icon,
   iconColor,
   bg,
+  border,
   rotate,
   dot,
 }: {
   icon?: keyof typeof Ionicons.glyphMap;
   iconColor?: string;
   bg?: string;
+  border?: string;
   rotate?: boolean;
   dot?: string;
 }) {
@@ -140,6 +239,8 @@ function Corner({
         height: dot ? 10 : 30,
         borderRadius: 999,
         backgroundColor: dot ?? bg ?? 'transparent',
+        borderWidth: border ? 1 : 0,
+        borderColor: border,
         alignItems: 'center',
         justifyContent: 'center',
       }}>
@@ -209,12 +310,16 @@ export default function HomeScreen() {
   const scrollToApprovals = () => scrollRef.current?.scrollTo({ y: approvalsY, animated: true });
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.background }} edges={['top']}>
+    <SafeAreaView
+      style={{ flex: 1, backgroundColor: connected ? CTRL.bg : colors.background }}
+      edges={['top']}>
+      {connected ? <StatusBar style="light" /> : null}
       {/* Pearl gradient behind onboarding only (state board stays plain) */}
       {!connected && <MeshBg variant="skyBlue" />}
       {connected ? (
         // ───────────────────────── State board ─────────────────────────
         <>
+          <HomeBg />
           <ScrollView
             ref={scrollRef}
             contentContainerStyle={{ padding: spacing.lg, paddingBottom: 110 }}
@@ -231,14 +336,15 @@ export default function HomeScreen() {
                 <GlassIconButton
                   icon="person-circle-outline"
                   onPress={() => router.push('/access')}
+                  onDark
                   size={34}
                   iconSize={22}
-                  iconColor={colors.textSecondary}
+                  iconColor={CTRL.dim}
                   style={{ marginTop: 2 }}
                 />
                 <Text
                   style={{
-                    color: colors.text,
+                    color: CTRL.text,
                     fontSize: fontSize.largeTitle,
                     fontWeight: fontWeight.bold,
                     letterSpacing: -0.5,
@@ -250,7 +356,7 @@ export default function HomeScreen() {
               </View>
 
               <View style={{ alignItems: 'flex-end', paddingTop: 4 }}>
-                <Text style={{ color: colors.textTertiary, fontSize: fontSize.small }}>
+                <Text style={{ color: CTRL.faint, fontSize: fontSize.small }}>
                   {dateLabel}
                 </Text>
                 <Pressable
@@ -266,20 +372,22 @@ export default function HomeScreen() {
                   <View
                     style={{ width: 7, height: 7, borderRadius: 999, backgroundColor: statusDot }}
                   />
-                  <Text style={{ color: colors.textSecondary, fontSize: fontSize.small }}>
+                  <Text style={{ color: CTRL.dim, fontSize: fontSize.small }}>
                     {statusLabel}
                   </Text>
-                  <Ionicons name="chevron-down" size={12} color={colors.textTertiary} />
+                  <Ionicons name="chevron-down" size={12} color={CTRL.faint} />
                 </Pressable>
               </View>
             </View>
 
             {/* HERO — Ask (orange color block) */}
             <Tile
-              bg={BENTO.orange}
+              band={BENTO.heroBand}
+              inner={BENTO.heroInner}
               onPress={startChat}
-              style={{ marginTop: spacing.xl, paddingVertical: spacing.xxl }}>
-              <Corner icon="arrow-up" iconColor={BENTO.orange} bg={BENTO.onDark} rotate />
+              style={{ marginTop: spacing.xl }}
+              innerStyle={{ paddingVertical: spacing.xxl }}>
+              <Corner icon="arrow-up" iconColor={BENTO.orangeDot} bg={BENTO.onDark} rotate />
               <Eyebrow color={BENTO.onDarkDim}>ORCHESTRATE</Eyebrow>
               <Text
                 style={{
@@ -298,20 +406,21 @@ export default function HomeScreen() {
             {/* Action row: New task (yellow) + Approvals count (charcoal) */}
             <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.md }}>
               <Tile
-                bg={BENTO.yellow}
+                band={BENTO.skyBand}
+                inner={BENTO.skyInner}
                 onPress={() => router.navigate('/(tabs)/activity')}
                 style={{ flex: 1 }}>
                 <Corner
                   icon={running.length > 0 ? 'sync' : 'checkmark'}
                   iconColor={BENTO.onDark}
-                  bg={BENTO.charcoal}
+                  bg={BENTO.navy}
                 />
-                <Eyebrow color={BENTO.onLightDim}>
+                <Eyebrow color={BENTO.onDarkDim}>
                   {running.length > 0 ? 'RUNNING NOW' : 'ALL CLEAR'}
                 </Eyebrow>
                 <Text
                   style={{
-                    color: BENTO.onLight,
+                    color: BENTO.onDark,
                     fontSize: fontSize.title,
                     fontFamily: fontFamily.bold,
                     marginTop: spacing.xl,
@@ -320,9 +429,13 @@ export default function HomeScreen() {
                 </Text>
               </Tile>
 
-              <Tile bg={BENTO.charcoal} onPress={scrollToApprovals} style={{ flex: 1 }}>
+              <Tile
+                band={BENTO.navyBand}
+                inner={BENTO.navyInner}
+                onPress={scrollToApprovals}
+                style={{ flex: 1 }}>
                 {approvals.length > 0 ? (
-                  <Corner dot={BENTO.orange} />
+                  <Corner dot={BENTO.orangeDot} />
                 ) : (
                   <Corner icon="checkmark" iconColor={BENTO.onDark} bg="rgba(255,255,255,0.14)" />
                 )}
@@ -345,7 +458,8 @@ export default function HomeScreen() {
 
             {/* Agent voice block (mint) — opens Muppet's calendar view */}
             <Tile
-              bg={BENTO.mint}
+              band={BENTO.greenBand}
+              inner={BENTO.greenInner}
               onPress={() => router.push('/calendar')}
               style={{ marginTop: spacing.md }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
@@ -354,17 +468,17 @@ export default function HomeScreen() {
                     width: 26,
                     height: 26,
                     borderRadius: radius.sm,
-                    backgroundColor: BENTO.charcoal,
+                    backgroundColor: BENTO.navy,
                     alignItems: 'center',
                     justifyContent: 'center',
                   }}>
                   <Ionicons name="sparkles" size={13} color={BENTO.onDark} />
                 </View>
-                <Eyebrow color={BENTO.onLightDim}>{AGENT_NAME.toUpperCase()}</Eyebrow>
+                <Eyebrow color={BENTO.greenTextDim}>{AGENT_NAME.toUpperCase()}</Eyebrow>
               </View>
               <Text
                 style={{
-                  color: BENTO.onLight,
+                  color: BENTO.greenText,
                   fontSize: fontSize.bodyLg,
                   fontFamily: fontFamily.semibold,
                   marginTop: spacing.md,
@@ -379,7 +493,7 @@ export default function HomeScreen() {
                   alignSelf: 'flex-start',
                   gap: 6,
                   marginTop: spacing.lg,
-                  backgroundColor: BENTO.charcoal,
+                  backgroundColor: BENTO.navy,
                   borderRadius: radius.pill,
                   paddingVertical: 8,
                   paddingHorizontal: spacing.md,
@@ -403,7 +517,11 @@ export default function HomeScreen() {
             </Tile>
 
             {/* Recent (cream list block) */}
-            <Tile bg={BENTO.cream} style={{ marginTop: spacing.md, padding: 0 }}>
+            <Tile
+              band={BENTO.paperBand}
+              inner={BENTO.paperInner}
+              style={{ marginTop: spacing.md }}
+              innerStyle={{ padding: 0 }}>
               <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: spacing.sm }}>
                 <Eyebrow color={BENTO.onLightDim}>RECENT</Eyebrow>
               </View>
@@ -429,7 +547,7 @@ export default function HomeScreen() {
                       paddingHorizontal: spacing.lg,
                       paddingVertical: spacing.md,
                       borderTopWidth: i === 0 ? 0 : 1,
-                      borderTopColor: BENTO.creamLine,
+                      borderTopColor: BENTO.paperLine,
                       opacity: pressed ? 0.5 : 1,
                     })}>
                     <View style={{ flex: 1 }}>
@@ -449,7 +567,7 @@ export default function HomeScreen() {
                       </Text>
                     </View>
                     <Text
-                      style={{ color: colors.textTertiary, fontSize: fontSize.caption, marginTop: 1 }}>
+                      style={{ color: BENTO.onLightDim, fontSize: fontSize.caption, marginTop: 1 }}>
                       {t.updatedAt}
                     </Text>
                   </Pressable>
@@ -464,16 +582,17 @@ export default function HomeScreen() {
                 trailing={approvals.length ? `${approvals.length}` : undefined}
               />
               {approvals.length === 0 ? (
-                <Card>
-                  <Text style={{ color: colors.textSecondary, fontSize: fontSize.body }}>
+                <GlassCard>
+                  <Text style={{ color: CTRL.dim, fontSize: fontSize.body }}>
                     You’re all caught up.
                   </Text>
-                </Card>
+                </GlassCard>
               ) : (
                 <View style={{ gap: spacing.md }}>
                   {approvals.map((a) => (
                     <ApprovalCard
                       key={a.id}
+                      onDark
                       approval={a}
                       onApprove={(x) => resolveApproval(x, true)}
                       onDeny={(x) => resolveApproval(x, false)}
