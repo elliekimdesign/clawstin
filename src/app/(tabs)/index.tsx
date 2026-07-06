@@ -21,12 +21,12 @@ import { ApprovalCard } from '@/components/ui/approval-card';
 import { AuroraLine } from '@/components/ui/aurora-line';
 import { Card } from '@/components/ui/card';
 import { GlassIconButton } from '@/components/ui/glass-icon-button';
-import { LavenderSwooshBg } from '@/components/ui/lavender-swoosh-bg';
+import { BlissSwooshBg } from '@/components/ui/bliss-swoosh-bg';
 import { PulseMark } from '@/components/ui/pulse-mark';
 import { SectionHeader } from '@/components/ui/section-header';
 import { StatusPopover, worstServiceState } from '@/components/ui/status-popover';
 import { useAppStore } from '@/store/app-store';
-import { colors, darkChat, fontFamily, fontSize, fontWeight, radius, shadow, spacing } from '@/theme/theme';
+import { colors, fontFamily, fontSize, fontWeight, radius, shadow, spacing } from '@/theme/theme';
 
 const USER_NAME = 'Seohyeon';
 const AGENT_NAME = 'Muppet';
@@ -65,26 +65,28 @@ const AGENT_MARK = BRAND;
 // Figma-exact text color for step 2.
 const FIG_TEXT = '#1A1C21';
 
-// "defaultskin" — the app's default home theme: clear liquid glass windows
-// floating on the lavender_swoosh field (see lavender-swoosh-bg.tsx).
-// Exactly one signal on the whole board: a coral dot on the card that
-// needs the user (approvals waiting). Everything else speaks through its
-// content. Future skins (e.g. acid pop) swap this palette + the field art.
+// "blissxp" — the active home skin: clear liquid glass windows floating on
+// the bliss_swoosh field (sky melting into hill green, see
+// bliss-swoosh-bg.tsx). Bold Bento blue for the hero and accents, XP
+// orange for the single alert dot, ink navy type. The previous
+// "defaultskin" (lavender_swoosh + chat-blue accents) stays in the repo
+// as the fallback skin. Exactly one signal on the whole board: the orange
+// dot on the card that needs the user (approvals waiting).
 const GLASS = {
-  bg: '#B7BFDE', // behind the SVG field, matches its midpoint
-  text: '#2E3252',
-  title: '#3A3F63',
-  dim: 'rgba(46,50,82,0.6)',
-  faint: 'rgba(46,50,82,0.45)',
-  // The chat tab's visible sky blue (chatThemes.blueCloudOs.base) — every
-  // blue accent on home (numbers, circles, chip) matches it for continuity.
-  blue: darkChat.base,
-  blueLight: darkChat.base,
-  ink: '#2E3252', // pills/CTAs
-  dotAlert: '#E0685C', // muted coral: attention without fighting the field
+  bg: '#8EC9F0', // behind the SVG field, matches its sky top
+  text: '#1F3A57',
+  title: '#2C4A6B',
+  dim: 'rgba(31,58,87,0.6)',
+  faint: 'rgba(31,58,87,0.45)',
+  // Bold classic-OS blue (Figma Z Glass Bento): hero, numbers, circles.
+  blue: '#2E7CD6',
+  blueLight: '#2E7CD6',
+  ink: '#1F3A57', // pills/CTAs
+  dotAlert: '#F0812F', // XP orange: attention in the Bliss palette
+  avatar: '#E8563F', // Muppet's round character face
   cardBorder: 'rgba(255,255,255,0.75)',
   cardFallback: 'rgba(255,255,255,0.5)',
-  line: 'rgba(46,50,82,0.12)',
+  line: 'rgba(31,58,87,0.12)',
 };
 
 // expo-glass-effect is iOS-only; fall back to a translucent dark fill.
@@ -134,9 +136,13 @@ function LiquidCard({
   const base: ViewStyle = {
     borderRadius: 22,
     overflow: 'hidden',
+    // One quiet hairline is the whole edge treatment: the material (blur +
+    // translucency) does the rest. Stacked gradient rims read as a halo.
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.4)',
     // A low-alpha base gives iOS a layer to draw the drop shadow from
     // (children are clipped by overflow, so they can't cast it).
-    backgroundColor: onTint ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.15)',
+    backgroundColor: onTint ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.07)',
     shadowColor: '#2E3252',
     shadowOpacity: 0.13,
     shadowRadius: 16,
@@ -150,11 +156,12 @@ function LiquidCard({
     <>
       {GLASS_AVAILABLE ? (
         <GlassView
-          // "clear" is Apple's truly transparent Liquid Glass variant;
-          // "regular" carries built-in frost, kept only for the tinted hero.
-          glassEffectStyle={onTint ? 'regular' : 'clear'}
+          // "regular" carries the real frost/blur; the light cards fade the
+          // layer to ~half so the field still shows through — blurred AND
+          // transparent, sitting between the frosty and clear extremes.
+          glassEffectStyle="regular"
           colorScheme="light"
-          style={StyleSheet.absoluteFill}
+          style={[StyleSheet.absoluteFill, !onTint && { opacity: 0.55 }]}
           pointerEvents="none"
         />
       ) : null}
@@ -166,7 +173,7 @@ function LiquidCard({
             <Stop
               offset="0%"
               stopColor={tint ? tint[0] : '#FFFFFF'}
-              stopOpacity={tint ? 0.92 : 0.12}
+              stopOpacity={tint ? 0.92 : 0.06}
             />
             <Stop
               offset="100%"
@@ -200,62 +207,6 @@ function LiquidCard({
           {CARD_CLOUDS.map((_, i) => (
             <Rect key={i} x="0" y="0" width="100%" height="100%" fill={`url(#cc${i})`} />
           ))}
-        </Svg>
-      ) : null}
-      {/* glass edge: one hairline border, bright at the top and fading
-          down, plus a soft inner glow that FOLLOWS the corner curve (a
-          straight strip here used to crush against the rounded corners) */}
-      {size ? (
-        <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
-          <Defs>
-            <SvgGradient id="rim" x1="0" y1="0" x2="0" y2="1">
-              <Stop offset="0%" stopColor="#FFFFFF" stopOpacity={0.8} />
-              <Stop offset="100%" stopColor="#FFFFFF" stopOpacity={0.15} />
-            </SvgGradient>
-            <SvgGradient id="rimIn" x1="0" y1="0" x2="0" y2="1">
-              <Stop offset="0%" stopColor="#FFFFFF" stopOpacity={0.5} />
-              <Stop offset="35%" stopColor="#FFFFFF" stopOpacity={0} />
-            </SvgGradient>
-            {/* whisper of shade on the bottom edge: with the bright top
-                rim, this is what makes the glass sit proud of the field */}
-            <SvgGradient id="rimShade" x1="0" y1="0" x2="0" y2="1">
-              <Stop offset="55%" stopColor="#2E3252" stopOpacity={0} />
-              <Stop offset="100%" stopColor="#2E3252" stopOpacity={0.18} />
-            </SvgGradient>
-          </Defs>
-          <Rect
-            x={0.6}
-            y={0.6}
-            width={size.w - 1.2}
-            height={size.h - 1.2}
-            rx={21.4}
-            ry={21.4}
-            fill="none"
-            stroke="url(#rim)"
-            strokeWidth={1.2}
-          />
-          <Rect
-            x={2}
-            y={2}
-            width={size.w - 4}
-            height={size.h - 4}
-            rx={20}
-            ry={20}
-            fill="none"
-            stroke="url(#rimIn)"
-            strokeWidth={2}
-          />
-          <Rect
-            x={0.6}
-            y={0.6}
-            width={size.w - 1.2}
-            height={size.h - 1.2}
-            rx={21.4}
-            ry={21.4}
-            fill="none"
-            stroke="url(#rimShade)"
-            strokeWidth={1.2}
-          />
         </Svg>
       ) : null}
       {title ? (
@@ -394,11 +345,11 @@ export default function HomeScreen() {
     <SafeAreaView style={{ flex: 1, backgroundColor: GLASS.bg }} edges={['top']}>
       {connected ? <StatusBar style="dark" /> : null}
       {/* The whole first-run flow lives on the same lavender_swoosh field */}
-      {!connected && <LavenderSwooshBg />}
+      {!connected && <BlissSwooshBg />}
       {connected ? (
         // ───────────────────────── State board ─────────────────────────
         <>
-          <LavenderSwooshBg />
+          <BlissSwooshBg />
           <ScrollView
             ref={scrollRef}
             contentContainerStyle={{ padding: spacing.lg, paddingBottom: 110 }}
@@ -461,7 +412,7 @@ export default function HomeScreen() {
             {/* HERO — the chat-blue tinted glass window, opens a new chat */}
             <LiquidCard
               title="ORCHESTRATE"
-              tint={['#5D89BE', '#4F7CB4']}
+              tint={['#2E7CD6', '#1B5FB8']}
               clouds
               onPress={startChat}
               style={{ marginTop: spacing.xl, height: 150 }}
@@ -534,16 +485,32 @@ export default function HomeScreen() {
               style={{ marginTop: spacing.md, height: 136 }}
               contentStyle={{ flex: 1, paddingBottom: 22 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+                {/* Muppet's round character face (profile spot) */}
                 <View
                   style={{
-                    width: 26,
-                    height: 26,
-                    borderRadius: 9,
-                    backgroundColor: GLASS.blueLight,
+                    width: 34,
+                    height: 34,
+                    borderRadius: 999,
+                    backgroundColor: GLASS.avatar,
                     alignItems: 'center',
                     justifyContent: 'center',
                   }}>
-                  <Ionicons name="sparkles" size={13} color="#FFFFFF" />
+                  <View style={{ flexDirection: 'row', gap: 6, marginBottom: 4 }}>
+                    <View
+                      style={{ width: 4.5, height: 4.5, borderRadius: 999, backgroundColor: '#FFFFFF' }}
+                    />
+                    <View
+                      style={{ width: 4.5, height: 4.5, borderRadius: 999, backgroundColor: '#FFFFFF' }}
+                    />
+                  </View>
+                  <View
+                    style={{
+                      width: 11,
+                      height: 2.5,
+                      borderRadius: 2,
+                      backgroundColor: 'rgba(255,255,255,0.9)',
+                    }}
+                  />
                 </View>
                 <Text
                   style={{
