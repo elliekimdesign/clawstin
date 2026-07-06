@@ -13,12 +13,18 @@ export type CrewMember = {
   active: boolean;
   /** completed task count (mock) — drives the usage bar on the crew card */
   tasksDone: number;
+  /** perf mock: % of runs completed with zero user intervention */
+  autonomy: number;
+  /** perf mock: hours of human work saved this week */
+  timeSavedH: number;
+  /** perf mock: tokens spent this week, in millions */
+  tokensM: number;
 };
 
 export const initialCrew: CrewMember[] = [
   {
     id: 'muppet',
-    name: 'Muppet',
+    name: 'Frog',
     icon: 'rocket-outline',
     role: 'Orchestrator · coordinates the crew',
     skills: [
@@ -28,6 +34,9 @@ export const initialCrew: CrewMember[] = [
     ],
     active: true,
     tasksDone: 128,
+    autonomy: 92,
+    timeSavedH: 6.5,
+    tokensM: 2.1,
   },
   {
     id: 'scout',
@@ -41,6 +50,9 @@ export const initialCrew: CrewMember[] = [
     ],
     active: true,
     tasksDone: 96,
+    autonomy: 88,
+    timeSavedH: 4.5,
+    tokensM: 3.4,
   },
   {
     id: 'quill',
@@ -54,6 +66,9 @@ export const initialCrew: CrewMember[] = [
     ],
     active: true,
     tasksDone: 34,
+    autonomy: 95,
+    timeSavedH: 1.8,
+    tokensM: 0.6,
   },
   {
     id: 'pilot',
@@ -67,5 +82,8 @@ export const initialCrew: CrewMember[] = [
     ],
     active: false,
     tasksDone: 57,
+    autonomy: 90,
+    timeSavedH: 3.2,
+    tokensM: 1.3,
   },
 ];

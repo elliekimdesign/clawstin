@@ -1,4 +1,6 @@
-export type ServiceState = 'operational' | 'ready' | 'connected' | 'degraded' | 'down';
+// Status vocabulary is exactly three words, mapped 1:1 to colors:
+// Operational (green) / Degraded (amber) / Offline (red).
+export type ServiceState = 'operational' | 'degraded' | 'down';
 
 export type ServiceGroup = 'core' | 'llm';
 
@@ -7,28 +9,29 @@ export type ServiceStatus = {
   name: string;
   group: ServiceGroup;
   state: ServiceState;
-  /** display label on the right ("Operational", "Ready", "Connected"...) */
-  detail?: string;
+  /** short cause shown under the name when not operational */
+  reason?: string;
   /** optional latency, rendered in mono ("42ms") */
   pingMs?: number;
 };
 
+// Agent state intentionally lives in the Crew tab, not here — this list is
+// the system/infra healthcheck only.
 export const initialServices: ServiceStatus[] = [
-  { id: 'core', name: 'Clawstin Core', group: 'core', state: 'operational', detail: 'Operational' },
-  { id: 'muppet', name: 'Muppet Agent', group: 'core', state: 'ready', detail: 'Ready' },
+  { id: 'core', name: 'Clawstin Core', group: 'core', state: 'operational' },
   {
     id: 'oc35',
     name: 'Claude 3.5 Sonnet',
     group: 'llm',
     state: 'degraded',
-    detail: 'Degraded',
+    reason: 'elevated error rate',
     pingMs: 42,
   },
   {
     id: 'hermes',
-    name: 'Nous Hermes 70B (Ollama)',
+    name: 'Nous Hermes 70B',
     group: 'llm',
-    state: 'connected',
-    detail: 'Connected',
+    state: 'operational',
+    pingMs: 8,
   },
 ];

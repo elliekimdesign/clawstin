@@ -1,33 +1,36 @@
 import type { Approval } from '@/components/ui/approval-card';
 
+// Approvals only come from tools that are actually connected in Access
+// (Calendar, Contacts today) — no payments, nothing outside the toolset.
 export const initialApprovals: Approval[] = [
   {
     id: 'ap1',
-    icon: 'mail',
-    title: 'Send email to Sophia',
-    detail: 'Reply confirming the Thursday meeting.',
-    permissionKey: 'gmail',
+    icon: 'calendar',
+    title: 'Move standup to 10:30 AM',
+    detail: 'Reschedule tomorrow standup and notify the attendees.',
+    permissionKey: 'calendar',
     risk: 'write',
     policy: 'Needs your approval',
     allowlisted: true,
   },
   {
     id: 'ap2',
-    icon: 'card',
-    title: 'Confirm payment · $24.00',
-    detail: 'Renew your domain openclaw.dev for 1 year.',
+    icon: 'people',
+    title: 'Merge 3 duplicate contacts',
+    detail: 'Combine duplicates found in your address book.',
+    permissionKey: 'contacts',
     risk: 'write',
     policy: 'Needs your approval',
     allowlisted: false,
   },
   {
     id: 'ap3',
-    icon: 'terminal',
-    title: 'Run cleanup script',
-    detail: 'Delete 12 temp files in ~/project.',
-    risk: 'exec',
-    command: 'rm -rf ./tmp/*',
-    policy: 'Not in allowlist',
-    allowlisted: false,
+    icon: 'calendar',
+    title: 'Decline the Friday 4pm invite',
+    detail: 'It conflicts with your focus block.',
+    permissionKey: 'calendar',
+    risk: 'write',
+    policy: 'Needs your approval',
+    allowlisted: true,
   },
 ];

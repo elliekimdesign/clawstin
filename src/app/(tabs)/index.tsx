@@ -14,45 +14,27 @@ import { GlassView, isGlassEffectAPIAvailable } from 'expo-glass-effect';
 import { StatusBar } from 'expo-status-bar';
 import { Platform } from 'react-native';
 import Svg, { Defs, LinearGradient as SvgGradient, RadialGradient, Rect, Stop } from 'react-native-svg';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { DevReset } from '@/components/dev/dev-reset';
-import { ApprovalCard } from '@/components/ui/approval-card';
 import { AuroraLine } from '@/components/ui/aurora-line';
 import { Card } from '@/components/ui/card';
 import { GlassIconButton } from '@/components/ui/glass-icon-button';
 import { BlissSwooshBg } from '@/components/ui/bliss-swoosh-bg';
+import { PromptHistorySheet } from '@/components/ui/prompt-history-sheet';
 import { PulseMark } from '@/components/ui/pulse-mark';
-import { SectionHeader } from '@/components/ui/section-header';
 import { StatusPopover, worstServiceState } from '@/components/ui/status-popover';
 import { useAppStore } from '@/store/app-store';
 import { colors, fontFamily, fontSize, fontWeight, radius, shadow, spacing } from '@/theme/theme';
 
-const USER_NAME = 'Seohyeon';
-const AGENT_NAME = 'Muppet';
-
-// Onboarding step 2 — ways to pair with an agent.
-const PAIR_OPTIONS: {
-  icon: keyof typeof Ionicons.glyphMap;
-  title: string;
-  desc: string;
-}[] = [
-  {
-    icon: 'qr-code-outline',
-    title: 'Use a pairing code',
-    desc: 'Scan a QR code or paste a link from your agent setup.',
-  },
-  {
-    icon: 'create-outline',
-    title: 'Enter connection details',
-    desc: 'Use this if you already have an address or token.',
-  },
-  {
-    icon: 'wifi-outline',
-    title: 'Look nearby',
-    desc: 'Find agents available on the same network.',
-  },
-];
+const USER_NAME = 'Ellie';
 
 // Brand accent (orange). Used as a POINT color: marks, icon chips, tiles.
 // (Buttons/CTAs stay black via colors.accent.)
@@ -75,6 +57,7 @@ const FIG_TEXT = '#1A1C21';
 const GLASS = {
   bg: '#8EC9F0', // behind the SVG field, matches its sky top
   text: '#1F3A57',
+  textStrong: '#12233D', // headline/number ink: bold text needs the extra depth
   title: '#2C4A6B',
   dim: 'rgba(31,58,87,0.6)',
   faint: 'rgba(31,58,87,0.45)',
@@ -92,6 +75,12 @@ const GLASS = {
 // expo-glass-effect is iOS-only; fall back to a translucent dark fill.
 const GLASS_AVAILABLE = Platform.OS === 'ios' && isGlassEffectAPIAvailable();
 
+// Home section material. 'milk' = the Acid Pop recipe (blur + a strong
+// milky veil, the field whispers through). Flip to 'paper' to restore
+// solid white cards instantly.
+const SECTION_MATERIAL: 'paper' | 'milk' = 'paper';
+const MILK = (SECTION_MATERIAL as 'paper' | 'milk') === 'milk';
+
 // Cloud wisps for the hero card, as fractions of the card size.
 // [cx, cy, rx, ry, rotation, peak opacity]
 const CARD_CLOUDS: [number, number, number, number, number, number][] = [
@@ -100,6 +89,60 @@ const CARD_CLOUDS: [number, number, number, number, number, number][] = [
   [0.34, 0.58, 0.5, 0.3, -12, 0.35],
   [0.82, 0.78, 0.4, 0.28, -6, 0.3],
 ];
+
+/** Muppet's round character face: orange circle, two dot eyes, a small
+ * mouth. The agent's mark, drawn in code so it scales anywhere. */
+function MuppetFace({ size = 34 }: { size?: number }) {
+  const k = size / 34;
+  return (
+    <View
+      style={{
+        width: size,
+        height: size,
+        borderRadius: 999,
+        backgroundColor: GLASS.avatar,
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}>
+      <View style={{ flexDirection: 'row', gap: 6 * k, marginBottom: 4 * k }}>
+        <View
+          style={{ width: 4.5 * k, height: 4.5 * k, borderRadius: 999, backgroundColor: '#FFFFFF' }}
+        />
+        <View
+          style={{ width: 4.5 * k, height: 4.5 * k, borderRadius: 999, backgroundColor: '#FFFFFF' }}
+        />
+      </View>
+      <View
+        style={{
+          width: 11 * k,
+          height: 2.5 * k,
+          borderRadius: 2 * k,
+          backgroundColor: 'rgba(255,255,255,0.9)',
+        }}
+      />
+    </View>
+  );
+}
+
+/** Small breathing dot for in-flight background work. */
+function RunningDot() {
+  const o = useSharedValue(0.3);
+  useEffect(() => {
+    o.value = withRepeat(
+      withSequence(withTiming(1, { duration: 600 }), withTiming(0.3, { duration: 600 })),
+      -1
+    );
+  }, [o]);
+  const style = useAnimatedStyle(() => ({ opacity: o.value }));
+  return (
+    <Animated.View
+      style={[
+        { width: 7, height: 7, borderRadius: 999, backgroundColor: GLASS.blue },
+        style,
+      ]}
+    />
+  );
+}
 
 /** One liquid-glass window: native background blur (where available)
  * under a milky white veil, a bright hairline border with a brighter top
@@ -133,16 +176,24 @@ function LiquidCard({
   // Figma glass spec (all cards): border gradient white 0.95->0.25 at
   // 1.2px, shadow 0 12 30 rgba(46,50,82,0.16), inset top rim, blur.
   // Fill: light cards white 0.55->0.30; hero the blue tint at 0.92.
+  // Plain sections: milky glass (Acid Pop) or solid white, by the
+  // SECTION_MATERIAL switch above. Hero keeps its tinted glass either way.
   const base: ViewStyle = {
     borderRadius: 22,
     overflow: 'hidden',
-    // One quiet hairline is the whole edge treatment: the material (blur +
-    // translucency) does the rest. Stacked gradient rims read as a halo.
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.4)',
-    // A low-alpha base gives iOS a layer to draw the drop shadow from
-    // (children are clipped by overflow, so they can't cast it).
-    backgroundColor: onTint ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.07)',
+    ...(onTint
+      ? {
+          borderWidth: 1,
+          borderColor: 'rgba(255,255,255,0.4)',
+          backgroundColor: 'rgba(255,255,255,0.12)',
+        }
+      : MILK
+        ? {
+            borderWidth: 1,
+            borderColor: 'rgba(255,255,255,0.35)',
+            backgroundColor: 'rgba(255,255,255,0.18)',
+          }
+        : { backgroundColor: '#FFFFFF' }),
     shadowColor: '#2E3252',
     shadowOpacity: 0.13,
     shadowRadius: 16,
@@ -154,36 +205,36 @@ function LiquidCard({
     setSize({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height });
   const inner = (
     <>
-      {GLASS_AVAILABLE ? (
+      {GLASS_AVAILABLE && (onTint || MILK) ? (
         <GlassView
-          // "regular" carries the real frost/blur; the light cards fade the
-          // layer to ~half so the field still shows through — blurred AND
-          // transparent, sitting between the frosty and clear extremes.
+          // "regular" carries the real frost/blur (hero tint, milk cards).
           glassEffectStyle="regular"
           colorScheme="light"
-          style={[StyleSheet.absoluteFill, !onTint && { opacity: 0.55 }]}
+          style={StyleSheet.absoluteFill}
           pointerEvents="none"
         />
       ) : null}
-      {/* a whisper of white veil (light cards), or the blue tint for the
-          hero, over the glass */}
-      <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
-        <Defs>
-          <SvgGradient id="veil" x1="0" y1="0" x2="0" y2="1">
-            <Stop
-              offset="0%"
-              stopColor={tint ? tint[0] : '#FFFFFF'}
-              stopOpacity={tint ? 0.92 : 0.06}
-            />
-            <Stop
-              offset="100%"
-              stopColor={tint ? tint[1] : '#FFFFFF'}
-              stopOpacity={tint ? 0.92 : 0}
-            />
-          </SvgGradient>
-        </Defs>
-        <Rect x="0" y="0" width="100%" height="100%" fill="url(#veil)" />
-      </Svg>
+      {/* the blue tint over the hero's glass, or the milky veil that
+          keeps plain cards creamy and uniform */}
+      {tint || MILK ? (
+        <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
+          <Defs>
+            <SvgGradient id="veil" x1="0" y1="0" x2="0" y2="1">
+              <Stop
+                offset="0%"
+                stopColor={tint ? tint[0] : '#FFFFFF'}
+                stopOpacity={tint ? 0.92 : 0.46}
+              />
+              <Stop
+                offset="100%"
+                stopColor={tint ? tint[1] : '#FFFFFF'}
+                stopOpacity={tint ? 0.92 : 0.26}
+              />
+            </SvgGradient>
+          </Defs>
+          <Rect x="0" y="0" width="100%" height="100%" fill="url(#veil)" />
+        </Svg>
+      ) : null}
       {/* soft cloud wisps, same construction as the chat's CloudBg */}
       {clouds && size ? (
         <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
@@ -220,9 +271,9 @@ function LiquidCard({
           }}>
           <Text
             style={{
-              color: onTint ? 'rgba(255,255,255,0.85)' : GLASS.title,
+              color: onTint ? 'rgba(255,255,255,0.85)' : GLASS.dim,
               fontSize: 11,
-              fontFamily: fontFamily.semibold,
+              fontFamily: fontFamily.medium,
               letterSpacing: 1,
             }}>
             {title}
@@ -253,41 +304,6 @@ function LiquidCard({
   );
 }
 
-/** Round action circle pinned to the card content's top-right. */
-function CornerCircle({
-  icon,
-  iconColor,
-  bg,
-  rotate,
-}: {
-  icon: keyof typeof Ionicons.glyphMap;
-  iconColor: string;
-  bg: string;
-  rotate?: boolean;
-}) {
-  return (
-    <View
-      style={{
-        position: 'absolute',
-        top: 12,
-        right: spacing.lg,
-        width: 30,
-        height: 30,
-        borderRadius: 999,
-        backgroundColor: bg,
-        alignItems: 'center',
-        justifyContent: 'center',
-      }}>
-      <Ionicons
-        name={icon}
-        size={16}
-        color={iconColor}
-        style={rotate ? { transform: [{ rotate: '45deg' }] } : undefined}
-      />
-    </View>
-  );
-}
-
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTHS = [
   'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
@@ -307,7 +323,9 @@ export default function HomeScreen() {
     approvals,
     running,
     services,
+    background,
     threads,
+    crew,
     resolveApproval,
     createThread,
   } = useAppStore();
@@ -322,13 +340,6 @@ export default function HomeScreen() {
     worst === 'down' ? colors.danger : worst === 'degraded' ? colors.warning : colors.success;
   const statusLabel = worst === 'down' ? 'Issue' : worst === 'degraded' ? 'Degraded' : 'Online';
 
-  // Onboarding has two steps: 0 = agent-mark intro, 1 = value-props list.
-  const [onbStep, setOnbStep] = useState(0);
-  // When disconnected (incl. dev reset), restart onboarding from step 1.
-  useEffect(() => {
-    if (!connected) setOnbStep(0);
-  }, [connected]);
-
   const now = new Date();
   const hello = greeting(now.getHours());
   const dateLabel = `${DAYS[now.getDay()]}, ${MONTHS[now.getMonth()]} ${now.getDate()}`;
@@ -339,17 +350,24 @@ export default function HomeScreen() {
   // Scroll-to-approvals (the charcoal count tile jumps here).
   const scrollRef = useRef<ScrollView>(null);
   const [approvalsY, setApprovalsY] = useState(0);
+  // Full prompt-history bottom sheet, opened from the RECENT card
+  const [historyOpen, setHistoryOpen] = useState(false);
   const scrollToApprovals = () => scrollRef.current?.scrollTo({ y: approvalsY, animated: true });
+
+  // The greeting speaks: the orchestrator's status line, terse and
+  // count-first. A sentence, not a badge row.
+  const runningCount = background.filter((t) => t.state === 'running').length;
+  const needsYou = background.filter((t) => t.state === 'waiting').length + approvals.length;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: GLASS.bg }} edges={['top']}>
       {connected ? <StatusBar style="dark" /> : null}
-      {/* The whole first-run flow lives on the same lavender_swoosh field */}
-      {!connected && <BlissSwooshBg />}
+      {/* Home rides the bare bliss gradient; other tabs keep the swoosh art */}
+      {!connected && <BlissSwooshBg plain />}
       {connected ? (
         // ───────────────────────── State board ─────────────────────────
         <>
-          <BlissSwooshBg />
+          <BlissSwooshBg plain />
           <ScrollView
             ref={scrollRef}
             contentContainerStyle={{ padding: spacing.lg, paddingBottom: 110 }}
@@ -362,32 +380,17 @@ export default function HomeScreen() {
                 alignItems: 'flex-start',
                 marginTop: spacing.xl,
               }}>
-              <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md }}>
-                <GlassIconButton
-                  icon="person-circle-outline"
-                  onPress={() => router.push('/access')}
-                  size={34}
-                  iconSize={22}
-                  iconColor={GLASS.blue}
-                  style={{ marginTop: 2 }}
-                />
-                <Text
-                  style={{
-                    color: GLASS.text,
-                    fontSize: fontSize.largeTitle,
-                    fontWeight: fontWeight.bold,
-                    letterSpacing: -0.5,
-                    lineHeight: 32,
-                  }}>
-                  {hello},{'\n'}
-                  {USER_NAME}
-                </Text>
-              </View>
+              <Text
+                style={{
+                  color: GLASS.textStrong,
+                  fontSize: fontSize.largeTitle,
+                  fontWeight: fontWeight.bold,
+                  letterSpacing: -0.5,
+                }}>
+                {hello}, {USER_NAME}
+              </Text>
 
               <View style={{ alignItems: 'flex-end', paddingTop: 4 }}>
-                <Text style={{ color: GLASS.faint, fontSize: fontSize.small }}>
-                  {dateLabel}
-                </Text>
                 <Pressable
                   onPress={() => setStatusOpen(true)}
                   hitSlop={8}
@@ -395,7 +398,6 @@ export default function HomeScreen() {
                     flexDirection: 'row',
                     alignItems: 'center',
                     gap: 6,
-                    marginTop: 4,
                     opacity: pressed ? 0.6 : 1,
                   })}>
                   <View
@@ -409,161 +411,284 @@ export default function HomeScreen() {
               </View>
             </View>
 
-            {/* HERO — the chat-blue tinted glass window, opens a new chat */}
-            <LiquidCard
-              title="ORCHESTRATE"
-              tint={['#2E7CD6', '#1B5FB8']}
-              clouds
+            {/* The crew desk — one card, messenger grammar: a docked chat
+                input sits as the natural first row ("Ask your crew"), and
+                what the crew is already doing flows right beneath it.
+                Only open work lives here (running, or blocked on you —
+                approvals included); finished results fall further down
+                into History. When nothing is open the card is just the
+                quiet ask row. */}
+            {/* ask console — the deep-dark command tower over the light
+                cards (dark + mono = system surface, same family as the
+                Logs tab and status popover). */}
+            <Pressable
               onPress={startChat}
-              style={{ marginTop: spacing.xl, height: 150 }}
-              contentStyle={{
-                flex: 1,
-                justifyContent: 'flex-end',
-                paddingHorizontal: 20,
-                paddingBottom: 32,
-              }}>
-              <CornerCircle icon="arrow-up" iconColor={GLASS.blue} bg="#FFFFFF" rotate />
-              <Text
+              style={({ pressed }) => ({
+                marginTop: spacing.xl,
+                height: 120,
+                borderRadius: 22,
+                backgroundColor: '#0E1626',
+                borderWidth: 1,
+                borderColor: 'rgba(255,255,255,0.28)',
+                padding: spacing.lg,
+                justifyContent: 'space-between',
+                shadowColor: '#2E3252',
+                shadowOpacity: 0.22,
+                shadowRadius: 16,
+                shadowOffset: { width: 0, height: 8 },
+                elevation: 8,
+                opacity: pressed ? 0.88 : 1,
+              })}>
+              <View
                 style={{
-                  color: '#FFFFFF',
-                  fontSize: 30,
-                  lineHeight: 34,
-                  letterSpacing: -0.5,
-                  fontFamily: fontFamily.bold,
-                }}>
-                Start a task
-              </Text>
-            </LiquidCard>
-
-            {/* Action row: tasks state + approvals count */}
-            <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.md }}>
-              <LiquidCard
-                title={running.length > 0 ? 'RUNNING NOW' : 'ALL CLEAR'}
-                onPress={() => router.navigate('/(tabs)/activity')}
-                style={{ flex: 1, height: 124 }}
-                contentStyle={{ flex: 1, justifyContent: 'flex-end', paddingBottom: 21 }}>
-                <CornerCircle
-                  icon={running.length > 0 ? 'sync' : 'checkmark'}
-                  iconColor="#FFFFFF"
-                  bg={GLASS.blue}
-                />
-                <Text
-                  style={{
-                    color: GLASS.text,
-                    fontSize: fontSize.title,
-                    fontFamily: fontFamily.bold,
-                  }}>
-                  {running.length > 0 ? `${running.length} active` : 'No tasks'}
-                </Text>
-              </LiquidCard>
-
-              <LiquidCard
-                title="NEEDS APPROVAL"
-                dot={approvals.length > 0 ? GLASS.dotAlert : undefined}
-                onPress={scrollToApprovals}
-                style={{ flex: 1, height: 124 }}
-                contentStyle={{ flex: 1, justifyContent: 'flex-end', paddingBottom: 21 }}>
-                <Text
-                  style={{
-                    color: GLASS.blue,
-                    fontSize: 38,
-                    lineHeight: 42,
-                    fontFamily: fontFamily.bold,
-                  }}>
-                  {approvals.length}
-                </Text>
-                <Text style={{ color: GLASS.dim, fontSize: fontSize.caption, marginTop: 2 }}>
-                  waiting for you
-                </Text>
-              </LiquidCard>
-            </View>
-
-            {/* Agent voice window — opens Muppet's calendar view */}
-            <LiquidCard
-              title={AGENT_NAME.toUpperCase()}
-              onPress={() => router.push('/calendar')}
-              style={{ marginTop: spacing.md, height: 136 }}
-              contentStyle={{ flex: 1, paddingBottom: 22 }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-                {/* Muppet's round character face (profile spot) */}
-                <View
-                  style={{
-                    width: 34,
-                    height: 34,
-                    borderRadius: 999,
-                    backgroundColor: GLASS.avatar,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}>
-                  <View style={{ flexDirection: 'row', gap: 6, marginBottom: 4 }}>
-                    <View
-                      style={{ width: 4.5, height: 4.5, borderRadius: 999, backgroundColor: '#FFFFFF' }}
-                    />
-                    <View
-                      style={{ width: 4.5, height: 4.5, borderRadius: 999, backgroundColor: '#FFFFFF' }}
-                    />
-                  </View>
-                  <View
-                    style={{
-                      width: 11,
-                      height: 2.5,
-                      borderRadius: 2,
-                      backgroundColor: 'rgba(255,255,255,0.9)',
-                    }}
-                  />
-                </View>
-                <Text
-                  style={{
-                    color: GLASS.text,
-                    fontSize: fontSize.bodyLg,
-                    fontFamily: fontFamily.semibold,
-                    flex: 1,
-                  }}
-                  numberOfLines={1}>
-                  {running.length > 0 ? running[0].label : 'Ready when you are.'}
-                </Text>
-              </View>
-              <Pressable
-                onPress={startChat}
-                style={({ pressed }) => ({
                   flexDirection: 'row',
                   alignItems: 'center',
-                  alignSelf: 'flex-start',
-                  gap: 6,
-                  marginTop: spacing.lg,
-                  backgroundColor: GLASS.ink,
-                  borderRadius: radius.pill,
-                  paddingVertical: 8,
-                  paddingHorizontal: 14,
-                  opacity: pressed ? 0.9 : 1,
-                })}>
+                  justifyContent: 'space-between',
+                }}>
+                <Text
+                  style={{
+                    color: 'rgba(255,255,255,0.45)',
+                    fontFamily: fontFamily.mono,
+                    fontSize: 11,
+                    letterSpacing: 1.2,
+                  }}>
+                  ~/crew
+                </Text>
+                {/* ghost arrow: oversized, near-silent launch mark */}
+                <Ionicons
+                  name="arrow-up"
+                  size={40}
+                  color="rgba(255,255,255,0.30)"
+                  style={{
+                    transform: [{ rotate: '45deg' }],
+                    marginTop: -6,
+                    marginRight: -4,
+                  }}
+                />
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+                <MuppetFace size={26} />
                 <Text
                   style={{
                     color: '#FFFFFF',
-                    fontSize: fontSize.small,
-                    fontFamily: fontFamily.semibold,
+                    fontSize: 25,
+                    lineHeight: 29,
+                    letterSpacing: -0.5,
+                    fontFamily: fontFamily.bold,
                   }}>
-                  Ask {AGENT_NAME}
+                  Ask your crew
                 </Text>
-                <Ionicons
-                  name="arrow-up"
-                  size={13}
-                  color="#FFFFFF"
-                  style={{ transform: [{ rotate: '45deg' }] }}
-                />
-              </Pressable>
-            </LiquidCard>
+              </View>
+            </Pressable>
 
-            {/* Recent (glass list window) */}
+            {/* The work desk — one mass: the glance tiles sit INSIDE the
+                list card as its header (folder-tab grammar), and the open
+                rows hang directly off them. "waiting for you" + the rows
+                right beneath = these are the chats waiting on me. */}
+            <View onLayout={(e) => setApprovalsY(e.nativeEvent.layout.y)}>
+              <LiquidCard
+                style={{ marginTop: spacing.md }}
+                contentStyle={{ padding: 0, paddingBottom: spacing.sm }}>
+                {/* header tiles */}
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    gap: spacing.md,
+                    padding: spacing.lg,
+                    paddingBottom: spacing.md,
+                  }}>
+                  <Pressable
+                    onPress={() => router.navigate('/(tabs)/activity')}
+                    style={({ pressed }) => ({
+                      flex: 1,
+                      height: 72,
+                      borderRadius: 16,
+                      // same gray inner-bento as the Crew Perf stat tiles
+                      backgroundColor: 'rgba(31,58,87,0.04)',
+                      paddingHorizontal: 14,
+                      paddingTop: 10,
+                      paddingBottom: 10,
+                      justifyContent: 'space-between',
+                      opacity: pressed ? 0.7 : 1,
+                    })}>
+                    <Text
+                      style={{
+                        color: GLASS.dim,
+                        fontSize: 11,
+                        fontFamily: fontFamily.medium,
+                        letterSpacing: 1,
+                      }}>
+                      {runningCount > 0 ? 'RUNNING NOW' : 'ALL CLEAR'}
+                    </Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4 }}>
+                      <Text
+                        style={{
+                          color: GLASS.textStrong,
+                          fontSize: 22,
+                          lineHeight: 26,
+                          fontFamily: fontFamily.bold,
+                        }}>
+                        {runningCount}
+                      </Text>
+                      <Text style={{ color: GLASS.dim, fontSize: 11 }}>
+                        {runningCount === 1 ? 'task' : 'tasks'}
+                      </Text>
+                    </View>
+                  </Pressable>
+
+                  <Pressable
+                    onPress={scrollToApprovals}
+                    style={({ pressed }) => ({
+                      flex: 1,
+                      height: 72,
+                      borderRadius: 16,
+                      // same gray inner-bento as the Crew Perf stat tiles
+                      backgroundColor: 'rgba(31,58,87,0.04)',
+                      paddingHorizontal: 14,
+                      paddingTop: 10,
+                      paddingBottom: 10,
+                      justifyContent: 'space-between',
+                      opacity: pressed ? 0.7 : 1,
+                    })}>
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                      }}>
+                      <Text
+                        style={{
+                          color: GLASS.dim,
+                          fontSize: 11,
+                          fontFamily: fontFamily.medium,
+                          letterSpacing: 1,
+                        }}>
+                        NEEDS APPROVAL
+                      </Text>
+                      {needsYou > 0 ? (
+                        <View
+                          style={{
+                            width: 8,
+                            height: 8,
+                            borderRadius: 999,
+                            backgroundColor: GLASS.dotAlert,
+                          }}
+                        />
+                      ) : null}
+                    </View>
+                    <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4 }}>
+                      <Text
+                        style={{
+                          color: GLASS.textStrong,
+                          fontSize: 22,
+                          lineHeight: 26,
+                          fontFamily: fontFamily.bold,
+                        }}>
+                        {needsYou}
+                      </Text>
+                      <Text style={{ color: GLASS.dim, fontSize: 11 }}>
+                        waiting
+                      </Text>
+                    </View>
+                  </Pressable>
+                </View>
+
+                {[
+                  ...background.map((t) => ({
+                    key: t.id,
+                    agentId: t.agentId,
+                    label: t.label,
+                    waiting: t.state === 'waiting',
+                    onPress: () => router.push(`/chat/${t.threadId}`),
+                  })),
+                  // approvals ARE "needs you" — same concept, one list.
+                  // Home only indexes; the action happens on the detail.
+                  ...approvals.map((a) => ({
+                    key: a.id,
+                    agentId: 'muppet',
+                    label: a.title,
+                    waiting: true,
+                    onPress: () => router.push(`/approval/${a.id}`),
+                  })),
+                ].map((row, i) => {
+                  return (
+                    <Pressable
+                      key={row.key}
+                      onPress={row.onPress}
+                      style={({ pressed }) => ({
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: spacing.sm,
+                        paddingHorizontal: spacing.lg,
+                        // comfortable touch rows: 13pt text + 16 top/bottom
+                        // clears the 44pt minimum target
+                        paddingVertical: 16,
+                        borderTopWidth: i === 0 ? 0 : 1,
+                        borderTopColor: GLASS.line,
+                        opacity: pressed ? 0.5 : 1,
+                      })}>
+                      <Text
+                        numberOfLines={1}
+                        style={{
+                          flex: 1,
+                          color: GLASS.text,
+                          fontSize: fontSize.small,
+                          fontWeight: fontWeight.semibold,
+                        }}>
+                        {row.label}
+                      </Text>
+                      {row.waiting ? (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                          <View
+                            style={{
+                              width: 7,
+                              height: 7,
+                              borderRadius: 999,
+                              backgroundColor: GLASS.dotAlert,
+                            }}
+                          />
+                          <Text
+                            style={{
+                              color: GLASS.dotAlert,
+                              fontSize: 11,
+                              fontFamily: fontFamily.mono,
+                            }}>
+                            needs you
+                          </Text>
+                        </View>
+                      ) : (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                          <RunningDot />
+                          <Text
+                            style={{
+                              color: GLASS.dim,
+                              fontSize: 11,
+                              fontFamily: fontFamily.mono,
+                            }}>
+                            running
+                          </Text>
+                        </View>
+                      )}
+                    </Pressable>
+                  );
+                })}
+              </LiquidCard>
+            </View>
+
+            {/* Delivered — everything FINISHED, newest first. Blue dot =
+                done but not yet opened (messenger grammar: the crew
+                delivered, you haven't picked it up). Tap the card for the
+                full prompt history; rows open their own thread. */}
             <LiquidCard
-              title="RECENT"
-              style={{ marginTop: spacing.md }}
+              title="DELIVERED"
+              onPress={() => setHistoryOpen(true)}
+              style={{ marginTop: spacing.lg }}
               contentStyle={{ padding: 0, paddingTop: spacing.sm, paddingBottom: spacing.xl }}>
               {threads.length === 0 ? (
                 <Text
                   style={{
                     color: GLASS.dim,
-                    fontSize: fontSize.body,
+                    fontSize: fontSize.small,
                     padding: spacing.lg,
                     paddingTop: spacing.sm,
                   }}>
@@ -577,31 +702,46 @@ export default function HomeScreen() {
                     style={({ pressed }) => ({
                       flexDirection: 'row',
                       alignItems: 'flex-start',
-                      gap: spacing.md,
+                      gap: spacing.sm,
                       paddingHorizontal: spacing.lg,
-                      paddingVertical: spacing.md,
+                      paddingVertical: 15,
                       borderTopWidth: i === 0 ? 0 : 1,
                       borderTopColor: GLASS.line,
                       opacity: pressed ? 0.5 : 1,
                     })}>
+                    {/* unread dot column: finished, not yet opened */}
+                    <View
+                      style={{
+                        width: 7,
+                        height: 7,
+                        borderRadius: 999,
+                        marginTop: 7,
+                        backgroundColor: t.unread ? GLASS.blue : 'transparent',
+                      }}
+                    />
                     <View style={{ flex: 1 }}>
                       <Text
                         style={{
                           color: GLASS.text,
-                          fontSize: fontSize.body,
+                          fontSize: fontSize.small,
                           fontWeight: fontWeight.semibold,
                         }}
                         numberOfLines={1}>
                         {t.title}
                       </Text>
                       <Text
-                        style={{ color: GLASS.dim, fontSize: fontSize.small, marginTop: 2 }}
+                        style={{ color: GLASS.dim, fontSize: fontSize.caption, marginTop: 2 }}
                         numberOfLines={1}>
                         {t.lastPreview}
                       </Text>
                     </View>
                     <Text
-                      style={{ color: GLASS.faint, fontSize: fontSize.caption, marginTop: 1 }}>
+                      style={{
+                        color: GLASS.faint,
+                        fontSize: 11,
+                        fontFamily: fontFamily.mono,
+                        marginTop: 2,
+                      }}>
                       {t.updatedAt}
                     </Text>
                   </Pressable>
@@ -609,48 +749,26 @@ export default function HomeScreen() {
               )}
             </LiquidCard>
 
-            {/* Needs your approval — kept as ApprovalCard rows (Deny/Review intact) */}
-            <View onLayout={(e) => setApprovalsY(e.nativeEvent.layout.y)}>
-              <SectionHeader
-                title="NEEDS YOUR APPROVAL"
-                trailing={approvals.length ? `${approvals.length}` : undefined}
-              />
-              {approvals.length === 0 ? (
-                <LiquidCard contentStyle={{ paddingTop: spacing.lg }}>
-                  <Text style={{ color: GLASS.dim, fontSize: fontSize.body }}>
-                    You’re all caught up.
-                  </Text>
-                </LiquidCard>
-              ) : (
-                <View style={{ gap: spacing.md }}>
-                  {approvals.map((a) => (
-                    <ApprovalCard
-                      key={a.id}
-                      approval={a}
-                      onApprove={(x) => resolveApproval(x, true)}
-                      onDeny={(x) => resolveApproval(x, false)}
-                      onReview={(x) => router.push(`/approval/${x.id}`)}
-                    />
-                  ))}
-                </View>
-              )}
-            </View>
           </ScrollView>
 
           {/* Connection status popover (over the board) */}
           {statusOpen ? (
             <StatusPopover
               services={services}
+              agentsReady={crew.filter((m) => m.active).length}
               onClose={() => setStatusOpen(false)}
               onManageAccess={() => {
                 setStatusOpen(false);
-                router.push('/access?focus=infra');
+                router.push('/access?focus=issue');
               }}
               topOffset={insets.top + 96}
             />
           ) : null}
+
+          {/* Full prompt history, slid up from the RECENT card */}
+          <PromptHistorySheet visible={historyOpen} onClose={() => setHistoryOpen(false)} />
         </>
-      ) : onbStep === 0 ? (
+      ) : (
         // ──────────────────── Onboarding · Step 1 (agent mark) ────────────────────
         <ScrollView
           contentContainerStyle={{ padding: spacing.lg, paddingBottom: 110, flexGrow: 1 }}
@@ -718,9 +836,9 @@ export default function HomeScreen() {
           </View>
           <View style={{ flex: 1 }} />
 
-          {/* CTA → next step */}
+          {/* CTA → connect */}
           <Pressable
-            onPress={() => setOnbStep(1)}
+            onPress={() => setConnected(true)}
             style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}>
             <View
               style={{
@@ -739,84 +857,6 @@ export default function HomeScreen() {
               </Text>
             </View>
           </Pressable>
-        </ScrollView>
-      ) : (
-        // ──────────────────── Onboarding · Step 2 (pairing) ────────────────────
-        <ScrollView
-          contentContainerStyle={{ padding: spacing.lg, paddingBottom: 110, flexGrow: 1 }}
-          showsVerticalScrollIndicator={false}>
-          {/* Signature aurora line */}
-          <View style={{ marginTop: 104 }}>
-            <AuroraLine width={contentW} height={3} opacity={0.55} animated={false} glow={false} />
-          </View>
-
-          {/* Headline */}
-          <Text
-            style={{
-              color: FIG_TEXT,
-              fontSize: 34,
-              fontFamily: fontFamily.semibold,
-              letterSpacing: -0.85,
-              lineHeight: 41,
-              marginTop: spacing.xl,
-            }}>
-            How do you{'\n'}want to pair?
-          </Text>
-
-          {/* Pairing options */}
-          <View style={{ marginTop: spacing.xxl, gap: spacing.md }}>
-            {PAIR_OPTIONS.map((opt) => (
-              <Pressable
-                key={opt.title}
-                onPress={() => setConnected(true)}
-                style={({ pressed }) => ({
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: spacing.md,
-                  paddingVertical: spacing.md,
-                  paddingHorizontal: spacing.lg,
-                  backgroundColor: colors.card,
-                  borderRadius: radius.lg,
-                  ...shadow.card,
-                  opacity: pressed ? 0.7 : 1,
-                })}>
-                {/* Icon chip — soft blue, matches the agent mark */}
-                <View
-                  style={{
-                    width: 44,
-                    height: 44,
-                    borderRadius: radius.md,
-                    backgroundColor: BRAND_SOFT,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}>
-                  <Ionicons name={opt.icon} size={22} color={BRAND} />
-                </View>
-                {/* Title + desc */}
-                <View style={{ flex: 1 }}>
-                  <Text
-                    style={{
-                      color: FIG_TEXT,
-                      fontSize: fontSize.bodyLg,
-                      fontFamily: fontFamily.semibold,
-                    }}>
-                    {opt.title}
-                  </Text>
-                  <Text
-                    style={{
-                      color: colors.textSecondary,
-                      fontSize: fontSize.small,
-                      lineHeight: 18,
-                      marginTop: 3,
-                    }}>
-                    {opt.desc}
-                  </Text>
-                </View>
-                {/* Chevron */}
-                <Ionicons name="chevron-forward" size={20} color={colors.textTertiary} />
-              </Pressable>
-            ))}
-          </View>
         </ScrollView>
       )}
       <DevReset />

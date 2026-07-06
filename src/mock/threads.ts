@@ -10,6 +10,10 @@ export type Thread = {
   updatedAt: string;
   /** avatar icon for the thread row */
   icon: keyof typeof Ionicons.glyphMap;
+  /** crew member who produced the result (face chip in History) */
+  agentId?: string;
+  /** finished but not yet opened by the user (blue unread dot) */
+  unread?: boolean;
   messages: ChatMessage[];
 };
 
@@ -31,8 +35,30 @@ export const askCategories: AskCategory[] = [
 
 export const initialThreads: Thread[] = [
   {
+    id: 't4',
+    title: 'Morning briefing',
+    lastPreview: 'Your morning briefing is ready.',
+    updatedAt: '10m',
+    icon: 'sunny-outline',
+    agentId: 'muppet',
+    unread: true,
+    messages: [
+      {
+        id: 't4-m1',
+        from: 'user',
+        text: 'Prep a morning briefing from my inbox',
+      },
+      {
+        id: 't4-m2',
+        from: 'agent',
+        text: 'Your morning briefing is ready: 3 emails need replies, standup moved to 10:30, and the beta launch checklist is on track.',
+      },
+    ],
+  },
+  {
     id: 't1',
     title: 'Inbox cleanup',
+    agentId: 'muppet',
     lastPreview: 'Summarized 4 new emails and archived 12.',
     updatedAt: '2m',
     icon: 'mail-outline',
@@ -58,6 +84,7 @@ export const initialThreads: Thread[] = [
   {
     id: 't2',
     title: 'Trip to Seoul',
+    agentId: 'scout',
     lastPreview: 'I found 3 flight options under your budget.',
     updatedAt: '1h',
     icon: 'airplane-outline',
@@ -81,6 +108,7 @@ export const initialThreads: Thread[] = [
   {
     id: 't3',
     title: 'Weekly review',
+    agentId: 'quill',
     lastPreview: 'Here are your top 3 priorities for the week.',
     updatedAt: 'Mon',
     icon: 'calendar-clear-outline',

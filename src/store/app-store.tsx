@@ -21,6 +21,7 @@ import {
 import { CrewMember, initialCrew } from '@/mock/crew';
 import { CrewKey, routeCrew } from '@/mock/crew-routing';
 import { initialInfra, InfraEndpoint } from '@/mock/infra';
+import { BackgroundTask, initialBackground } from '@/mock/background';
 import { initialServices, ServiceStatus } from '@/mock/services';
 import { initialThreads, Thread } from '@/mock/threads';
 
@@ -92,6 +93,12 @@ type Store = {
   activity: ActivityItem[];
   running: RunningTask[];
   services: ServiceStatus[];
+  /** what the crew is doing in the background right now */
+  background: BackgroundTask[];
+  /** id of the model currently used as the default route */
+  defaultModelId: string;
+  /** reroute to the local model; clears the degraded cloud-model state */
+  failoverToLocal: () => void;
   calendarDays: CalendarDay[];
   addCalendarEvent: (date: number, ev: Omit<CalendarEvent, 'id'>) => void;
   /** non-null while Muppet is "scanning" the calendar (drives the chat week strip) */
@@ -160,7 +167,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [approvals, setApprovals] = useState<Approval[]>(initialApprovals);
   const [activity, setActivity] = useState<ActivityItem[]>(initialActivity);
   const [running] = useState<RunningTask[]>([{ id: 'run1', label: 'Checking your calendar' }]);
-  const [services] = useState<ServiceStatus[]>(initialServices);
+  const [services, setServices] = useState<ServiceStatus[]>(initialServices);
+  const [background] = useState<BackgroundTask[]>(initialBackground);
+  // Which model currently serves as the default route ('oc35' = Claude).
+  const [defaultModelId, setDefaultModelId] = useState('oc35');
+
+  // Demo resolution for a degraded cloud model: reroute traffic to the
+  // local model. The degraded row clears and [Default] moves to hermes.
+  const failoverToLocal = useCallback(() => {
+    setDefaultModelId('hermes');
+    setServices((prev) =>
+      prev.map((s) =>
+        s.id === 'oc35' ? { ...s, state: 'operational' as const, reason: undefined } : s
+      )
+    );
+  }, []);
   const [calendarDays, setCalendarDays] = useState<CalendarDay[]>(initialCalendarDays);
   const [calendarScan, setCalendarScan] = useState<{ targetDate: number } | null>(null);
   const [crewSelected, setCrewSelected] = useState<CrewKey | null>(null);
@@ -202,11 +223,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const addActivity = useCallback(
     (
-      item: Omit<ActivityItem, 'id' | 'time' | 'crew' | 'icon' | 'day'> &
-        Partial<Pick<ActivityItem, 'crew' | 'icon' | 'day'>>
+      item: Omit<ActivityItem, 'id' | 'time' | 'day' | 'ago' | 'agentId' | 'threadId'> &
+        Partial<Pick<ActivityItem, 'day' | 'ago' | 'agentId' | 'threadId'>>
     ) => {
       setActivity((prev) => [
-        { id: nextId('a'), time: 'just now', crew: 'Muppet', icon: 'checkmark-circle-outline', day: 'today', ...item },
+        {
+          id: nextId('a'),
+          time: 'just now',
+          day: 'today',
+          ago: '1m',
+          agentId: 'muppet',
+          threadId: 't1',
+          ...item,
+        },
         ...prev,
       ]);
     },
@@ -219,7 +248,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       logRequest(a.title, approved ? 'Approved' : 'Denied');
       if (approved) {
         if (a.permissionKey) setPermissionEnabled(a.permissionKey, true);
-        addActivity({ icon: 'checkmark-circle', title: `Approved: ${a.title}` });
+        addActivity({ prompt: `Approved: ${a.title}` });
       }
     },
     [addActivity, logRequest, setPermissionEnabled]
@@ -579,6 +608,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       activity,
       running,
       services,
+      background,
+      defaultModelId,
+      failoverToLocal,
       calendarDays,
       addCalendarEvent,
       calendarScan,
@@ -620,6 +652,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       connected,
       running,
       services,
+      background,
+      defaultModelId,
+      failoverToLocal,
       calendarDays,
       addCalendarEvent,
       calendarScan,

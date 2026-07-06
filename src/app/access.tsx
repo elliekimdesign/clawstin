@@ -1,8 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 
 import { GlassIconButton } from '@/components/ui/glass-icon-button';
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Linking,
   Pressable,
@@ -45,15 +45,26 @@ import {
 } from "@/theme/theme";
 
 const MONO = "Menlo";
-// Lighter than the shared colors.cardAlt — this screen's white page needs a
-// more subtle gray for its section blocks than the token used elsewhere.
-const SECTION_BG = "#F8F9FA";
-// Soft device-illustration tone: a gentle top-to-bottom gradient (not flat
-// gray) for a touch of dimensionality, with a slightly richer stroke for
-// definition at the larger size.
-const DEVICE_FILL_TOP = "#F5F6F7";
-const DEVICE_FILL_BOTTOM = "#E9EBEE";
-const DEVICE_STROKE = "#BFC4CB";
+// blissxp ink scale — the page keeps its structure but joins the family's
+// color and mood (bliss field behind, white cards, ink type).
+const INK = "#1F3A57";
+const INK_DIM = "rgba(31,58,87,0.6)";
+const INK_FAINT = "rgba(31,58,87,0.45)";
+const TITLE = "#2C4A6B";
+const DIVIDER = "rgba(31,58,87,0.08)";
+const OK = "#2E9E5B";
+const SECTION_BG = "#FFFFFF";
+const CARD_SHADOW = {
+  shadowColor: "#2E3252",
+  shadowOpacity: 0.13,
+  shadowRadius: 16,
+  shadowOffset: { width: 0, height: 8 },
+  elevation: 6,
+} as const;
+// Device illustration: same shapes, tones nudged toward the ink/sky family.
+const DEVICE_FILL_TOP = "#FFFFFF";
+const DEVICE_FILL_BOTTOM = "#E8F0F8";
+const DEVICE_STROKE = "rgba(31,58,87,0.35)";
 
 // Mock — no live telemetry backend yet, matches the rest of this screen.
 // Gateway isn't here — it's rendered separately below, driven by real state.
@@ -82,7 +93,7 @@ function ConnectorDot({ delayMs }: { delayMs: number }) {
     );
   }, [t, delayMs]);
   const style = useAnimatedStyle(() => ({
-    backgroundColor: interpolateColor(t.value, [0, 1], [colors.border, colors.textTertiary]),
+    backgroundColor: interpolateColor(t.value, [0, 1], ["rgba(31,58,87,0.18)", INK_FAINT]),
   }));
   return (
     <Animated.View
@@ -160,9 +171,38 @@ function MacMiniGlyph() {
   );
 }
 
+/** Calm settings backdrop: white up top (crisp ink text for the diagram
+ * and labels), with the bliss blue-to-green blooming in softly behind
+ * the lower cards. */
+function QuietField() {
+  return (
+    <View
+      pointerEvents="none"
+      style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0 }}
+    >
+      <Svg
+        width="100%"
+        height="100%"
+        viewBox="0 0 390 844"
+        preserveAspectRatio="xMidYMid slice"
+      >
+        <Defs>
+          <LinearGradient id="quiet" x1="0" y1="0" x2="0.8" y2="1">
+            <Stop offset="0%" stopColor="#FFFFFF" />
+            <Stop offset="28%" stopColor="#FFFFFF" />
+            <Stop offset="54%" stopColor="#B9DBF3" />
+            <Stop offset="100%" stopColor="#74B665" />
+          </LinearGradient>
+        </Defs>
+        <Rect x="0" y="0" width="390" height="844" fill="url(#quiet)" />
+      </Svg>
+    </View>
+  );
+}
+
 const GATEWAY_STATUS_COPY: Record<GatewayStatus, { label: string; color: string }> = {
-  online: { label: "Active", color: colors.success },
-  unstable: { label: "Unstable", color: colors.warning },
+  online: { label: "Operational", color: OK },
+  unstable: { label: "Degraded", color: colors.warning },
   offline: { label: "Offline", color: colors.danger },
 };
 
@@ -232,7 +272,7 @@ function NetworkDiagram({
               left: -60,
               right: -60,
               textAlign: "center",
-              color: colors.textSecondary,
+              color: INK_DIM,
               fontSize: fontSize.caption,
               fontWeight: fontWeight.semibold,
             }}
@@ -250,7 +290,7 @@ function NetworkDiagram({
               left: -40,
               right: -40,
               textAlign: "center",
-              color: colors.textSecondary,
+              color: INK_DIM,
               fontSize: fontSize.caption,
               fontWeight: fontWeight.semibold,
             }}
@@ -279,7 +319,7 @@ function NetworkDiagram({
             <View key={s.label} style={{ alignItems: "center" }}>
               <Text
                 style={{
-                  color: colors.textTertiary,
+                  color: INK_FAINT,
                   fontSize: fontSize.caption,
                   fontFamily: fontFamily.semibold,
                   letterSpacing: 0.5,
@@ -289,7 +329,7 @@ function NetworkDiagram({
               </Text>
               <Text
                 style={{
-                  color: colors.textSecondary,
+                  color: INK_DIM,
                   fontSize: fontSize.small,
                   fontWeight: fontWeight.semibold,
                   marginTop: spacing.xs + 2,
@@ -302,7 +342,7 @@ function NetworkDiagram({
           <View style={{ alignItems: "center" }}>
             <Text
               style={{
-                color: colors.textTertiary,
+                color: INK_FAINT,
                 fontSize: fontSize.caption,
                 fontFamily: fontFamily.semibold,
                 letterSpacing: 0.5,
@@ -354,7 +394,7 @@ function NetworkDiagram({
               <Ionicons name="refresh" size={13} color={colors.text} />
               <Text
                 style={{
-                  color: colors.text,
+                  color: INK,
                   fontSize: fontSize.caption,
                   fontWeight: fontWeight.semibold,
                 }}
@@ -378,7 +418,7 @@ function NetworkDiagram({
               <Ionicons name="settings-outline" size={13} color={colors.text} />
               <Text
                 style={{
-                  color: colors.text,
+                  color: INK,
                   fontSize: fontSize.caption,
                   fontWeight: fontWeight.semibold,
                 }}
@@ -427,10 +467,38 @@ export default function AccessScreen() {
     gatewayStatus,
     reconnectGateway,
     rebootGateway,
+    services,
+    defaultModelId,
+    failoverToLocal,
   } = useAppStore();
   const [toolsExpanded, setToolsExpanded] = useState(false);
   const [expandedInfraId, setExpandedInfraId] = useState<string | null>(null);
   const [tokenDraft, setTokenDraft] = useState("");
+
+  // "View issue" deep-link: scroll to SYSTEM & SECURITY and pulse an ink
+  // outline around it so the eye lands on the broken part first.
+  const { focus } = useLocalSearchParams<{ focus?: string }>();
+  const scrollRef = useRef<ScrollView>(null);
+  const [securityY, setSecurityY] = useState(0);
+  const callout = useSharedValue(0);
+  useEffect(() => {
+    if (focus === "issue" && securityY > 0) {
+      scrollRef.current?.scrollTo({ y: Math.max(0, securityY - 80), animated: true });
+      callout.value = withDelay(
+        350,
+        withRepeat(
+          withSequence(
+            withTiming(1, { duration: 380 }),
+            withTiming(0.25, { duration: 380 }),
+          ),
+          3,
+        ),
+      );
+    }
+  }, [focus, securityY, callout]);
+  const calloutStyle = useAnimatedStyle(() => ({ opacity: callout.value }));
+
+  const degradedModel = services.find((sv) => sv.group === "llm" && sv.state !== "operational");
 
   const connectedPermissions = permissions.filter(
     (p) => p.source === "connected",
@@ -440,12 +508,13 @@ export default function AccessScreen() {
   );
 
   return (
-    // Local white page — built manually (not the shared Screen component)
-    // so the header bar is white too, not the shared gray page background.
+    // Bliss field behind everything — same background family as the tabs,
+    // so this sub-page stops feeling like a separate gray app.
     <SafeAreaView
       style={{ flex: 1, backgroundColor: "#FFFFFF" }}
       edges={["top"]}
     >
+      <QuietField />
       <View
         style={{
           height: 44,
@@ -457,7 +526,7 @@ export default function AccessScreen() {
         <GlassIconButton
           icon="chevron-back"
           onPress={() => router.back()}
-          iconColor={colors.text}
+          iconColor={INK}
           iconSize={22}
           hitSlop={10}
         />
@@ -466,7 +535,7 @@ export default function AccessScreen() {
           style={{
             flex: 1,
             textAlign: "center",
-            color: colors.text,
+            color: INK,
             fontSize: fontSize.bodyLg,
             fontWeight: fontWeight.semibold,
             marginRight: 44,
@@ -476,6 +545,7 @@ export default function AccessScreen() {
         </Text>
       </View>
       <ScrollView
+        ref={scrollRef}
         contentContainerStyle={{
           padding: spacing.lg,
           paddingBottom: spacing.xxl,
@@ -508,7 +578,7 @@ export default function AccessScreen() {
         >
           <Text
             style={{
-              color: colors.textSecondary,
+              color: TITLE,
               fontSize: fontSize.small,
               fontWeight: fontWeight.semibold,
               letterSpacing: 0.3,
@@ -517,8 +587,8 @@ export default function AccessScreen() {
             TOOLS
           </Text>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 3 }}>
-            <Ionicons name="sync" size={11} color={colors.textTertiary} />
-            <Text style={{ color: colors.textTertiary, fontSize: fontSize.small }}>
+            <Ionicons name="sync" size={11} color={INK_FAINT} />
+            <Text style={{ color: INK_FAINT, fontSize: fontSize.small }}>
               Synced from Web
             </Text>
           </View>
@@ -527,6 +597,7 @@ export default function AccessScreen() {
           style={{
             backgroundColor: SECTION_BG,
             borderRadius: radius.lg,
+            ...CARD_SHADOW,
             marginBottom: toolsExpanded ? 0 : copiedToast || syncingPermission ? 0 : spacing.xxl,
           }}
         >
@@ -540,14 +611,14 @@ export default function AccessScreen() {
                 paddingVertical: spacing.md,
                 paddingHorizontal: spacing.lg,
                 borderTopWidth: i === 0 ? 0 : 1,
-                borderTopColor: colors.divider,
+                borderTopColor: DIVIDER,
               }}
             >
-              <Ionicons name={p.icon} size={18} color={colors.textSecondary} />
+              <Ionicons name={p.icon} size={18} color={INK_DIM} />
               <Text
                 style={{
                   flex: 1,
-                  color: colors.text,
+                  color: INK,
                   fontSize: fontSize.small,
                   fontWeight: fontWeight.semibold,
                 }}
@@ -562,12 +633,12 @@ export default function AccessScreen() {
                     width: 7,
                     height: 7,
                     borderRadius: 999,
-                    backgroundColor: colors.success,
+                    backgroundColor: OK,
                   }}
                 />
                 <Text
                   style={{
-                    color: colors.success,
+                    color: OK,
                     fontSize: fontSize.caption,
                   }}
                 >
@@ -591,20 +662,23 @@ export default function AccessScreen() {
                     paddingVertical: spacing.md,
                     paddingHorizontal: spacing.lg,
                     borderTopWidth: 1,
-                    borderTopColor: colors.divider,
+                    borderTopColor: DIVIDER,
                     opacity: pressed ? 0.6 : 1,
                   })}
                 >
-                  <Ionicons name={p.icon} size={18} color={colors.textSecondary} />
+                  <Ionicons name={p.icon} size={18} color={INK_DIM} />
                   <Text
                     style={{
                       flex: 1,
-                      color: colors.text,
+                      color: INK,
                       fontSize: fontSize.small,
                       fontWeight: fontWeight.semibold,
                     }}
                   >
                     {p.name}
+                  </Text>
+                  <Text style={{ color: INK_FAINT, fontSize: fontSize.caption }}>
+                    Not connected
                   </Text>
                 </Pressable>
               ))
@@ -625,14 +699,14 @@ export default function AccessScreen() {
               paddingVertical: spacing.md,
               paddingHorizontal: spacing.lg,
               borderTopWidth: 1,
-              borderTopColor: colors.divider,
+              borderTopColor: DIVIDER,
               opacity: pressed ? 0.6 : !availablePermissions.length ? 0.5 : 1,
             })}
           >
             <Text
               style={{
                 flex: 1,
-                color: colors.text,
+                color: INK,
                 fontSize: fontSize.small,
                 fontWeight: fontWeight.semibold,
               }}
@@ -642,7 +716,7 @@ export default function AccessScreen() {
             <Ionicons
               name={toolsExpanded ? "chevron-up" : "chevron-down"}
               size={18}
-              color={colors.textTertiary}
+              color={INK_FAINT}
             />
           </Pressable>
         </View>
@@ -654,7 +728,7 @@ export default function AccessScreen() {
         {toolsExpanded ? (
           <Text
             style={{
-              color: colors.textTertiary,
+              color: INK_FAINT,
               fontSize: 11,
               fontWeight: fontWeight.regular,
               paddingHorizontal: spacing.lg,
@@ -675,7 +749,7 @@ export default function AccessScreen() {
               marginTop: spacing.md,
               marginBottom: syncingPermission ? 0 : spacing.xxl,
               alignSelf: "center",
-              backgroundColor: colors.cardAlt,
+              backgroundColor: "#FFFFFF",
               borderRadius: radius.pill,
               paddingVertical: spacing.sm,
               paddingHorizontal: spacing.lg,
@@ -683,7 +757,7 @@ export default function AccessScreen() {
           >
             <Text
               style={{
-                color: colors.text,
+                color: INK,
                 fontSize: fontSize.caption,
                 fontFamily: fontFamily.semibold,
                 letterSpacing: 0.2,
@@ -706,7 +780,7 @@ export default function AccessScreen() {
           >
             <PulseDot color={colors.warning} />
             <Text
-              style={{ color: colors.textTertiary, fontSize: fontSize.caption }}
+              style={{ color: INK_FAINT, fontSize: fontSize.caption }}
             >
               Syncing…
             </Text>
@@ -718,6 +792,7 @@ export default function AccessScreen() {
             an inline accordion on tap for pasting a new token — no separate
             screen anymore. + a static end-to-end-encryption row. */}
         <View
+          onLayout={(e) => setSecurityY(e.nativeEvent.layout.y)}
           style={{
             flexDirection: "row",
             alignItems: "baseline",
@@ -727,7 +802,7 @@ export default function AccessScreen() {
         >
           <Text
             style={{
-              color: colors.textSecondary,
+              color: TITLE,
               fontSize: fontSize.small,
               fontWeight: fontWeight.semibold,
               letterSpacing: 0.3,
@@ -740,9 +815,28 @@ export default function AccessScreen() {
           style={{
             backgroundColor: SECTION_BG,
             borderRadius: radius.lg,
+            ...CARD_SHADOW,
             marginBottom: spacing.xxl,
           }}
         >
+          {/* ink callout pulse around the section (View issue deep-link) */}
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              {
+                position: "absolute",
+                top: -3,
+                left: -3,
+                right: -3,
+                bottom: -3,
+                borderRadius: radius.lg + 3,
+                borderWidth: 2.5,
+                borderColor: INK,
+                opacity: 0,
+              },
+              calloutStyle,
+            ]}
+          />
           {infra
             .filter((e) => e.kind === "token")
             .map((e, i) => {
@@ -761,15 +855,14 @@ export default function AccessScreen() {
                       paddingVertical: spacing.md,
                       paddingHorizontal: spacing.lg,
                       borderTopWidth: i === 0 ? 0 : 1,
-                      borderTopColor: colors.divider,
+                      borderTopColor: DIVIDER,
                       opacity: pressed ? 0.6 : 1,
                     })}
                   >
                     <Text
                       numberOfLines={1}
                       style={{
-                        flex: 1,
-                        color: colors.text,
+                        color: INK,
                         fontSize: fontSize.small,
                         fontWeight: fontWeight.semibold,
                       }}
@@ -779,7 +872,25 @@ export default function AccessScreen() {
                     <Text
                       numberOfLines={1}
                       style={{
-                        color: colors.textTertiary,
+                        flex: 1,
+                        color: INK_FAINT,
+                        fontSize: 11,
+                        fontFamily: MONO,
+                      }}
+                    >
+                      {(() => {
+                        const isClaude = e.id === "oc35-token";
+                        const isDefault =
+                          (isClaude && defaultModelId === "oc35") ||
+                          (!isClaude && defaultModelId === "hermes");
+                        if (isClaude) return isDefault ? "[Default]" : "[Standby]";
+                        return isDefault ? "[Local · Default]" : "[Local]";
+                      })()}
+                    </Text>
+                    <Text
+                      numberOfLines={1}
+                      style={{
+                        color: INK_FAINT,
                         fontSize: 11,
                         fontFamily: MONO,
                         letterSpacing: 0.2,
@@ -789,19 +900,59 @@ export default function AccessScreen() {
                     </Text>
                   </Pressable>
 
+                  {e.id === "oc35-token" && degradedModel ? (
+                    <View
+                      style={{
+                        marginHorizontal: spacing.lg,
+                        marginBottom: spacing.md,
+                        gap: spacing.sm,
+                      }}
+                    >
+                      <Text
+                        style={{
+                          color: colors.warning,
+                          fontSize: 11,
+                          fontFamily: MONO,
+                        }}
+                      >
+                        {"↳"} {degradedModel.reason ?? "degraded"}
+                      </Text>
+                      <Pressable
+                        onPress={failoverToLocal}
+                        style={({ pressed }) => ({
+                          alignItems: "center",
+                          paddingVertical: spacing.sm + 2,
+                          borderRadius: radius.md,
+                          backgroundColor: INK,
+                          opacity: pressed ? 0.85 : 1,
+                        })}
+                      >
+                        <Text
+                          style={{
+                            color: "#FFFFFF",
+                            fontWeight: fontWeight.semibold,
+                            fontSize: fontSize.small,
+                          }}
+                        >
+                          Switch to Nous Hermes 70B [Local]
+                        </Text>
+                      </Pressable>
+                    </View>
+                  ) : null}
+
                   {isExpanded ? (
                     <View
                       style={{
                         paddingHorizontal: spacing.lg,
                         paddingBottom: spacing.md,
                         borderTopWidth: 1,
-                        borderTopColor: colors.divider,
+                        borderTopColor: DIVIDER,
                         gap: spacing.sm,
                       }}
                     >
                       <Text
                         style={{
-                          color: colors.textTertiary,
+                          color: INK_FAINT,
                           fontSize: fontSize.caption,
                           fontWeight: fontWeight.semibold,
                           letterSpacing: 0.5,
@@ -814,16 +965,18 @@ export default function AccessScreen() {
                         value={tokenDraft}
                         onChangeText={setTokenDraft}
                         placeholder="Paste new token"
-                        placeholderTextColor={colors.textTertiary}
+                        placeholderTextColor={INK_FAINT}
                         autoCapitalize="none"
                         autoCorrect={false}
                         secureTextEntry
                         style={{
                           backgroundColor: "#FFFFFF",
+                          borderWidth: 1,
+                          borderColor: DIVIDER,
                           borderRadius: radius.md,
                           padding: spacing.md,
                           fontFamily: MONO,
-                          color: colors.text,
+                          color: INK,
                           fontSize: fontSize.small,
                         }}
                       />
@@ -836,13 +989,13 @@ export default function AccessScreen() {
                           alignItems: "center",
                           paddingVertical: spacing.sm,
                           borderRadius: radius.md,
-                          backgroundColor: colors.accent,
+                          backgroundColor: INK,
                           opacity: pressed ? 0.85 : 1,
                         })}
                       >
                         <Text
                           style={{
-                            color: colors.accentText,
+                            color: "#FFFFFF",
                             fontWeight: fontWeight.semibold,
                             fontSize: fontSize.small,
                           }}
@@ -865,21 +1018,21 @@ export default function AccessScreen() {
               paddingVertical: spacing.md,
               paddingHorizontal: spacing.lg,
               borderTopWidth: 1,
-              borderTopColor: colors.divider,
+              borderTopColor: DIVIDER,
             }}
           >
-            <Ionicons name="lock-closed-outline" size={16} color={colors.textSecondary} />
+            <Ionicons name="lock-closed-outline" size={16} color={INK_DIM} />
             <Text
               style={{
                 flex: 1,
-                color: colors.text,
+                color: INK,
                 fontSize: fontSize.small,
                 fontWeight: fontWeight.semibold,
               }}
             >
               Connection
             </Text>
-            <Text style={{ color: colors.textSecondary, fontSize: fontSize.small }}>
+            <Text style={{ color: INK_DIM, fontSize: fontSize.small }}>
               End-to-End Encrypted
             </Text>
           </View>
@@ -888,7 +1041,7 @@ export default function AccessScreen() {
         {/* Disconnect — self-explanatory action, no section label needed */}
         <Pressable
           onPress={() => setConnected(false)}
-          style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
+          style={({ pressed }) => ({ marginTop: spacing.xl, opacity: pressed ? 0.7 : 1 })}
         >
           <View
             style={{
@@ -898,7 +1051,8 @@ export default function AccessScreen() {
               gap: spacing.sm,
               paddingVertical: spacing.lg,
               borderRadius: radius.lg,
-              backgroundColor: colors.dangerSoft,
+              backgroundColor: "#FFFFFF",
+              ...CARD_SHADOW,
             }}
           >
             <Ionicons name="power" size={18} color={colors.danger} />
@@ -909,7 +1063,7 @@ export default function AccessScreen() {
                 fontWeight: fontWeight.semibold,
               }}
             >
-              Disconnect agent
+              Disconnect Gateway
             </Text>
           </View>
         </Pressable>

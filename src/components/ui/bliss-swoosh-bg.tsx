@@ -45,7 +45,9 @@ const GLOWS: [number, number, number, number, number, string, number][] = [
   [150, 750, 230, 170, 0, '#3F8F3F', 0.35], // deep green pool at the bottom
 ];
 
-export function BlissSwooshBg() {
+export function BlissSwooshBg({ plain }: { plain?: boolean }) {
+  // Plain variant (home tab): the exact same bliss gradient with NO art
+  // on top — no glows, no ribbons, just the field.
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
       <Svg width="100%" height="100%" viewBox="0 0 390 844" preserveAspectRatio="xMidYMid slice">
@@ -54,9 +56,9 @@ export function BlissSwooshBg() {
           <LinearGradient id="field" x1="0" y1="0" x2="0.7" y2="1">
             <Stop offset="0%" stopColor="#8EC9F0" />
             <Stop offset="33%" stopColor="#5FA8DE" />
-            <Stop offset="74%" stopColor="#52A23F" />
+            <Stop offset="74%" stopColor="#5DB14A" />
           </LinearGradient>
-          {GLOWS.map((g, i) => glow(`g${i}`, g[0], g[1], g[2], g[3], g[4], g[5], g[6]))}
+          {!plain && GLOWS.map((g, i) => glow(`g${i}`, g[0], g[1], g[2], g[3], g[4], g[5], g[6]))}
 
           {/* swoosh ribbon fills: strongest in the heart, melting at the rims */}
           <LinearGradient id="deepRibbon" x1="0" y1="0" x2="0.5" y2="1">
@@ -72,27 +74,32 @@ export function BlissSwooshBg() {
         </Defs>
 
         <Rect x="0" y="0" width="390" height="844" fill="url(#field)" />
-        {GLOWS.map((_, i) => (
-          <Rect key={i} x="0" y="0" width="390" height="844" fill={`url(#g${i})`} />
-        ))}
+        {!plain &&
+          GLOWS.map((_, i) => (
+            <Rect key={i} x="0" y="0" width="390" height="844" fill={`url(#g${i})`} />
+          ))}
 
-        {/* deep ribbon: enters at the top, swells down through the left half
-            and exits through the left edge */}
-        <Path
-          d="M -80 -80 L 470 -80 L 470 140
-             C 300 190, 160 300, 90 460
-             C 55 540, 0 580, -80 600 Z"
-          fill="url(#deepRibbon)"
-        />
-        {/* wide light arc sweeping from the bottom edge up and off the top
-            right — the counter-curve crossing the deep ribbon */}
-        <Path
-          d="M 60 900
-             C 220 640, 300 380, 300 -80
-             L 430 -80
-             C 430 400, 330 700, 190 900 Z"
-          fill="url(#lightArc)"
-        />
+        {!plain && (
+          <>
+            {/* deep ribbon: enters at the top, swells down through the
+                left half and exits through the left edge */}
+            <Path
+              d="M -80 -80 L 470 -80 L 470 140
+                 C 300 190, 160 300, 90 460
+                 C 55 540, 0 580, -80 600 Z"
+              fill="url(#deepRibbon)"
+            />
+            {/* wide light arc sweeping from the bottom edge up and off the
+                top right — the counter-curve crossing the deep ribbon */}
+            <Path
+              d="M 60 900
+                 C 220 640, 300 380, 300 -80
+                 L 430 -80
+                 C 430 400, 330 700, 190 900 Z"
+              fill="url(#lightArc)"
+            />
+          </>
+        )}
       </Svg>
     </View>
   );
