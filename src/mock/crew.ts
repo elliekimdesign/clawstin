@@ -11,6 +11,8 @@ export type CrewMember = {
   role: string;
   skills: CrewSkill[];
   active: boolean;
+  /** completed task count (mock) — drives the usage bar on the crew card */
+  tasksDone: number;
 };
 
 export const initialCrew: CrewMember[] = [
@@ -25,41 +27,45 @@ export const initialCrew: CrewMember[] = [
       { label: 'Summarize the day', on: true },
     ],
     active: true,
+    tasksDone: 128,
   },
   {
     id: 'scout',
-    name: 'Scout',
+    name: 'Beaker',
     icon: 'search-outline',
-    role: 'Researcher · digs up the facts',
+    role: 'Research · digs up the facts',
     skills: [
       { label: 'Web research', on: true },
       { label: 'Fact-check', on: true },
       { label: 'Compare options', on: false },
     ],
     active: true,
+    tasksDone: 96,
   },
   {
     id: 'quill',
-    name: 'Quill',
+    name: 'Miss Piggy',
     icon: 'create-outline',
-    role: 'Summarizer · turns noise into notes',
+    role: 'Scribe · turns noise into notes',
     skills: [
       { label: 'Summarize emails', on: true },
       { label: 'TL;DR threads', on: true },
       { label: 'Extract action items', on: true },
     ],
     active: true,
+    tasksDone: 34,
   },
   {
     id: 'pilot',
-    name: 'Pilot',
+    name: 'Gonzo',
     icon: 'calendar-clear-outline',
-    role: 'Scheduler · guards your calendar',
+    role: 'Operator · guards your calendar',
     skills: [
       { label: 'Book meetings', on: true },
       { label: 'Find free slots', on: true },
       { label: 'Send reminders', on: false },
     ],
     active: false,
+    tasksDone: 57,
   },
 ];
