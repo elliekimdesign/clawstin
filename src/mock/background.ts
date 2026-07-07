@@ -11,6 +11,11 @@ export type BackgroundTask = {
   state: 'running' | 'waiting';
   /** the conversation this task lives in (see mock/threads.ts) */
   threadId: string;
+  /** time-boxed tasks only: when real time passes this, the task expires
+   * (Done, labeled expired). Until then non-response just escalates. */
+  deadline?: string;
+  /** display age; multi-day = soft-aged (sinks and dims, never deleted) */
+  age?: string;
 };
 
 export const initialBackground: BackgroundTask[] = [
@@ -26,6 +31,7 @@ export const initialBackground: BackgroundTask[] = [
     agentId: 'pilot',
     label: 'Pick a time for Friday dinner',
     state: 'waiting',
-    threadId: 't2',
+    threadId: 't5',
+    deadline: 'Fri',
   },
 ];

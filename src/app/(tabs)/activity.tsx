@@ -2,10 +2,10 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
+import { NightField } from '@/components/ui/night-field';
 import { RawStepSheet } from '@/components/ui/raw-step-sheet';
 import type { ActivityDay, ActivityItem, LogStep } from '@/mock/activity';
 import { useAppStore } from '@/store/app-store';
@@ -24,24 +24,8 @@ const CONSOLE = {
   wait: '#F0B25F',
 };
 
-/** Full-screen night gradient: ink navy -> deep brand blue -> deep hill
- * green, on the same diagonal as the bliss field. */
-function NightField() {
-  return (
-    <View style={StyleSheet.absoluteFill} pointerEvents="none">
-      <Svg width="100%" height="100%" viewBox="0 0 390 844" preserveAspectRatio="xMidYMid slice">
-        <Defs>
-          <LinearGradient id="night" x1="0" y1="0" x2="0.7" y2="1">
-            <Stop offset="0%" stopColor="#141F33" />
-            <Stop offset="45%" stopColor="#1A3550" />
-            <Stop offset="100%" stopColor="#1E4029" />
-          </LinearGradient>
-        </Defs>
-        <Rect x="0" y="0" width="390" height="844" fill="url(#night)" />
-      </Svg>
-    </View>
-  );
-}
+// Night gradient background shared with the home board — see
+// src/components/ui/night-field.tsx.
 
 const GROUPS: { key: ActivityDay; label: string }[] = [
   { key: 'today', label: '# today' },
@@ -179,10 +163,15 @@ function RunBlock({
 export default function ActivityScreen() {
   const { activity, crew } = useAppStore();
   const byId = Object.fromEntries(crew.map((m) => [m.id, m]));
+  // The system log speaks in AGENT names (Orchestrator, Research…), not
+  // character names — the role field's first segment is exactly that.
+  const agentTitle = (id: string) => byId[id]?.role.split(' · ')[0] ?? 'crew';
 
   // grep: all | errors | one agent id
   const [filterOpen, setFilterOpen] = useState(false);
   const [filter, setFilter] = useState<string>('all');
+  // free-text search over prompts, steps and agent names
+  const [query, setQuery] = useState('');
   // drill-down: the step whose raw payload is open
   const [selected, setSelected] = useState<{ step: LogStep; item: ActivityItem } | null>(null);
 
@@ -192,7 +181,13 @@ export default function ActivityScreen() {
       : filter === 'errors'
         ? a.status === 'failed' || (a.steps ?? []).some((st) => st.state === 'err')
         : a.agentId === filter;
-  const filtered = activity.filter(matches);
+  const q = query.trim().toLowerCase();
+  const matchesQuery = (a: ActivityItem) =>
+    q.length === 0 ||
+    a.prompt.toLowerCase().includes(q) ||
+    agentTitle(a.agentId).toLowerCase().includes(q) ||
+    (a.steps ?? []).some((st) => st.label.toLowerCase().includes(q));
+  const filtered = activity.filter((a) => matches(a) && matchesQuery(a));
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: CONSOLE.bg }} edges={['top']}>
@@ -237,6 +232,41 @@ export default function ActivityScreen() {
           </View>
         </View>
 
+        {/* search field: free-text grep over prompts, steps, agents */}
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 8,
+            backgroundColor: 'rgba(255,255,255,0.08)',
+            borderRadius: 12,
+            paddingHorizontal: 12,
+            paddingVertical: 9,
+            marginBottom: spacing.md,
+          }}>
+          <Ionicons name="search" size={13} color={CONSOLE.dim} />
+          <TextInput
+            value={query}
+            onChangeText={setQuery}
+            placeholder="grep logs"
+            placeholderTextColor={CONSOLE.faint}
+            autoCapitalize="none"
+            autoCorrect={false}
+            style={{
+              flex: 1,
+              fontFamily: fontFamily.mono,
+              fontSize: 13,
+              color: CONSOLE.text,
+              padding: 0,
+            }}
+          />
+          {query.length > 0 ? (
+            <Pressable onPress={() => setQuery('')} hitSlop={8}>
+              <Ionicons name="close-circle" size={15} color={CONSOLE.dim} />
+            </Pressable>
+          ) : null}
+        </View>
+
         {/* grep bar: filter the stream by agent or errors only */}
         {filterOpen ? (
           <View
@@ -249,7 +279,7 @@ export default function ActivityScreen() {
             {[
               { key: 'all', label: 'all' },
               { key: 'errors', label: 'errors' },
-              ...crew.map((m) => ({ key: m.id, label: m.name.toLowerCase() })),
+              ...crew.map((m) => ({ key: m.id, label: agentTitle(m.id).toLowerCase() })),
             ].map((chip) => (
               <Pressable
                 key={chip.key}
@@ -303,7 +333,7 @@ export default function ActivityScreen() {
                   <RunBlock
                     key={item.id}
                     item={item}
-                    agentName={byId[item.agentId]?.name ?? 'crew'}
+                    agentName={agentTitle(item.agentId)}
                     onStep={(step, it) => setSelected({ step, item: it })}
                   />
                 ))}
@@ -317,7 +347,7 @@ export default function ActivityScreen() {
       <RawStepSheet
         step={selected?.step ?? null}
         item={selected?.item ?? null}
-        agentName={selected ? (byId[selected.item.agentId]?.name ?? 'crew') : ''}
+        agentName={selected ? agentTitle(selected.item.agentId) : ''}
         onClose={() => setSelected(null)}
       />
     </SafeAreaView>

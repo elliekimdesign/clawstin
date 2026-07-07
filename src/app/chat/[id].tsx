@@ -41,6 +41,7 @@ export default function ChatThreadScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const {
     getThread,
+    markThreadRead,
     typingThreadId,
     thinking,
     calendarReveal,
@@ -54,6 +55,7 @@ export default function ChatThreadScreen() {
     crewManual,
     crewBusy,
     selectCrew,
+    focusCrew,
   } = useAppStore();
   const [draft, setDraft] = useState('');
   const [attachOpen, setAttachOpen] = useState(false);
@@ -62,6 +64,16 @@ export default function ChatThreadScreen() {
   const scrollRef = useRef<ScrollView>(null);
 
   const thread = getThread(id);
+
+  // Opening the thread picks up the delivery: the Done shelf's unread
+  // dot clears, but the thread itself is never locked or archived away.
+  // The pill also flips to the crew who OWNS this thread.
+  const threadCrew = thread?.crew;
+  useEffect(() => {
+    markThreadRead(id);
+    if (threadCrew) focusCrew(threadCrew);
+  }, [id, markThreadRead, threadCrew, focusCrew]);
+
   const isTyping = typingThreadId === id;
   const thinkingHere = thinking?.threadId === id ? thinking : null;
 
@@ -87,7 +99,10 @@ export default function ChatThreadScreen() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [calendarReveal?.seq]);
-  const stripTarget = !stripHidden ? pendingSchedule?.date ?? null : null;
+  // While the PR console owns the pinned slot, the strip stays out — the
+  // schedule proposal already shows its day view down in the chat card.
+  const stripTarget =
+    !stripHidden && prReveal?.threadId !== id ? pendingSchedule?.date ?? null : null;
 
   const onSend = () => {
     if (!draft.trim() || !thread) return;
@@ -187,6 +202,17 @@ export default function ChatThreadScreen() {
                   />
                 </View>
               </Pressable>
+            ) : thread?.tool === 'contacts' || thread?.tool === 'github' || activeTool === 'github' ? (
+              // Non-calendar context: the button is the TOOL BADGE for this
+              // conversation (Contacts, Devtools) — no month view here.
+              <GlassIconButton
+                icon={thread?.tool === 'contacts' ? 'people-outline' : 'logo-github'}
+                onPress={() => {}}
+                onDark
+                tint="rgba(44,70,101,0.55)"
+                iconColor={darkChat.text}
+                iconSize={20}
+              />
             ) : (
               <GlassIconButton
                 icon={calOpen ? 'close' : 'calendar-clear-outline'}
@@ -234,8 +260,24 @@ export default function ChatThreadScreen() {
                 threadId={thinkingHere.threadId}
                 lines={thinkingHere.lines}
                 done={thinkingHere.done}
+                failed={thinkingHere.failed}
               />
             </Animated.View>
+          ) : null}
+
+          {/* Seeded run log: the background run that produced this
+              thread's ask, folded to the slim bar (it finished before
+              the user arrived — expand on demand). */}
+          {!thinkingHere && thread?.consoleLog && !calOpen ? (
+            <View
+              style={{
+                marginHorizontal: spacing.lg,
+                marginTop: spacing.sm,
+                marginBottom: spacing.xs,
+                zIndex: 20,
+              }}>
+              <ThinkingConsole threadId={id} lines={thread.consoleLog} done startCollapsed />
+            </View>
           ) : null}
 
           {/* PR console: the dynamic console as a GitHub micro-app —
@@ -304,7 +346,11 @@ export default function ChatThreadScreen() {
                     ))}
                   </View>
                 ) : null}
-                <MessageBubble from={m.from} text={m.text}>
+                <MessageBubble
+                  from={m.from}
+                  text={m.text}
+                  proactive={m.proactive}
+                  caption={m.caption}>
                 {m.approval ? (
                   <ApprovalCard
                     compact
@@ -312,7 +358,6 @@ export default function ChatThreadScreen() {
                     approval={m.approval}
                     onApprove={(a) => resolveChatApproval(thread.id, m.id, a, true)}
                     onDeny={(a) => resolveChatApproval(thread.id, m.id, a, false)}
-                    onReview={(a) => router.push(`/approval/${a.id}`)}
                   />
                 ) : null}
                 {m.schedule ? (

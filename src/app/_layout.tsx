@@ -1,12 +1,32 @@
 import { useFonts } from 'expo-font';
+import * as Notifications from 'expo-notifications';
 import { Stack } from 'expo-router';
+import { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { GatewayBanner } from '@/components/ui/gateway-banner';
 import { AppProvider } from '@/store/app-store';
 
+// OS pushes belong OUTSIDE the app (lock screen, notification list).
+// Inside the app the board itself is the nudge — no foreground banner.
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldPlaySound: false,
+    shouldSetBadge: false,
+    shouldShowBanner: false,
+    shouldShowList: true,
+  }),
+});
+
 export default function RootLayout() {
+  // One-time OS permission ask; granting it is also what lets simulated
+  // pushes (xcrun simctl push) render during demos.
+  useEffect(() => {
+    Notifications.requestPermissionsAsync({
+      ios: { allowAlert: true, allowBadge: true, allowSound: true },
+    });
+  }, []);
   const [fontsLoaded] = useFonts({
     'InstrumentSans-Regular': require('../../assets/fonts/InstrumentSans-Regular.ttf'),
     'InstrumentSans-Medium': require('../../assets/fonts/InstrumentSans-Medium.ttf'),
@@ -25,7 +45,6 @@ export default function RootLayout() {
           <Stack screenOptions={{ headerShown: false }}>
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="chat/[id]" options={{ presentation: 'card' }} />
-            <Stack.Screen name="approval/[id]" options={{ presentation: 'card' }} />
             <Stack.Screen name="crew/[id]" options={{ presentation: 'card' }} />
             <Stack.Screen name="calendar" options={{ presentation: 'card' }} />
             <Stack.Screen name="access" options={{ presentation: 'card' }} />

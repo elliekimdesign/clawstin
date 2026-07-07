@@ -28,6 +28,7 @@ import { AuroraLine } from '@/components/ui/aurora-line';
 import { Card } from '@/components/ui/card';
 import { GlassIconButton } from '@/components/ui/glass-icon-button';
 import { BlissSwooshBg } from '@/components/ui/bliss-swoosh-bg';
+import { NightField } from '@/components/ui/night-field';
 import { PromptHistorySheet } from '@/components/ui/prompt-history-sheet';
 import { PulseMark } from '@/components/ui/pulse-mark';
 import { StatusPopover, worstServiceState } from '@/components/ui/status-popover';
@@ -78,10 +79,33 @@ const GLASS_AVAILABLE = Platform.OS === 'ios' && isGlassEffectAPIAvailable();
 // Home section material. 'milk' = the Acid Pop recipe (blur + a strong
 // milky veil, the field whispers through). Flip to 'paper' to restore
 // solid white cards instantly.
-const SECTION_MATERIAL: 'paper' | 'milk' | 'night' = 'paper';
+const SECTION_MATERIAL: 'paper' | 'milk' | 'night' | 'glass' = 'glass';
 const MILK = (SECTION_MATERIAL as string) === 'milk';
 // 'night' = Logs-tone dark sections (experiment; 'paper' is the way back)
 const NIGHT = (SECTION_MATERIAL as string) === 'night';
+// 'glass' = translucent white over real blur: whiter than milk so text
+// keeps its contrast, but the field tints through — sky into the desk
+// card, green into DONE — so the board reads as one body, not blocks.
+const GLASSY = (SECTION_MATERIAL as string) === 'glass';
+
+// "logstyle" — the active home skin (named 2026-07-06): the Logs console
+// colors promoted to the whole home board. Night field shared with the
+// Logs tab, mono statusline instead of tiles, a quiet prompt bar, and
+// state-tinted task rows (blue running / amber needs-you / green done,
+// radius 12). One adult, dark, OS-grade surface family across tabs.
+const NHOME = {
+  bg: '#141F33',
+  text: 'rgba(255,255,255,0.92)',
+  secondary: 'rgba(255,255,255,0.62)',
+  dim: 'rgba(255,255,255,0.48)',
+  faint: 'rgba(255,255,255,0.32)',
+  row: 'rgba(255,255,255,0.06)',
+  rowBorder: 'rgba(255,255,255,0.08)',
+  blue: '#8FBFF2',
+  ok: '#7ED9A0',
+  warn: '#F0B25F',
+  green: '#5FD9A4',
+};
 
 // Section ink: content colors that flip with the material.
 const SINK = NIGHT
@@ -98,8 +122,9 @@ const SINK = NIGHT
       strong: '#12233D',
       dim: 'rgba(31,58,87,0.6)',
       faint: 'rgba(31,58,87,0.45)',
-      line: 'rgba(31,58,87,0.12)',
-      tile: 'rgba(31,58,87,0.04)',
+      line: GLASSY ? 'rgba(31,58,87,0.14)' : 'rgba(31,58,87,0.12)',
+      // translucent surface eats a little contrast — tiles push back
+      tile: GLASSY ? 'rgba(31,58,87,0.07)' : 'rgba(31,58,87,0.04)',
     };
 
 // Cloud wisps for the hero card, as fractions of the card size.
@@ -222,7 +247,13 @@ function LiquidCard({
               borderColor: 'rgba(255,255,255,0.35)',
               backgroundColor: 'rgba(255,255,255,0.18)',
             }
-          : { backgroundColor: '#FFFFFF' }),
+          : GLASSY
+            ? {
+                borderWidth: 1,
+                borderColor: 'rgba(255,255,255,0.55)',
+                backgroundColor: 'rgba(255,255,255,0.35)',
+              }
+            : { backgroundColor: '#FFFFFF' }),
     shadowColor: '#2E3252',
     shadowOpacity: 0.13,
     shadowRadius: 16,
@@ -234,7 +265,7 @@ function LiquidCard({
     setSize({ w: e.nativeEvent.layout.width, h: e.nativeEvent.layout.height });
   const inner = (
     <>
-      {GLASS_AVAILABLE && (onTint || MILK) ? (
+      {GLASS_AVAILABLE && (onTint || MILK || GLASSY) ? (
         <GlassView
           // "regular" carries the real frost/blur (hero tint, milk cards).
           glassEffectStyle="regular"
@@ -245,19 +276,19 @@ function LiquidCard({
       ) : null}
       {/* the blue tint over the hero's glass, or the milky veil that
           keeps plain cards creamy and uniform */}
-      {tint || MILK ? (
+      {tint || MILK || GLASSY ? (
         <Svg style={StyleSheet.absoluteFill} pointerEvents="none">
           <Defs>
             <SvgGradient id="veil" x1="0" y1="0" x2="0" y2="1">
               <Stop
                 offset="0%"
                 stopColor={tint ? tint[0] : '#FFFFFF'}
-                stopOpacity={tint ? 0.92 : 0.46}
+                stopOpacity={tint ? 0.92 : GLASSY ? 0.5 : 0.46}
               />
               <Stop
                 offset="100%"
                 stopColor={tint ? tint[1] : '#FFFFFF'}
-                stopOpacity={tint ? 0.92 : 0.26}
+                stopOpacity={tint ? 0.92 : GLASSY ? 0.34 : 0.26}
               />
             </SvgGradient>
           </Defs>
@@ -387,21 +418,27 @@ export default function HomeScreen() {
   // count-first. A sentence, not a badge row.
   const runningCount = background.filter((t) => t.state === 'running').length;
   const needsYou = background.filter((t) => t.state === 'waiting').length + approvals.length;
+  // Done shelf = threads that actually CLOSED (delivered or expired).
+  // Open conversations live on the desk above, not here.
+  const doneThreads = threads.filter((t) => t.outcome);
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#B4DAF5' }} edges={['top']}>
-      {connected ? <StatusBar style="dark" /> : null}
-      {/* Home rides the bare bliss gradient; other tabs keep the swoosh art */}
+    <SafeAreaView
+      style={{ flex: 1, backgroundColor: connected ? NHOME.bg : '#B4DAF5' }}
+      edges={['top']}>
+      {connected ? <StatusBar style="light" /> : null}
+      {/* Onboarding keeps the daylight bliss; the board runs at night */}
       {!connected && <BlissSwooshBg plain />}
       {connected ? (
         // ───────────────────────── State board ─────────────────────────
         <>
-          <BlissSwooshBg plain />
+          <NightField />
           <ScrollView
             ref={scrollRef}
             contentContainerStyle={{ padding: spacing.lg, paddingBottom: 110 }}
             showsVerticalScrollIndicator={false}>
-            {/* Header: profile icon + 2-line greeting (left) + date / online status (right) */}
+            {/* Header: greeting (left) + gateway status (right), then a
+                mono statusline — the whole board opens like a console. */}
             <View
               style={{
                 flexDirection: 'row',
@@ -411,7 +448,7 @@ export default function HomeScreen() {
               }}>
               <Text
                 style={{
-                  color: GLASS.textStrong,
+                  color: NHOME.text,
                   fontSize: fontSize.largeTitle,
                   fontWeight: fontWeight.bold,
                   letterSpacing: -0.5,
@@ -419,7 +456,7 @@ export default function HomeScreen() {
                 {hello}, {USER_NAME}
               </Text>
 
-              <View style={{ alignItems: 'flex-end', paddingTop: 4 }}>
+              <View style={{ alignItems: 'flex-end', paddingTop: 6 }}>
                 <Pressable
                   onPress={() => setStatusOpen(true)}
                   hitSlop={8}
@@ -432,13 +469,30 @@ export default function HomeScreen() {
                   <View
                     style={{ width: 7, height: 7, borderRadius: 999, backgroundColor: statusDot }}
                   />
-                  <Text style={{ color: GLASS.dim, fontSize: fontSize.small }}>
-                    {statusLabel}
+                  <Text
+                    style={{ color: NHOME.dim, fontSize: 12, fontFamily: fontFamily.mono }}>
+                    {statusLabel.toLowerCase()}
                   </Text>
-                  <Ionicons name="chevron-down" size={12} color={GLASS.faint} />
+                  <Ionicons name="chevron-down" size={12} color={NHOME.faint} />
                 </Pressable>
               </View>
             </View>
+            {/* the day at a glance, one mono line — plain spaces do the
+                separating; no interpuncts, they read robotic */}
+            <Text
+              style={{
+                marginTop: 22,
+                fontFamily: fontFamily.mono,
+                fontSize: 12,
+                color: NHOME.dim,
+              }}>
+              <Text style={{ color: NHOME.blue }}>{runningCount}</Text>
+              {` running   `}
+              <Text style={{ color: needsYou > 0 ? NHOME.warn : NHOME.dim }}>{needsYou}</Text>
+              {` need you   `}
+              {doneThreads.length}
+              {` done`}
+            </Text>
 
             {/* The crew desk — one card, messenger grammar: a docked chat
                 input sits as the natural first row ("Ask your crew"), and
@@ -447,199 +501,88 @@ export default function HomeScreen() {
                 approvals included); finished results fall further down
                 into History. When nothing is open the card is just the
                 quiet ask row. */}
-            {/* ask console — the deep-dark command tower over the light
-                cards (dark + mono = system surface, same family as the
-                Logs tab and status popover). */}
+            {/* entry point — a quiet command prompt, not a billboard:
+                one input-like row, terminal grammar, adult and flat. */}
             <Pressable
               onPress={startChat}
               style={({ pressed }) => ({
-                marginTop: spacing.xl,
-                height: 120,
-                borderRadius: 22,
-                backgroundColor: '#0E1626',
+                marginTop: 40,
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 13,
+                // a touch brighter than the task rows, no more — the
+                // entry point leads quietly, it does not glow
+                backgroundColor: 'rgba(255,255,255,0.16)',
                 borderWidth: 1,
-                borderColor: 'rgba(255,255,255,0.28)',
-                padding: spacing.lg,
-                justifyContent: 'space-between',
-                shadowColor: '#2E3252',
-                shadowOpacity: 0.22,
-                shadowRadius: 16,
-                shadowOffset: { width: 0, height: 8 },
-                elevation: 8,
-                opacity: pressed ? 0.88 : 1,
+                borderColor: 'rgba(255,255,255,0.22)',
+                borderRadius: 12,
+                paddingVertical: 20,
+                paddingHorizontal: 20,
+                opacity: pressed ? 0.75 : 1,
               })}>
-              <View
+              <Text
+                style={{ fontFamily: fontFamily.mono, fontSize: 16, color: NHOME.green }}>
+                {'>'}
+              </Text>
+              <Text
                 style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
+                  flex: 1,
+                  color: NHOME.text,
+                  fontSize: 17,
+                  letterSpacing: -0.2,
+                  fontWeight: fontWeight.semibold,
                 }}>
-                <Text
-                  style={{
-                    color: 'rgba(255,255,255,0.45)',
-                    fontFamily: fontFamily.mono,
-                    fontSize: 11,
-                    letterSpacing: 1.2,
-                  }}>
-                  ~/crew
-                </Text>
-                {/* ghost arrow: oversized, near-silent launch mark */}
-                <Ionicons
-                  name="arrow-up"
-                  size={40}
-                  color="rgba(255,255,255,0.30)"
-                  style={{
-                    transform: [{ rotate: '45deg' }],
-                    marginTop: -6,
-                    marginRight: -4,
-                  }}
-                />
-              </View>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-                <MuppetFace size={22} square />
-                <Text
-                  style={{
-                    color: '#FFFFFF',
-                    fontSize: 25,
-                    lineHeight: 29,
-                    letterSpacing: -0.5,
-                    fontFamily: fontFamily.bold,
-                  }}>
-                  Ask your crew
-                </Text>
-              </View>
+                Ask your crew
+              </Text>
+              <Ionicons name="arrow-up" size={18} color={NHOME.dim}
+                style={{ transform: [{ rotate: '45deg' }] }} />
             </Pressable>
 
-            {/* The work desk — one mass: the glance tiles sit INSIDE the
-                list card as its header (folder-tab grammar), and the open
-                rows hang directly off them. "waiting for you" + the rows
-                right beneath = these are the chats waiting on me. */}
+            {/* OPEN — every task still moving or blocked on you, one soft
+                row per task (no tiles, no icons, no card-in-card). The
+                answer always happens in the chat that asked. */}
             <View onLayout={(e) => setApprovalsY(e.nativeEvent.layout.y)}>
-              <LiquidCard
-                style={{ marginTop: spacing.md }}
-                contentStyle={{ padding: 0, paddingBottom: spacing.sm }}>
-                {/* header tiles */}
-                <View
-                  style={{
-                    flexDirection: 'row',
-                    gap: spacing.md,
-                    padding: spacing.lg,
-                    paddingBottom: spacing.md,
-                  }}>
-                  <Pressable
-                    onPress={() => router.navigate('/(tabs)/activity')}
-                    style={({ pressed }) => ({
-                      flex: 1,
-                      height: 72,
-                      borderRadius: 16,
-                      // same inner-bento grammar as the Crew Perf stat tiles
-                      backgroundColor: SINK.tile,
-                      paddingHorizontal: 14,
-                      paddingTop: 10,
-                      paddingBottom: 10,
-                      justifyContent: 'space-between',
-                      opacity: pressed ? 0.7 : 1,
-                    })}>
-                    <Text
-                      style={{
-                        color: SINK.dim,
-                        fontSize: 11,
-                        fontFamily: fontFamily.medium,
-                        letterSpacing: 1,
-                      }}>
-                      {runningCount > 0 ? 'RUNNING NOW' : 'ALL CLEAR'}
-                    </Text>
-                    <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4 }}>
-                      <Text
-                        style={{
-                          color: SINK.strong,
-                          fontSize: 22,
-                          lineHeight: 26,
-                          fontFamily: fontFamily.bold,
-                        }}>
-                        {runningCount}
-                      </Text>
-                      <Text style={{ color: SINK.dim, fontSize: 11 }}>
-                        {runningCount === 1 ? 'task' : 'tasks'}
-                      </Text>
-                    </View>
-                  </Pressable>
-
-                  <Pressable
-                    onPress={scrollToApprovals}
-                    style={({ pressed }) => ({
-                      flex: 1,
-                      height: 72,
-                      borderRadius: 16,
-                      // same inner-bento grammar as the Crew Perf stat tiles
-                      backgroundColor: SINK.tile,
-                      paddingHorizontal: 14,
-                      paddingTop: 10,
-                      paddingBottom: 10,
-                      justifyContent: 'space-between',
-                      opacity: pressed ? 0.7 : 1,
-                    })}>
-                    <View
-                      style={{
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                      }}>
-                      <Text
-                        style={{
-                          color: SINK.dim,
-                          fontSize: 11,
-                          fontFamily: fontFamily.medium,
-                          letterSpacing: 1,
-                        }}>
-                        NEEDS APPROVAL
-                      </Text>
-                      {needsYou > 0 ? (
-                        <View
-                          style={{
-                            width: 8,
-                            height: 8,
-                            borderRadius: 999,
-                            backgroundColor: GLASS.dotAlert,
-                          }}
-                        />
-                      ) : null}
-                    </View>
-                    <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4 }}>
-                      <Text
-                        style={{
-                          color: SINK.strong,
-                          fontSize: 22,
-                          lineHeight: 26,
-                          fontFamily: fontFamily.bold,
-                        }}>
-                        {needsYou}
-                      </Text>
-                      <Text style={{ color: SINK.dim, fontSize: 11 }}>
-                        waiting
-                      </Text>
-                    </View>
-                  </Pressable>
-                </View>
-
-                {[
-                  ...background.map((t) => ({
-                    key: t.id,
-                    agentId: t.agentId,
-                    label: t.label,
-                    waiting: t.state === 'waiting',
-                    onPress: () => router.push(`/chat/${t.threadId}`),
-                  })),
-                  // approvals ARE "needs you" — same concept, one list.
-                  // Home only indexes; the action happens on the detail.
-                  ...approvals.map((a) => ({
-                    key: a.id,
-                    agentId: 'muppet',
-                    label: a.title,
-                    waiting: true,
-                    onPress: () => router.push(`/approval/${a.id}`),
-                  })),
-                ].map((row, i) => {
+              <Text
+                style={{
+                  marginTop: 24,
+                  marginBottom: 12,
+                  fontFamily: fontFamily.mono,
+                  fontSize: 11,
+                  letterSpacing: 1,
+                  color: NHOME.faint,
+                }}>
+                {`OPEN  ${runningCount + needsYou}`}
+              </Text>
+              {[
+                ...background.map((t) => ({
+                  key: t.id,
+                  label: t.label,
+                  waiting: t.state === 'waiting',
+                  deadline: t.deadline,
+                  age: t.age,
+                  onPress: () => router.push(`/chat/${t.threadId}`),
+                })),
+                // approvals ARE "needs you" — same concept, one list.
+                ...approvals.map((a) => ({
+                  key: a.id,
+                  label: a.title,
+                  waiting: true,
+                  deadline: undefined,
+                  age: a.age,
+                  onPress: () => a.threadId && router.push(`/chat/${a.threadId}`),
+                })),
+              ]
+                // Soft aging: a stale no-deadline ask is never deleted,
+                // it just sinks below the fresh rows and dims.
+                .sort(
+                  (a, b) =>
+                    Number(a.age?.endsWith('d') ?? false) -
+                    Number(b.age?.endsWith('d') ?? false)
+                )
+                .map((row) => {
+                  const aged = row.age?.endsWith('d') ?? false;
+                  // deadline tasks say when they expire; aged ones say how stale
+                  const statusSuffix = row.deadline ?? (aged ? row.age : null);
                   return (
                     <Pressable
                       key={row.key}
@@ -647,136 +590,136 @@ export default function HomeScreen() {
                       style={({ pressed }) => ({
                         flexDirection: 'row',
                         alignItems: 'center',
-                        gap: spacing.sm,
-                        paddingHorizontal: spacing.lg,
-                        // comfortable touch rows: 13pt text + 16 top/bottom
-                        // clears the 44pt minimum target
-                        paddingVertical: 16,
-                        borderTopWidth: i === 0 ? 0 : 1,
-                        borderTopColor: SINK.line,
-                        opacity: pressed ? 0.5 : 1,
+                        gap: 12,
+                        // the STATE tints the surface: amber = blocked on
+                        // you, blue = crew at work. No borders, no two
+                        // identical grays — each row says what it is.
+                        backgroundColor: row.waiting
+                          ? 'rgba(240,178,95,0.13)'
+                          : 'rgba(143,191,242,0.14)',
+                        borderRadius: 12,
+                        paddingHorizontal: 16,
+                        paddingVertical: 17,
+                        marginBottom: 10,
+                        opacity: pressed ? 0.5 : aged ? 0.45 : 1,
                       })}>
                       <Text
                         numberOfLines={1}
                         style={{
                           flex: 1,
-                          color: SINK.text,
+                          color: NHOME.text,
                           fontSize: fontSize.small,
                           fontWeight: fontWeight.semibold,
                         }}>
                         {row.label}
                       </Text>
-                      {row.waiting ? (
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-                          <View
-                            style={{
-                              width: 7,
-                              height: 7,
-                              borderRadius: 999,
-                              backgroundColor: GLASS.dotAlert,
-                            }}
-                          />
-                          <Text
-                            style={{
-                              color: GLASS.dotAlert,
-                              fontSize: 11,
-                              fontFamily: fontFamily.mono,
-                            }}>
-                            needs you
-                          </Text>
-                        </View>
-                      ) : (
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-                          <RunningDot />
-                          <Text
-                            style={{
-                              color: SINK.dim,
-                              fontSize: 11,
-                              fontFamily: fontFamily.mono,
-                            }}>
-                            running
-                          </Text>
-                        </View>
-                      )}
+                      <Text
+                        style={{
+                          color: row.waiting ? NHOME.warn : NHOME.blue,
+                          fontSize: 11,
+                          fontFamily: fontFamily.mono,
+                        }}>
+                        {row.waiting
+                          ? (statusSuffix ? `needs you  ${statusSuffix}` : 'needs you')
+                          : 'running'}
+                      </Text>
                     </Pressable>
                   );
                 })}
-              </LiquidCard>
             </View>
 
-            {/* Delivered — everything FINISHED, newest first. Blue dot =
-                done but not yet opened (messenger grammar: the crew
-                delivered, you haven't picked it up). Tap the card for the
-                full prompt history; rows open their own thread. */}
-            <LiquidCard
-              title="DELIVERED"
+            {/* DONE — delivered or expired, never locked: rows reopen and
+                a follow-up revives them. Header taps into full history. */}
+            <Pressable
               onPress={() => setHistoryOpen(true)}
-              style={{ marginTop: spacing.lg }}
-              contentStyle={{ padding: 0, paddingTop: spacing.sm, paddingBottom: spacing.xl }}>
-              {threads.length === 0 ? (
-                <Text
-                  style={{
-                    color: SINK.dim,
-                    fontSize: fontSize.small,
-                    padding: spacing.lg,
-                    paddingTop: spacing.sm,
-                  }}>
-                  No conversations yet.
-                </Text>
-              ) : (
-                threads.map((t, i) => (
-                  <Pressable
-                    key={t.id}
-                    onPress={() => openThread(t.id)}
-                    style={({ pressed }) => ({
-                      flexDirection: 'row',
-                      alignItems: 'flex-start',
-                      gap: spacing.sm,
-                      paddingHorizontal: spacing.lg,
-                      paddingVertical: 15,
-                      borderTopWidth: i === 0 ? 0 : 1,
-                      borderTopColor: SINK.line,
-                      opacity: pressed ? 0.5 : 1,
-                    })}>
-                    {/* unread dot column: finished, not yet opened */}
-                    <View
-                      style={{
-                        width: 7,
-                        height: 7,
-                        borderRadius: 999,
-                        marginTop: 7,
-                        backgroundColor: t.unread ? GLASS.blue : 'transparent',
-                      }}
-                    />
-                    <View style={{ flex: 1 }}>
+              style={({ pressed }) => ({
+                marginTop: 36,
+                marginBottom: 14,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                opacity: pressed ? 0.6 : 1,
+              })}>
+              <Text
+                style={{
+                  fontFamily: fontFamily.mono,
+                  fontSize: 11,
+                  letterSpacing: 1,
+                  color: NHOME.faint,
+                }}>
+                {`DONE  ${doneThreads.length}`}
+              </Text>
+              <Text style={{ fontFamily: fontFamily.mono, fontSize: 11, color: NHOME.faint }}>
+                {'history ›'}
+              </Text>
+            </Pressable>
+            {doneThreads.length === 0 ? (
+              <Text style={{ color: NHOME.dim, fontSize: fontSize.small }}>
+                Nothing finished yet.
+              </Text>
+            ) : (
+              // Same grammar as OPEN, one state further: color IS the
+              // state everywhere — blue running, amber blocked, GREEN
+              // delivered (amber-tinted when it expired instead).
+              doneThreads.map((t) => (
+                <Pressable
+                  key={t.id}
+                  onPress={() => openThread(t.id)}
+                  style={({ pressed }) => ({
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: spacing.sm,
+                    backgroundColor:
+                      t.outcome === 'expired'
+                        ? 'rgba(240,178,95,0.09)'
+                        : 'rgba(126,217,160,0.12)',
+                    borderRadius: 12,
+                    paddingHorizontal: 16,
+                    paddingVertical: 13,
+                    marginBottom: 10,
+                    opacity: pressed ? 0.5 : t.outcome === 'expired' ? 0.6 : 1,
+                  })}>
+                  <View style={{ flex: 1 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
                       <Text
                         style={{
-                          color: SINK.text,
+                          color: NHOME.text,
                           fontSize: fontSize.small,
                           fontWeight: fontWeight.semibold,
+                          flexShrink: 1,
                         }}
                         numberOfLines={1}>
                         {t.title}
                       </Text>
-                      <Text
-                        style={{ color: SINK.dim, fontSize: fontSize.caption, marginTop: 2 }}
-                        numberOfLines={1}>
-                        {t.lastPreview}
-                      </Text>
+                      {/* unread: finished, not yet picked up */}
+                      {t.unread ? (
+                        <View
+                          style={{
+                            width: 6,
+                            height: 6,
+                            borderRadius: 999,
+                            backgroundColor: NHOME.blue,
+                          }}
+                        />
+                      ) : null}
                     </View>
                     <Text
-                      style={{
-                        color: SINK.faint,
-                        fontSize: 11,
-                        fontFamily: fontFamily.mono,
-                        marginTop: 2,
-                      }}>
-                      {t.updatedAt}
+                      style={{ color: NHOME.dim, fontSize: fontSize.caption, marginTop: 3 }}
+                      numberOfLines={1}>
+                      {t.lastPreview}
                     </Text>
-                  </Pressable>
-                ))
-              )}
-            </LiquidCard>
+                  </View>
+                  <Text
+                    style={{
+                      color: t.outcome === 'expired' ? NHOME.warn : 'rgba(126,217,160,0.8)',
+                      fontSize: 11,
+                      fontFamily: fontFamily.mono,
+                    }}>
+                    {t.outcome === 'expired' ? 'expired' : t.updatedAt}
+                  </Text>
+                </Pressable>
+              ))
+            )}
 
           </ScrollView>
 

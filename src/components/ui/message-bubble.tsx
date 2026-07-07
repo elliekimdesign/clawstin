@@ -5,9 +5,16 @@ import { darkChat, fontFamily, spacing } from '@/theme/theme';
 type Props = {
   from: 'user' | 'agent';
   text?: string;
+  /** agent spoke FIRST (escalation reminder) — gets the update caption */
+  proactive?: boolean;
+  /** caption override, e.g. "TASK PAUSED" on failure updates */
+  caption?: string;
   /** optional content rendered below the text (e.g. an inline approval card) */
   children?: ReactNode;
 };
+
+// Warning amber shared with the home "needs you" grammar.
+const NUDGE = '#F0812F';
 
 const BODY_STYLE = {
   color: darkChat.text,
@@ -30,7 +37,7 @@ const BODY_STYLE = {
  * re-wrapping the text. Other participating crews will be revealed on tap
  * later; no counts, no extra faces.
  */
-export function MessageBubble({ from, text, children }: Props) {
+export function MessageBubble({ from, text, proactive, caption, children }: Props) {
   const isUser = from === 'user';
 
   if (isUser) {
@@ -57,43 +64,50 @@ export function MessageBubble({ from, text, children }: Props) {
     );
   }
 
-  return <AgentMessage text={text}>{children}</AgentMessage>;
+  return (
+    <AgentMessage text={text} proactive={proactive} caption={caption}>
+      {children}
+    </AgentMessage>
+  );
 }
 
-function AgentMessage({ text, children }: { text?: string; children?: ReactNode }) {
+/** The system spoke on its own (escalation, failure update): a tiny mono
+ * caption sets this apart from replies the user asked for. */
+function SystemCaption({ label }: { label: string }) {
   return (
-    // The left rail: one thin line spanning the WHOLE answer chunk (text,
-    // cards, chips) so its extent reads at a glance.
-    <View
+    <Text
       style={{
-        flexDirection: 'row',
-        alignSelf: 'flex-start',
-        maxWidth: '92%',
-        marginBottom: spacing.lg,
+        fontFamily: fontFamily.mono,
+        fontSize: 10,
+        letterSpacing: 1,
+        color: NUDGE,
+        marginBottom: 5,
       }}>
-      {/* the thread: a node marks where the answer starts, a hairline
-          carries it down, and a node closes the chunk */}
-      <View
-        style={{
-          width: 6,
-          marginRight: 9,
-          alignSelf: 'stretch',
-          alignItems: 'center',
-          paddingTop: 9,
-          paddingBottom: 3,
-        }}>
-        <View
-          style={{ width: 5, height: 5, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.55)' }}
-        />
-        <View style={{ flex: 1, width: 1.2, backgroundColor: 'rgba(255,255,255,0.18)' }} />
-        <View
-          style={{ width: 5, height: 5, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.55)' }}
-        />
-      </View>
-      <View style={{ flex: 1 }}>
-        {text ? <Text style={BODY_STYLE}>{text}</Text> : null}
-        {children ? <View style={{ marginTop: text ? spacing.md : 0 }}>{children}</View> : null}
-      </View>
+      {label}
+    </Text>
+  );
+}
+
+function AgentMessage({
+  text,
+  proactive,
+  caption,
+  children,
+}: {
+  text?: string;
+  proactive?: boolean;
+  caption?: string;
+  children?: ReactNode;
+}) {
+  const capText = caption ?? (proactive ? 'CREW UPDATE' : null);
+  // RULE: no rails, no boxes — every answer (text or card) sits flush on
+  // the same left edge as the user's prompt. Alignment does the grouping;
+  // a data card's own border is all the framing it needs.
+  return (
+    <View style={{ alignSelf: 'flex-start', maxWidth: '92%', marginBottom: spacing.lg }}>
+      {capText ? <SystemCaption label={capText} /> : null}
+      {text ? <Text style={BODY_STYLE}>{text}</Text> : null}
+      {children ? <View style={{ marginTop: text ? spacing.md : 0 }}>{children}</View> : null}
     </View>
   );
 }

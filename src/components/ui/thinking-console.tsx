@@ -15,6 +15,8 @@ const PANEL_BG = '#0E1626';
 const MONO = 'Menlo';
 const TEXT = 'rgba(255,255,255,0.72)';
 const DIM = 'rgba(255,255,255,0.4)';
+// runs that STOPPED on errors close amber, not green (Logs `wait` tone)
+const WARN = '#F0B25F';
 
 /** Breathing ellipsis while the agent is still working. */
 function WorkingCursor() {
@@ -44,17 +46,24 @@ export function ThinkingConsole({
   threadId,
   lines,
   done,
+  failed,
+  startCollapsed,
 }: {
   threadId: string;
   lines: string[];
   done: boolean;
+  /** the run stopped on errors — amber "stopped" footer instead of done */
+  failed?: boolean;
+  /** for logs of runs that finished BEFORE the user arrived (seeded
+   * ask-threads): fold to the slim bar, expand on demand */
+  startCollapsed?: boolean;
 }) {
-  // Done logs open by default (2-3 lines, no harm) — the user can fold
-  // them away with a tap if they want the space back.
-  const [expanded, setExpanded] = useState(true);
+  // Freshly finished logs open by default (2-3 lines, no harm) — the
+  // user can fold them away with a tap if they want the space back.
+  const [expanded, setExpanded] = useState(!startCollapsed);
   useEffect(() => {
-    setExpanded(true);
-  }, [threadId, done]);
+    setExpanded(!startCollapsed);
+  }, [threadId, done, startCollapsed]);
 
   if (!done) {
     // Rolling two-line ticker: only the latest lines, one line each.
@@ -97,8 +106,8 @@ export function ThinkingConsole({
           justifyContent: 'space-between',
           opacity: pressed ? 0.8 : 1,
         })}>
-        <Text style={{ fontFamily: MONO, fontSize: 11, color: DIM }}>
-          {'✓ done · '}
+        <Text style={{ fontFamily: MONO, fontSize: 11, color: failed ? WARN : DIM }}>
+          {failed ? '⚠ stopped · ' : '✓ done · '}
           {lines.length}
           {lines.length === 1 ? ' step' : ' steps'}
         </Text>
@@ -137,7 +146,9 @@ export function ThinkingConsole({
             justifyContent: 'space-between',
             marginTop: 2,
           }}>
-          <Text style={{ fontFamily: MONO, fontSize: 11, color: DIM }}>{'✓ done'}</Text>
+          <Text style={{ fontFamily: MONO, fontSize: 11, color: failed ? WARN : DIM }}>
+            {failed ? '⚠ stopped' : '✓ done'}
+          </Text>
           <Ionicons name="chevron-up" size={12} color={DIM} />
         </View>
       </Pressable>

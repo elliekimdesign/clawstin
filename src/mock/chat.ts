@@ -32,6 +32,11 @@ export type ChatMessage = {
   suggestions?: string[];
   /** crew members who worked on this reply; >1 renders the mark with "+N" */
   crewCount?: number;
+  /** the SYSTEM spoke first (escalation reminder, status nudge) — renders
+   * a small mono caption so it reads apart from asked-for replies */
+  proactive?: boolean;
+  /** overrides the caption text (e.g. "TASK PAUSED" on failure updates) */
+  caption?: string;
 };
 
 export const initialMessages: ChatMessage[] = [
@@ -93,6 +98,7 @@ const rules: { keywords: string[]; reply: Reply }[] = [
         title: 'Access Gmail',
         detail: 'To read your latest emails and draft replies.',
         permissionKey: 'gmail',
+        receipt: 'Access granted',
       },
     },
   },

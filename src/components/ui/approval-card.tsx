@@ -20,14 +20,35 @@ export type Approval = {
   policy?: string;
   /** guardrail: whether this action is on the allowlist. */
   allowlisted?: boolean;
+  /** display age; multi-day = soft-aged (sinks and dims, never deleted) */
+  age?: string;
+  /** the concrete things being acted on — rendered as rows in the bubble
+   * so the ask always shows WHAT it touches, not just a title */
+  items?: { label: string; detail?: string }[];
+  /** approve button copy, action-specific ("Merge 3", "Move it") */
+  actionLabel?: string;
+  /** short receipt stamped on the card after approval ("Merged successfully") */
+  receipt?: string;
+  /** the chat thread that hosts this ask — approvals RESOLVE in chat */
+  threadId?: string;
+  /** Receipt model: answering NEVER removes the card. It stays as the
+   * permanent record (dimmed), and the button row becomes this stamp —
+   * GitHub's purple "Merged" badge, in our grammar. */
+  resolved?: 'approved' | 'denied';
+};
+
+/** permissionKey → the tool name shown in the scope caption. */
+const SCOPE_NAME: Record<string, string> = {
+  contacts: 'Contacts',
+  calendar: 'Calendar',
+  github: 'Devtools',
+  gmail: 'Gmail',
 };
 
 type Props = {
   approval: Approval;
   onApprove: (a: Approval) => void;
   onDeny: (a: Approval) => void;
-  /** for write/exec risk: open the review detail screen */
-  onReview?: (a: Approval) => void;
   /** compact = used inline inside a chat bubble */
   compact?: boolean;
   /** rendered on the chat screen's dark gradient — switch to the dark palette */
@@ -35,15 +56,20 @@ type Props = {
 };
 
 /**
- * Minimal-row approval card: small icon chip, title/detail, a plain-text
- * risk tag, and compact text buttons. read = Deny · Approve; write/exec =
- * Deny · Review → (opens the guardrail detail screen). Neutral card shell
- * (no colored risk tints/dots) — reads as structured log output, like the
- * pipeline card's plain status tags, rather than a colorful app widget.
+ * Approval bubble content — approvals live and RESOLVE inside the chat,
+ * never on a separate review screen. Two shapes:
+ * - rich task ask (`items` set): the bubble text is the question, so the
+ *   card is just the payload — item rows, a mono scope caption
+ *   ("Contacts · WRITE"), and Deny / action-label buttons.
+ * - permission ask (no items, e.g. "Access Gmail"): keeps the small
+ *   icon-chip header row. Neutral shell either way — structured log
+ *   output, not a colorful widget.
  */
-export function ApprovalCard({ approval, onApprove, onDeny, onReview, compact, onDark }: Props) {
+export function ApprovalCard({ approval, onApprove, onDeny, compact, onDark }: Props) {
   const risk = approval.risk ?? 'read';
-  const needsReview = risk === 'write' || risk === 'exec';
+  const scope = approval.permissionKey
+    ? `${SCOPE_NAME[approval.permissionKey] ?? approval.permissionKey} · ${risk.toUpperCase()}`
+    : null;
 
   // Palette flips as one unit so the card stays coherent on either background.
   const c = onDark
@@ -54,6 +80,9 @@ export function ApprovalCard({ approval, onApprove, onDeny, onReview, compact, o
         text: darkChat.text,
         secondary: darkChat.textSecondary,
         tertiary: darkChat.textTertiary,
+        ok: darkChat.success,
+        btnBg: darkChat.text,
+        btnText: darkChat.onLight,
       }
     : {
         bg: compact ? colors.cardAlt : colors.card,
@@ -62,6 +91,9 @@ export function ApprovalCard({ approval, onApprove, onDeny, onReview, compact, o
         text: colors.text,
         secondary: colors.textSecondary,
         tertiary: colors.textTertiary,
+        ok: colors.success,
+        btnBg: colors.text,
+        btnText: '#FFFFFF',
       };
 
   return (
@@ -75,75 +107,162 @@ export function ApprovalCard({ approval, onApprove, onDeny, onReview, compact, o
         paddingHorizontal: spacing.md,
         gap: spacing.sm,
       }}>
-      {/* Row: icon chip · title/detail · risk tag */}
-      <View style={{ flexDirection: 'row', gap: spacing.md, alignItems: 'center' }}>
+      {approval.items ? (
+        // Rich task ask: the bubble text already asked the question, so
+        // the card carries the payload — what exactly gets touched.
+        // Once resolved it dims a touch: done, but still on the record.
+        <View style={{ gap: 6, opacity: approval.resolved ? 0.6 : 1 }}>
+          {approval.items.map((it, i) => (
+            <View
+              key={i}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: spacing.md,
+              }}>
+              <Text
+                style={{
+                  color: c.text,
+                  fontSize: fontSize.small,
+                  fontWeight: fontWeight.semibold,
+                  flexShrink: 1,
+                }}
+                numberOfLines={1}>
+                {it.label}
+              </Text>
+              {it.detail ? (
+                <Text
+                  style={{
+                    fontFamily: fontFamily.mono,
+                    fontSize: 11,
+                    color: c.secondary,
+                    flexShrink: 0,
+                  }}
+                  numberOfLines={1}>
+                  {it.detail}
+                </Text>
+              ) : null}
+            </View>
+          ))}
+          {scope ? (
+            <Text
+              style={{
+                fontFamily: fontFamily.mono,
+                fontSize: 11,
+                letterSpacing: 0.4,
+                color: c.tertiary,
+                marginTop: 2,
+              }}>
+              {scope}
+            </Text>
+          ) : null}
+        </View>
+      ) : (
+        // Permission ask: icon chip · title/detail · risk tag
         <View
           style={{
-            width: 30,
-            height: 30,
-            borderRadius: radius.sm,
-            backgroundColor: c.chip,
+            flexDirection: 'row',
+            gap: spacing.md,
             alignItems: 'center',
-            justifyContent: 'center',
+            opacity: approval.resolved ? 0.6 : 1,
           }}>
-          <Ionicons name={approval.icon} size={15} color={c.text} />
+          <View
+            style={{
+              width: 30,
+              height: 30,
+              borderRadius: radius.sm,
+              backgroundColor: c.chip,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}>
+            <Ionicons name={approval.icon} size={15} color={c.text} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text
+              style={{ color: c.text, fontSize: fontSize.body, fontWeight: fontWeight.semibold }}
+              numberOfLines={1}>
+              {approval.title}
+            </Text>
+            <Text
+              style={{ color: c.secondary, fontSize: fontSize.small, marginTop: 1 }}
+              numberOfLines={1}>
+              {approval.detail}
+            </Text>
+          </View>
+          {risk !== 'read' ? (
+            <Text
+              style={{
+                fontFamily: fontFamily.mono,
+                fontSize: 11,
+                letterSpacing: 0.4,
+                color: c.tertiary,
+              }}>
+              [{risk.toUpperCase()}]
+            </Text>
+          ) : null}
         </View>
-        <View style={{ flex: 1 }}>
-          <Text
-            style={{ color: c.text, fontSize: fontSize.body, fontWeight: fontWeight.semibold }}
-            numberOfLines={1}>
-            {approval.title}
-          </Text>
-          <Text
-            style={{ color: c.secondary, fontSize: fontSize.small, marginTop: 1 }}
-            numberOfLines={1}>
-            {approval.detail}
-          </Text>
-        </View>
-        {risk !== 'read' ? (
+      )}
+
+      {approval.resolved ? (
+        // The stamp: buttons gave way to the outcome; the card above is
+        // the receipt and never disappears.
+        <View style={{ flexDirection: 'row', justifyContent: 'flex-end' }}>
           <Text
             style={{
               fontFamily: fontFamily.mono,
-              fontSize: 11,
-              letterSpacing: 0.4,
-              color: c.tertiary,
+              fontSize: 12,
+              color: approval.resolved === 'approved' ? c.ok : c.tertiary,
             }}>
-            [{risk.toUpperCase()}]
+            {approval.resolved === 'approved'
+              ? `✓ ${approval.receipt ?? 'Approved'}`
+              : '✗ Denied'}
           </Text>
-        ) : null}
-      </View>
-
-      {/* Compact text buttons, right-aligned */}
-      <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: spacing.xl }}>
-        <Pressable onPress={() => onDeny(approval)} hitSlop={8}>
-          {({ pressed }) => (
+        </View>
+      ) : (
+        // Ghost Deny + the approve action as a solid pill — the SAME
+        // white chip grammar as the schedule card's "Book 9:00 AM".
+        <View
+          style={{
+            flexDirection: 'row',
+            justifyContent: 'flex-end',
+            alignItems: 'center',
+            gap: spacing.xl,
+          }}>
+          <Pressable onPress={() => onDeny(approval)} hitSlop={8}>
+            {({ pressed }) => (
+              <Text
+                style={{
+                  color: c.secondary,
+                  fontSize: fontSize.small,
+                  fontWeight: fontWeight.semibold,
+                  opacity: pressed ? 0.5 : 1,
+                }}>
+                Deny
+              </Text>
+            )}
+          </Pressable>
+          <Pressable
+            onPress={() => onApprove(approval)}
+            hitSlop={8}
+            style={({ pressed }) => ({
+              backgroundColor: c.btnBg,
+              borderRadius: radius.pill,
+              paddingVertical: 7,
+              paddingHorizontal: spacing.md,
+              opacity: pressed ? 0.85 : 1,
+            })}>
             <Text
               style={{
-                color: c.secondary,
+                color: c.btnText,
                 fontSize: fontSize.small,
-                fontWeight: fontWeight.semibold,
-                opacity: pressed ? 0.5 : 1,
+                fontFamily: fontFamily.semibold,
               }}>
-              Deny
+              {approval.actionLabel ?? 'Approve'}
             </Text>
-          )}
-        </Pressable>
-        <Pressable
-          onPress={() => (needsReview ? onReview?.(approval) : onApprove(approval))}
-          hitSlop={8}>
-          {({ pressed }) => (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, opacity: pressed ? 0.5 : 1 }}>
-              <Text
-                style={{ color: c.text, fontSize: fontSize.small, fontWeight: fontWeight.semibold }}>
-                {needsReview ? 'Review' : 'Approve'}
-              </Text>
-              {needsReview ? (
-                <Ionicons name="arrow-forward" size={13} color={c.text} />
-              ) : null}
-            </View>
-          )}
-        </Pressable>
-      </View>
+          </Pressable>
+        </View>
+      )}
     </View>
   );
 }
