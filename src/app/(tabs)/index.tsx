@@ -717,7 +717,7 @@ export default function HomeScreen() {
                 position: 'absolute',
                 left: spacing.lg,
                 right: spacing.lg,
-                bottom: 92,
+                bottom: 102,
                 flexDirection: 'row',
                 alignItems: 'center',
                 gap: spacing.sm,

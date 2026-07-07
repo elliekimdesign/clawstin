@@ -21,10 +21,15 @@ const STATE_COLOR: Record<ServiceState, string> = {
   degraded: colors.warning,
   down: colors.danger,
 };
+// System rows (Core, Gateway, models) speak infra: operational /
+// degraded / offline. Agents are people-like and say "ready" instead
+// (the Agents row below formats its own `N ready` label).
+// lowercase like every status word in the app (header `degraded`, card
+// `needs you` / `running`) — one log language everywhere.
 const STATE_LABEL: Record<ServiceState, string> = {
-  operational: 'Operational',
-  degraded: 'Degraded',
-  down: 'Offline',
+  operational: 'operational',
+  degraded: 'degraded',
+  down: 'offline',
 };
 
 /** Worst (most severe) state across services — drives the header dot + summary. */
@@ -50,10 +55,12 @@ function GroupLabel({ text, first }: { text: string; first?: boolean }) {
   return (
     <Text
       style={{
-        color: PANEL_FAINT,
+        // a clear step below the SYSTEM STATUS title: darker AND smaller,
+        // so "title vs divider" reads as two layers
+        color: 'rgba(255,255,255,0.28)',
         fontFamily: MONO,
-        fontSize: 10,
-        letterSpacing: 1.2,
+        fontSize: 9,
+        letterSpacing: 1.4,
         marginTop: first ? 0 : spacing.md,
         marginBottom: 2,
         paddingTop: first ? 0 : spacing.md,

@@ -80,7 +80,7 @@ export const initialCrew: CrewMember[] = [
       { label: 'Find free slots', on: true },
       { label: 'Send reminders', on: false },
     ],
-    active: false,
+    active: true,
     tasksDone: 57,
     autonomy: 90,
     timeSavedH: 3.2,

@@ -14,26 +14,29 @@ import {
 import type { ImageSourcePropType } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { BlissSwooshBg } from '@/components/ui/bliss-swoosh-bg';
+import { DarkCloudBg } from '@/components/ui/dark-cloud-bg';
 import type { ActivityItem } from '@/mock/activity';
 import type { CrewMember } from '@/mock/crew';
 import { useAppStore } from '@/store/app-store';
 import { fontFamily, fontSize, fontWeight, radius, spacing } from '@/theme/theme';
 
-// blissxp ink tones (see the GLASS palette in the home tab).
-const INK = '#1F3A57';
-const INK_DIM = 'rgba(31,58,87,0.6)';
-const INK_SOFT = 'rgba(31,58,87,0.06)';
-const INK_EDGE = 'rgba(31,58,87,0.12)';
-const NAME_GHOST = 'rgba(31,58,87,0.14)';
+// cinema tones: the Crew tab shares the home board's dark_cloud field,
+// and the cards go DARKER than the field — characters lit like movie
+// stars on a dim stage. Light ink on dark surface.
+const CARD = '#16233A'; // baked into assets/crew/dark/* canvases too
+const INK = '#F3F8FC';
+const INK_DIM = 'rgba(243,248,252,0.6)';
+const INK_SOFT = 'rgba(255,255,255,0.08)';
+const INK_EDGE = 'rgba(255,255,255,0.18)';
+const NAME_GHOST = 'rgba(255,255,255,0.09)';
 
 // Character art per agent. Cards without art stay white placeholders.
 // (Current images are internal placeholders only, not for release.)
 const CREW_ART: Record<string, ImageSourcePropType> = {
-  muppet: require('../../../assets/crew/muppet.jpeg'),
-  scout: require('../../../assets/crew/beaker.jpeg'),
-  quill: require('../../../assets/crew/misspiggy.jpeg'),
-  pilot: require('../../../assets/crew/gonzo.jpeg'),
+  muppet: require('../../../assets/crew/dark/muppet.jpeg'),
+  scout: require('../../../assets/crew/dark/beaker.jpeg'),
+  quill: require('../../../assets/crew/dark/misspiggy.jpeg'),
+  pilot: require('../../../assets/crew/dark/gonzo.jpeg'),
 };
 
 
@@ -50,9 +53,9 @@ function AgentCard({ member }: { member: CrewMember }) {
         height: 200,
         borderRadius: 22,
         overflow: 'hidden',
-        backgroundColor: '#FFFFFF',
-        shadowColor: '#2E3252',
-        shadowOpacity: 0.13,
+        backgroundColor: CARD,
+        shadowColor: '#000000',
+        shadowOpacity: 0.35,
         shadowRadius: 16,
         shadowOffset: { width: 0, height: 8 },
         elevation: 6,
@@ -136,9 +139,9 @@ function ContributionCard({ crew }: { crew: CrewMember[] }) {
     <View
       style={{
         borderRadius: 22,
-        backgroundColor: '#FFFFFF',
-        shadowColor: '#2E3252',
-        shadowOpacity: 0.13,
+        backgroundColor: CARD,
+        shadowColor: '#000000',
+        shadowOpacity: 0.35,
         shadowRadius: 16,
         shadowOffset: { width: 0, height: 8 },
         elevation: 6,
@@ -154,14 +157,14 @@ function ContributionCard({ crew }: { crew: CrewMember[] }) {
         }}>
         <Text
           style={{
-            color: '#2C4A6B',
+            color: INK_DIM,
             fontSize: 11,
             fontWeight: fontWeight.semibold,
             letterSpacing: 1,
           }}>
           ACTION RUNS
         </Text>
-        <Text style={{ color: 'rgba(31,58,87,0.45)', fontSize: 10 }}>
+        <Text style={{ color: 'rgba(243,248,252,0.45)', fontSize: 10 }}>
           tasks · last 7 days
         </Text>
       </View>
@@ -172,7 +175,7 @@ function ContributionCard({ crew }: { crew: CrewMember[] }) {
           justifyContent: 'space-around',
           marginTop: 14,
           borderBottomWidth: 1,
-          borderBottomColor: 'rgba(31,58,87,0.12)',
+          borderBottomColor: 'rgba(255,255,255,0.14)',
           paddingBottom: 0,
         }}>
         {crew.map((m) => {
@@ -197,11 +200,11 @@ function ContributionCard({ crew }: { crew: CrewMember[] }) {
                     borderRadius: 999,
                     overflow: 'hidden',
                     borderWidth: 1.5,
-                    borderColor: '#FFFFFF',
-                    backgroundColor: '#FFFFFF',
+                    borderColor: 'rgba(255,255,255,0.35)',
+                    backgroundColor: CARD,
                     marginBottom: -6,
                     zIndex: 1,
-                    shadowColor: '#2E3252',
+                    shadowColor: '#000000',
                     shadowOpacity: 0.2,
                     shadowRadius: 4,
                     shadowOffset: { width: 0, height: 2 },
@@ -218,7 +221,7 @@ function ContributionCard({ crew }: { crew: CrewMember[] }) {
                   height: barH,
                   borderTopLeftRadius: 8,
                   borderTopRightRadius: 8,
-                  backgroundColor: '#2E7CD6',
+                  backgroundColor: '#8FBFF2',
                 }}
               />
             </View>
@@ -251,7 +254,7 @@ function StatTile({ label, value }: { label: string; value: string }) {
       style={{
         flex: 1,
         borderRadius: 12,
-        backgroundColor: 'rgba(31,58,87,0.04)',
+        backgroundColor: 'rgba(255,255,255,0.06)',
         paddingVertical: 10,
         paddingHorizontal: 12,
       }}>
@@ -288,9 +291,9 @@ function PerfSection({ member, recent }: { member: CrewMember; recent: ActivityI
       onPress={() => router.push(`/crew/history/${member.id}`)}
       style={({ pressed }) => ({
         borderRadius: 22,
-        backgroundColor: '#FFFFFF',
-        shadowColor: '#2E3252',
-        shadowOpacity: 0.13,
+        backgroundColor: CARD,
+        shadowColor: '#000000',
+        shadowOpacity: 0.35,
         shadowRadius: 16,
         shadowOffset: { width: 0, height: 8 },
         elevation: 6,
@@ -318,7 +321,7 @@ function PerfSection({ member, recent }: { member: CrewMember; recent: ActivityI
                 height: 22,
                 borderRadius: 999,
                 overflow: 'hidden',
-                backgroundColor: '#FFFFFF',
+                backgroundColor: CARD,
               }}>
               <Image
                 source={art}
@@ -373,15 +376,15 @@ function PerfSection({ member, recent }: { member: CrewMember; recent: ActivityI
               marginBottom: 4,
               opacity: pressed ? 0.6 : 1,
             })}>
-            <Text style={{ color: 'rgba(31,58,87,0.35)', fontSize: 12 }}>
+            <Text style={{ color: 'rgba(243,248,252,0.35)', fontSize: 12 }}>
               {'\u21b3'}
             </Text>
             <Text
               numberOfLines={1}
-              style={{ flex: 1, color: 'rgba(31,58,87,0.75)', fontSize: 12 }}>
+              style={{ flex: 1, color: 'rgba(243,248,252,0.75)', fontSize: 12 }}>
               {entry.prompt}
             </Text>
-            <Text style={{ color: 'rgba(31,58,87,0.45)', fontSize: 12 }}>
+            <Text style={{ color: 'rgba(243,248,252,0.45)', fontSize: 12 }}>
               {entry.ago}
             </Text>
           </Pressable>
@@ -403,9 +406,9 @@ function ModeToggle({
     <View
       style={{
         flexDirection: 'row',
-        backgroundColor: 'rgba(255,255,255,0.45)',
+        backgroundColor: 'rgba(255,255,255,0.10)',
         borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.7)',
+        borderColor: 'rgba(255,255,255,0.22)',
         borderRadius: radius.pill,
         padding: 3,
       }}>
@@ -417,8 +420,8 @@ function ModeToggle({
             paddingVertical: 5,
             paddingHorizontal: 16,
             borderRadius: radius.pill,
-            backgroundColor: mode === m ? '#FFFFFF' : 'transparent',
-            shadowColor: '#2E3252',
+            backgroundColor: mode === m ? 'rgba(255,255,255,0.25)' : 'transparent',
+            shadowColor: '#000000',
             shadowOpacity: mode === m ? 0.12 : 0,
             shadowRadius: 6,
             shadowOffset: { width: 0, height: 2 },
@@ -448,9 +451,9 @@ export default function CrewScreen() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#8EC9F0' }} edges={['top']}>
-      <StatusBar style="dark" />
-      <BlissSwooshBg />
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#243A54' }} edges={['top']}>
+      <StatusBar style="light" />
+      <DarkCloudBg />
       <ScrollView
         contentContainerStyle={{ padding: spacing.lg, paddingBottom: 110 }}
         showsVerticalScrollIndicator={false}>
@@ -507,7 +510,7 @@ export default function CrewScreen() {
             borderRadius: radius.lg,
             borderWidth: 1,
             borderStyle: 'dashed',
-            borderColor: 'rgba(255,255,255,0.7)',
+            borderColor: 'rgba(255,255,255,0.35)',
             opacity: pressed ? 0.6 : 1,
           })}>
           <Ionicons name="add" size={18} color={INK} />
