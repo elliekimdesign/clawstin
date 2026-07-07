@@ -8,7 +8,7 @@ export default function TabsLayout() {
     <NativeTabs blurEffect="systemChromeMaterial" tintColor={colors.accent}>
       <NativeTabs.Trigger name="index">
         <NativeTabs.Trigger.Label>Home</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon sf="bubble.left.and.bubble.right" />
+        <NativeTabs.Trigger.Icon sf="house" />
       </NativeTabs.Trigger>
 
       <NativeTabs.Trigger name="activity">

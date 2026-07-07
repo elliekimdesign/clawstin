@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { ReactNode, useEffect, useRef, useState } from 'react';
 import {
+  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -23,17 +24,25 @@ import Animated, {
 } from 'react-native-reanimated';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { DevReset } from '@/components/dev/dev-reset';
 import { AuroraLine } from '@/components/ui/aurora-line';
 import { Card } from '@/components/ui/card';
 import { GlassIconButton } from '@/components/ui/glass-icon-button';
 import { BlissSwooshBg } from '@/components/ui/bliss-swoosh-bg';
-import { NightField } from '@/components/ui/night-field';
+import { DarkCloudBg } from '@/components/ui/dark-cloud-bg';
 import { PromptHistorySheet } from '@/components/ui/prompt-history-sheet';
 import { PulseMark } from '@/components/ui/pulse-mark';
 import { StatusPopover, worstServiceState } from '@/components/ui/status-popover';
-import { useAppStore } from '@/store/app-store';
-import { colors, fontFamily, fontSize, fontWeight, radius, shadow, spacing } from '@/theme/theme';
+import { TOOL_ACTION_PHRASE, useAppStore } from '@/store/app-store';
+import {
+  colors,
+  darkChat,
+  fontFamily,
+  fontSize,
+  fontWeight,
+  radius,
+  shadow,
+  spacing,
+} from '@/theme/theme';
 
 const USER_NAME = 'Ellie';
 
@@ -105,6 +114,19 @@ const NHOME = {
   ok: '#7ED9A0',
   warn: '#F0B25F',
   green: '#5FD9A4',
+};
+
+// "silkstyle" — logstyle's exact layout, re-inked for the silk_swoosh
+// light field (white silk + blue veils, see silk-swoosh-bg.tsx): navy
+// ink instead of white, blissxp orange/blue/green for the three states.
+const HOMEINK = {
+  text: '#1F3A57',
+  secondary: 'rgba(31,58,87,0.75)',
+  dim: 'rgba(31,58,87,0.6)',
+  faint: 'rgba(31,58,87,0.42)',
+  blue: '#2E7CD6',
+  warn: '#E8862F',
+  green: '#2E9E5B',
 };
 
 // Section ink: content colors that flip with the material.
@@ -388,6 +410,7 @@ export default function HomeScreen() {
     crew,
     resolveApproval,
     createThread,
+    sendMessage,
   } = useAppStore();
   const { width: screenW } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -395,6 +418,8 @@ export default function HomeScreen() {
 
   // Connection status popover (tap the "Online" label to inspect services).
   const [statusOpen, setStatusOpen] = useState(false);
+  // 3-state tabs on the dark board: which shelf is on screen
+  const [homeTab, setHomeTab] = useState<'all' | 'running' | 'needsYou' | 'done'>('all');
   const worst = worstServiceState(services);
   const statusDot: string =
     worst === 'down' ? colors.danger : worst === 'degraded' ? colors.warning : colors.success;
@@ -424,39 +449,37 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView
-      style={{ flex: 1, backgroundColor: connected ? NHOME.bg : '#B4DAF5' }}
+      style={{ flex: 1, backgroundColor: connected ? '#243A54' : '#B4DAF5' }}
       edges={['top']}>
       {connected ? <StatusBar style="light" /> : null}
-      {/* Onboarding keeps the daylight bliss; the board runs at night */}
+      {/* One daylight bliss field for onboarding AND the board */}
       {!connected && <BlissSwooshBg plain />}
       {connected ? (
         // ───────────────────────── State board ─────────────────────────
         <>
-          <NightField />
-          <ScrollView
-            ref={scrollRef}
-            contentContainerStyle={{ padding: spacing.lg, paddingBottom: 110 }}
-            showsVerticalScrollIndicator={false}>
-            {/* Header: greeting (left) + gateway status (right), then a
-                mono statusline — the whole board opens like a console. */}
-            <View
-              style={{
-                flexDirection: 'row',
-                justifyContent: 'space-between',
-                alignItems: 'flex-start',
-                marginTop: spacing.xl,
-              }}>
-              <Text
+          <DarkCloudBg />
+          <View style={{ flex: 1 }}>
+            <ScrollView
+              ref={scrollRef}
+              contentContainerStyle={{ padding: spacing.lg, paddingBottom: 170 }}
+              showsVerticalScrollIndicator={false}>
+              {/* top row: the wordmark left, gateway status right */}
+              <View
                 style={{
-                  color: NHOME.text,
-                  fontSize: fontSize.largeTitle,
-                  fontWeight: fontWeight.bold,
-                  letterSpacing: -0.5,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginTop: 4,
                 }}>
-                {hello}, {USER_NAME}
-              </Text>
-
-              <View style={{ alignItems: 'flex-end', paddingTop: 6 }}>
+                <Text
+                  style={{
+                    color: '#F7FBFF',
+                    fontSize: 20,
+                    letterSpacing: -0.3,
+                    fontFamily: fontFamily.bold,
+                  }}>
+                  Clawstin
+                </Text>
                 <Pressable
                   onPress={() => setStatusOpen(true)}
                   hitSlop={8}
@@ -470,258 +493,265 @@ export default function HomeScreen() {
                     style={{ width: 7, height: 7, borderRadius: 999, backgroundColor: statusDot }}
                   />
                   <Text
-                    style={{ color: NHOME.dim, fontSize: 12, fontFamily: fontFamily.mono }}>
+                    style={{
+                      color: 'rgba(255,255,255,0.6)',
+                      fontSize: 12,
+                      fontFamily: fontFamily.mono,
+                    }}>
                     {statusLabel.toLowerCase()}
                   </Text>
-                  <Ionicons name="chevron-down" size={12} color={NHOME.faint} />
+                  <Ionicons name="chevron-down" size={12} color="rgba(255,255,255,0.4)" />
                 </Pressable>
               </View>
-            </View>
-            {/* the day at a glance, one mono line — plain spaces do the
-                separating; no interpuncts, they read robotic */}
-            <Text
-              style={{
-                marginTop: 22,
-                fontFamily: fontFamily.mono,
-                fontSize: 12,
-                color: NHOME.dim,
-              }}>
-              <Text style={{ color: NHOME.blue }}>{runningCount}</Text>
-              {` running   `}
-              <Text style={{ color: needsYou > 0 ? NHOME.warn : NHOME.dim }}>{needsYou}</Text>
-              {` need you   `}
-              {doneThreads.length}
-              {` done`}
-            </Text>
 
-            {/* The crew desk — one card, messenger grammar: a docked chat
-                input sits as the natural first row ("Ask your crew"), and
-                what the crew is already doing flows right beneath it.
-                Only open work lives here (running, or blocked on you —
-                approvals included); finished results fall further down
-                into History. When nothing is open the card is just the
-                quiet ask row. */}
-            {/* entry point — a quiet command prompt, not a billboard:
-                one input-like row, terminal grammar, adult and flat. */}
+              {/* just the greeting, floating on the sky — the tab counts
+                  already carry the numbers */}
+              <Text
+                style={{
+                  marginTop: 10,
+                  fontSize: 24,
+                  lineHeight: 30,
+                  fontFamily: fontFamily.bold,
+                  letterSpacing: -0.5,
+                  color: '#F7FBFF',
+                }}>
+                {hello}, {USER_NAME}
+              </Text>
+
+              {/* state tabs — the 3-state model as navigation */}
+              <View
+                onLayout={(e) => setApprovalsY(e.nativeEvent.layout.y)}
+                style={{ flexDirection: 'row', gap: 20, marginTop: 52, marginBottom: 14 }}>
+                {(
+                  [
+                    ['all', 'All', runningCount + needsYou + doneThreads.length],
+                    ['running', 'Running', runningCount],
+                    ['needsYou', 'Needs you', needsYou],
+                    ['done', 'Done', doneThreads.length],
+                  ] as const
+                ).map(([key, label, count]) => (
+                  <Pressable key={key} onPress={() => setHomeTab(key)} hitSlop={6}>
+                    <Text
+                      style={{
+                        fontSize: 15,
+                        fontFamily: homeTab === key ? fontFamily.bold : fontFamily.semibold,
+                        color: homeTab === key ? '#FFFFFF' : 'rgba(255,255,255,0.45)',
+                      }}>
+                      {`${label} ${count}`}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+
+              {/* full-width bars, one per line — priority reads top to
+                  bottom. Same near-square bar shape as logstyle. */}
+              <View style={{ gap: 10 }}>
+                {homeTab !== 'done'
+                  ? [
+                      ...background
+                        .filter((t) =>
+                          homeTab === 'all'
+                            ? true
+                            : homeTab === 'running'
+                              ? t.state === 'running'
+                              : t.state === 'waiting'
+                        )
+                        .map((t) => ({
+                          key: t.id,
+                          label: t.label,
+                          waiting: t.state === 'waiting',
+                          deadline: t.deadline,
+                          age: t.age,
+                          onPress: () => router.push(`/chat/${t.threadId}`),
+                        })),
+                      // approvals ARE "needs you" — same concept, one list.
+                      ...(homeTab === 'all' || homeTab === 'needsYou'
+                        ? approvals.map((a) => ({
+                            key: a.id,
+                            label: a.title,
+                            waiting: true,
+                            deadline: undefined,
+                            age: a.age,
+                            onPress: () => a.threadId && router.push(`/chat/${a.threadId}`),
+                          }))
+                        : []),
+                    ]
+                      // Soft aging: stale asks sink to the end and dim.
+                      .sort(
+                        (a, b) =>
+                          Number(a.age?.endsWith('d') ?? false) -
+                          Number(b.age?.endsWith('d') ?? false)
+                      )
+                      .map((row) => {
+                        const aged = row.age?.endsWith('d') ?? false;
+                        const statusSuffix = row.deadline ?? (aged ? row.age : null);
+                        return (
+                          <Pressable
+                            key={row.key}
+                            onPress={row.onPress}
+                            style={({ pressed }) => ({
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                              gap: spacing.sm,
+                              // the STATE tints the surface, logstyle bars:
+                              // amber = blocked on you, blue = crew at work
+                              backgroundColor: row.waiting
+                                ? 'rgba(243,140,58,0.22)'
+                                : 'rgba(143,191,242,0.27)',
+                              borderRadius: 12,
+                              paddingHorizontal: 16,
+                              paddingVertical: 17,
+                              opacity: pressed ? 0.5 : aged ? 0.45 : 1,
+                            })}>
+                            <Text
+                              numberOfLines={1}
+                              style={{
+                                flex: 1,
+                                color: NHOME.text,
+                                fontSize: fontSize.small,
+                                fontWeight: fontWeight.semibold,
+                              }}>
+                              {row.label}
+                            </Text>
+                            <Text
+                              style={{
+                                color: row.waiting ? NHOME.warn : NHOME.blue,
+                                fontSize: 11,
+                                fontFamily: fontFamily.mono,
+                              }}>
+                              {row.waiting
+                                ? statusSuffix
+                                  ? `needs you  ${statusSuffix}`
+                                  : 'needs you'
+                                : 'running'}
+                            </Text>
+                          </Pressable>
+                        );
+                      })
+                  : null}
+                {homeTab === 'all' || homeTab === 'done'
+                  ? doneThreads.map((t) => (
+                      <Pressable
+                        key={t.id}
+                        onPress={() => openThread(t.id)}
+                        style={({ pressed }) => ({
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          gap: spacing.sm,
+                          backgroundColor:
+                            t.outcome === 'expired'
+                              ? 'rgba(243,140,58,0.15)'
+                              : 'rgba(126,217,160,0.29)',
+                          borderRadius: 12,
+                          paddingHorizontal: 16,
+                          paddingVertical: 13,
+                          opacity: pressed ? 0.5 : t.outcome === 'expired' ? 0.6 : 1,
+                        })}>
+                        <View style={{ flex: 1 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            <Text
+                              numberOfLines={1}
+                              style={{
+                                flexShrink: 1,
+                                color: NHOME.text,
+                                fontSize: fontSize.small,
+                                fontWeight: fontWeight.semibold,
+                              }}>
+                              {t.title}
+                            </Text>
+                            {t.unread ? (
+                              <View
+                                style={{
+                                  width: 7,
+                                  height: 7,
+                                  borderRadius: 999,
+                                  backgroundColor: NHOME.blue,
+                                }}
+                              />
+                            ) : null}
+                          </View>
+                          <Text
+                            numberOfLines={1}
+                            style={{ color: NHOME.dim, fontSize: fontSize.caption, marginTop: 3 }}>
+                            {t.lastPreview}
+                          </Text>
+                        </View>
+                        <Text
+                          style={{
+                            fontFamily: fontFamily.mono,
+                            fontSize: 11,
+                            color: t.outcome === 'expired' ? NHOME.warn : 'rgba(126,217,160,0.8)',
+                          }}>
+                          {t.outcome === 'expired' ? 'expired' : t.updatedAt}
+                        </Text>
+                      </Pressable>
+                    ))
+                  : null}
+              </View>
+              {homeTab === 'done' ? (
+                <Pressable
+                  onPress={() => setHistoryOpen(true)}
+                  style={({ pressed }) => ({
+                    marginTop: 14,
+                    opacity: pressed ? 0.6 : 1,
+                  })}>
+                  <Text
+                    style={{
+                      fontFamily: fontFamily.mono,
+                      fontSize: 12,
+                      color: 'rgba(255,255,255,0.55)',
+                    }}>
+                    {'full history ›'}
+                  </Text>
+                </Pressable>
+              ) : null}
+            </ScrollView>
+
+            {/* the ask pill FLOATS over the list: no band behind it, just
+                the input outline — the bars scroll underneath. Same
+                composer grammar as the chat rooms: glass pill, near-white
+                circle, navy mic — one entry everywhere */}
             <Pressable
               onPress={startChat}
               style={({ pressed }) => ({
-                marginTop: 40,
+                position: 'absolute',
+                left: spacing.lg,
+                right: spacing.lg,
+                bottom: 92,
                 flexDirection: 'row',
                 alignItems: 'center',
-                gap: 13,
-                // a touch brighter than the task rows, no more — the
-                // entry point leads quietly, it does not glow
-                backgroundColor: 'rgba(255,255,255,0.16)',
+                gap: spacing.sm,
+                paddingLeft: 20,
+                paddingRight: 4,
+                paddingVertical: 4,
+                borderRadius: 999,
+                backgroundColor: darkChat.solidSurface,
                 borderWidth: 1,
-                borderColor: 'rgba(255,255,255,0.22)',
-                borderRadius: 12,
-                paddingVertical: 20,
-                paddingHorizontal: 20,
-                opacity: pressed ? 0.75 : 1,
+                borderColor: darkChat.glassBorder,
+                opacity: pressed ? 0.85 : 1,
               })}>
-              <Text
-                style={{ fontFamily: fontFamily.mono, fontSize: 16, color: NHOME.green }}>
-                {'>'}
-              </Text>
               <Text
                 style={{
                   flex: 1,
-                  color: NHOME.text,
-                  fontSize: 17,
-                  letterSpacing: -0.2,
-                  fontWeight: fontWeight.semibold,
+                  paddingVertical: spacing.md,
+                  color: darkChat.textTertiary,
+                  fontSize: 15,
                 }}>
                 Ask your crew
               </Text>
-              <Ionicons name="arrow-up" size={18} color={NHOME.dim}
-                style={{ transform: [{ rotate: '45deg' }] }} />
-            </Pressable>
-
-            {/* OPEN — every task still moving or blocked on you, one soft
-                row per task (no tiles, no icons, no card-in-card). The
-                answer always happens in the chat that asked. */}
-            <View onLayout={(e) => setApprovalsY(e.nativeEvent.layout.y)}>
-              <Text
+              <View
                 style={{
-                  marginTop: 24,
-                  marginBottom: 12,
-                  fontFamily: fontFamily.mono,
-                  fontSize: 11,
-                  letterSpacing: 1,
-                  color: NHOME.faint,
+                  width: 38,
+                  height: 38,
+                  borderRadius: 999,
+                  backgroundColor: darkChat.text,
+                  alignItems: 'center',
+                  justifyContent: 'center',
                 }}>
-                {`OPEN  ${runningCount + needsYou}`}
-              </Text>
-              {[
-                ...background.map((t) => ({
-                  key: t.id,
-                  label: t.label,
-                  waiting: t.state === 'waiting',
-                  deadline: t.deadline,
-                  age: t.age,
-                  onPress: () => router.push(`/chat/${t.threadId}`),
-                })),
-                // approvals ARE "needs you" — same concept, one list.
-                ...approvals.map((a) => ({
-                  key: a.id,
-                  label: a.title,
-                  waiting: true,
-                  deadline: undefined,
-                  age: a.age,
-                  onPress: () => a.threadId && router.push(`/chat/${a.threadId}`),
-                })),
-              ]
-                // Soft aging: a stale no-deadline ask is never deleted,
-                // it just sinks below the fresh rows and dims.
-                .sort(
-                  (a, b) =>
-                    Number(a.age?.endsWith('d') ?? false) -
-                    Number(b.age?.endsWith('d') ?? false)
-                )
-                .map((row) => {
-                  const aged = row.age?.endsWith('d') ?? false;
-                  // deadline tasks say when they expire; aged ones say how stale
-                  const statusSuffix = row.deadline ?? (aged ? row.age : null);
-                  return (
-                    <Pressable
-                      key={row.key}
-                      onPress={row.onPress}
-                      style={({ pressed }) => ({
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        gap: 12,
-                        // the STATE tints the surface: amber = blocked on
-                        // you, blue = crew at work. No borders, no two
-                        // identical grays — each row says what it is.
-                        backgroundColor: row.waiting
-                          ? 'rgba(240,178,95,0.13)'
-                          : 'rgba(143,191,242,0.14)',
-                        borderRadius: 12,
-                        paddingHorizontal: 16,
-                        paddingVertical: 17,
-                        marginBottom: 10,
-                        opacity: pressed ? 0.5 : aged ? 0.45 : 1,
-                      })}>
-                      <Text
-                        numberOfLines={1}
-                        style={{
-                          flex: 1,
-                          color: NHOME.text,
-                          fontSize: fontSize.small,
-                          fontWeight: fontWeight.semibold,
-                        }}>
-                        {row.label}
-                      </Text>
-                      <Text
-                        style={{
-                          color: row.waiting ? NHOME.warn : NHOME.blue,
-                          fontSize: 11,
-                          fontFamily: fontFamily.mono,
-                        }}>
-                        {row.waiting
-                          ? (statusSuffix ? `needs you  ${statusSuffix}` : 'needs you')
-                          : 'running'}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-            </View>
-
-            {/* DONE — delivered or expired, never locked: rows reopen and
-                a follow-up revives them. Header taps into full history. */}
-            <Pressable
-              onPress={() => setHistoryOpen(true)}
-              style={({ pressed }) => ({
-                marginTop: 36,
-                marginBottom: 14,
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                opacity: pressed ? 0.6 : 1,
-              })}>
-              <Text
-                style={{
-                  fontFamily: fontFamily.mono,
-                  fontSize: 11,
-                  letterSpacing: 1,
-                  color: NHOME.faint,
-                }}>
-                {`DONE  ${doneThreads.length}`}
-              </Text>
-              <Text style={{ fontFamily: fontFamily.mono, fontSize: 11, color: NHOME.faint }}>
-                {'history ›'}
-              </Text>
+                <Ionicons name="mic" size={19} color={darkChat.onLight} />
+              </View>
             </Pressable>
-            {doneThreads.length === 0 ? (
-              <Text style={{ color: NHOME.dim, fontSize: fontSize.small }}>
-                Nothing finished yet.
-              </Text>
-            ) : (
-              // Same grammar as OPEN, one state further: color IS the
-              // state everywhere — blue running, amber blocked, GREEN
-              // delivered (amber-tinted when it expired instead).
-              doneThreads.map((t) => (
-                <Pressable
-                  key={t.id}
-                  onPress={() => openThread(t.id)}
-                  style={({ pressed }) => ({
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: spacing.sm,
-                    backgroundColor:
-                      t.outcome === 'expired'
-                        ? 'rgba(240,178,95,0.09)'
-                        : 'rgba(126,217,160,0.12)',
-                    borderRadius: 12,
-                    paddingHorizontal: 16,
-                    paddingVertical: 13,
-                    marginBottom: 10,
-                    opacity: pressed ? 0.5 : t.outcome === 'expired' ? 0.6 : 1,
-                  })}>
-                  <View style={{ flex: 1 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
-                      <Text
-                        style={{
-                          color: NHOME.text,
-                          fontSize: fontSize.small,
-                          fontWeight: fontWeight.semibold,
-                          flexShrink: 1,
-                        }}
-                        numberOfLines={1}>
-                        {t.title}
-                      </Text>
-                      {/* unread: finished, not yet picked up */}
-                      {t.unread ? (
-                        <View
-                          style={{
-                            width: 6,
-                            height: 6,
-                            borderRadius: 999,
-                            backgroundColor: NHOME.blue,
-                          }}
-                        />
-                      ) : null}
-                    </View>
-                    <Text
-                      style={{ color: NHOME.dim, fontSize: fontSize.caption, marginTop: 3 }}
-                      numberOfLines={1}>
-                      {t.lastPreview}
-                    </Text>
-                  </View>
-                  <Text
-                    style={{
-                      color: t.outcome === 'expired' ? NHOME.warn : 'rgba(126,217,160,0.8)',
-                      fontSize: 11,
-                      fontFamily: fontFamily.mono,
-                    }}>
-                    {t.outcome === 'expired' ? 'expired' : t.updatedAt}
-                  </Text>
-                </Pressable>
-              ))
-            )}
-
-          </ScrollView>
+          </View>
 
           {/* Connection status popover (over the board) */}
           {statusOpen ? (
@@ -831,7 +861,6 @@ export default function HomeScreen() {
           </Pressable>
         </ScrollView>
       )}
-      <DevReset />
     </SafeAreaView>
   );
 }

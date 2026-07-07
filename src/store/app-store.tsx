@@ -91,7 +91,7 @@ export type ThinkingState = {
 const STEP_DURATIONS = ['0.2s', '1.3s', '0.8s', '0.4s'];
 
 /** A plausible action chip for whichever tool is actually connected. */
-const TOOL_ACTION_PHRASE: Record<string, string> = {
+export const TOOL_ACTION_PHRASE: Record<string, string> = {
   calendar: 'Check my calendar for today',
   contacts: 'Look up a contact',
   gmail: 'Check if there are any urgent emails from today',
