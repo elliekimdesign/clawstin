@@ -79,7 +79,7 @@ const TOOL_ACTION_PHRASE: Record<string, string> = {
   contacts: 'Look up a contact',
   gmail: 'Check if there are any urgent emails from today',
   'google-home': 'Check the status of my smart home devices',
-  github: 'Deploy the latest build on GitHub',
+  github: 'Pull my pending PRs and block review time',
   files: 'Find a recent file',
   health: 'Check my sleep score from last night',
 };
@@ -625,7 +625,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
             ],
           };
         } else {
-          const chipSource = connectedTools.slice(0, 2);
+          const chipSource = connectedTools.slice(0, 3);
           greeting = {
             id: nextId('c'),
             from: 'agent',
