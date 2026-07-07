@@ -1,12 +1,20 @@
-import { useState } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, {
+  FadeInDown,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
 
 import type { CalendarDay, CalendarEvent } from '@/mock/calendar';
 import { CAL_MONTH } from '@/mock/calendar';
 import { fontFamily, fontSize, spacing } from '@/theme/theme';
 
-const PANEL_BG = '#111214';
+// Same deep navy as every other system surface (home console, week strip).
+const PANEL_BG = '#0E1626';
 const DIM = 'rgba(255,255,255,0.35)';
 const LABEL = 'rgba(255,255,255,0.55)';
 const DOT = 'rgba(255,255,255,0.9)';
@@ -37,8 +45,34 @@ function timeKey(e: CalendarEvent): number {
  * Events are not clawstin's own: the backend mirrors the user's Google and
  * Apple calendars, so the detail view tags each event with its source.
  */
-export function MonthOverlay({ days }: { days: CalendarDay[] }) {
-  const [selected, setSelected] = useState<number | null>(null);
+/** Soft triple blink for a freshly landed row, settling solid. */
+function BlinkIn({ children }: { children: ReactNode }) {
+  const o = useSharedValue(1);
+  useEffect(() => {
+    o.value = withRepeat(
+      withSequence(withTiming(0.25, { duration: 380 }), withTiming(1, { duration: 380 })),
+      3
+    );
+  }, [o]);
+  const style = useAnimatedStyle(() => ({ opacity: o.value }));
+  return <Animated.View style={style}>{children}</Animated.View>;
+}
+
+export function MonthOverlay({
+  days,
+  initialDate,
+  highlightTitle,
+}: {
+  days: CalendarDay[];
+  /** preselect this day (e.g. right after a booking) */
+  initialDate?: number | null;
+  /** the freshly booked event blinks in softly */
+  highlightTitle?: string | null;
+}) {
+  const [selected, setSelected] = useState<number | null>(initialDate ?? null);
+  useEffect(() => {
+    if (initialDate != null) setSelected(initialDate);
+  }, [initialDate]);
 
   const now = new Date();
   const year = now.getFullYear();
@@ -126,7 +160,7 @@ export function MonthOverlay({ days }: { days: CalendarDay[] }) {
                     <>
                       <Text
                         style={{
-                          color: isToday ? '#16181D' : eventDates.has(d) ? '#FFFFFF' : DIM,
+                          color: isToday ? '#0E1626' : eventDates.has(d) ? '#FFFFFF' : DIM,
                           fontSize: fontSize.body,
                           fontFamily: fontFamily.semibold,
                         }}>
@@ -193,7 +227,8 @@ export function MonthOverlay({ days }: { days: CalendarDay[] }) {
             </Text>
           ) : (
             <ScrollView style={{ maxHeight: 240 }} showsVerticalScrollIndicator={false}>
-              {selectedEvents.map((e) => (
+              {selectedEvents.map((e) => {
+                const row = (
                 <View
                   key={e.id}
                   style={{
@@ -250,7 +285,13 @@ export function MonthOverlay({ days }: { days: CalendarDay[] }) {
                     </Text>
                   ) : null}
                 </View>
-              ))}
+                );
+                return highlightTitle && e.title === highlightTitle ? (
+                  <BlinkIn key={e.id}>{row}</BlinkIn>
+                ) : (
+                  row
+                );
+              })}
             </ScrollView>
           )}
 

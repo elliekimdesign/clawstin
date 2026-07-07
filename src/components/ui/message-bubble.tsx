@@ -1,4 +1,4 @@
-import { ReactNode, useState } from 'react';
+import { ReactNode } from 'react';
 import { Text, View } from 'react-native';
 import { darkChat, fontFamily, spacing } from '@/theme/theme';
 
@@ -35,11 +35,15 @@ export function MessageBubble({ from, text, children }: Props) {
 
   if (isUser) {
     return (
-      <View style={{ marginBottom: spacing.lg }}>
+      // my prompt starts a new beat: extra air above separates it from
+      // the previous answer chunk's rail
+      <View style={{ marginTop: spacing.md, marginBottom: spacing.lg }}>
         {text ? (
           <Text
             style={{
-              color: darkChat.text,
+              // MY input reads apart from the agent's white: classic
+              // terminal-prompt green (the colorway's success tone)
+              color: darkChat.success,
               fontSize: 14,
               lineHeight: 20,
               fontFamily: fontFamily.mono,
@@ -57,43 +61,39 @@ export function MessageBubble({ from, text, children }: Props) {
 }
 
 function AgentMessage({ text, children }: { text?: string; children?: ReactNode }) {
-  // End position of the last text line, measured after layout — the crew
-  // mark is pinned there, spilling into the reserved right rail when full.
-  const [lastLine, setLastLine] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
-
   return (
-    <View style={{ alignSelf: 'flex-start', maxWidth: '92%', marginBottom: spacing.lg }}>
-      {text ? (
-        <>
-          <Text
-            style={BODY_STYLE}
-            onTextLayout={(e) => {
-              const lines = e.nativeEvent.lines;
-              if (lines.length) {
-                const l = lines[lines.length - 1];
-                setLastLine({ x: l.x, y: l.y, width: l.width, height: l.height });
-              }
-            }}>
-            {text}
-          </Text>
-          {lastLine ? (
-            <View
-              style={{
-                position: 'absolute',
-                left: lastLine.x + lastLine.width + 8,
-                top: lastLine.y + (lastLine.height - 20) / 2,
-                width: 20,
-                height: 20,
-                borderRadius: 999,
-                backgroundColor: 'rgba(255,255,255,0.28)',
-                borderWidth: 1,
-                borderColor: darkChat.glassBorder,
-              }}
-            />
-          ) : null}
-        </>
-      ) : null}
-      {children ? <View style={{ marginTop: text ? spacing.md : 0 }}>{children}</View> : null}
+    // The left rail: one thin line spanning the WHOLE answer chunk (text,
+    // cards, chips) so its extent reads at a glance.
+    <View
+      style={{
+        flexDirection: 'row',
+        alignSelf: 'flex-start',
+        maxWidth: '92%',
+        marginBottom: spacing.lg,
+      }}>
+      {/* the thread: a node marks where the answer starts, a hairline
+          carries it down, and a node closes the chunk */}
+      <View
+        style={{
+          width: 6,
+          marginRight: 9,
+          alignSelf: 'stretch',
+          alignItems: 'center',
+          paddingTop: 9,
+          paddingBottom: 3,
+        }}>
+        <View
+          style={{ width: 5, height: 5, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.55)' }}
+        />
+        <View style={{ flex: 1, width: 1.2, backgroundColor: 'rgba(255,255,255,0.18)' }} />
+        <View
+          style={{ width: 5, height: 5, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.55)' }}
+        />
+      </View>
+      <View style={{ flex: 1 }}>
+        {text ? <Text style={BODY_STYLE}>{text}</Text> : null}
+        {children ? <View style={{ marginTop: text ? spacing.md : 0 }}>{children}</View> : null}
+      </View>
     </View>
   );
 }

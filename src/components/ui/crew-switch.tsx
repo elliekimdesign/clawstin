@@ -1,6 +1,17 @@
+import { Ionicons } from '@expo/vector-icons';
 import { GlassView, isGlassEffectAPIAvailable } from 'expo-glass-effect';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import type { ImageSourcePropType } from 'react-native';
+import {
+  Image,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import Animated, {
   Easing,
   interpolate,
@@ -16,6 +27,30 @@ import { darkChat, fontFamily, fontSize, spacing } from '@/theme/theme';
 
 const PILL_H = 40;
 const SLOT_W = 92; // per-name slot width in the underlying (collapsed) strip
+
+// Round crew avatars (same face-centered card assets as the other tabs).
+const CREW_ART: Record<CrewKey, ImageSourcePropType> = {
+  researcher: require('../../../assets/crew/beaker.jpeg'),
+  writer: require('../../../assets/crew/misspiggy.jpeg'),
+  triage: require('../../../assets/crew/gonzo.jpeg'),
+  orchestrator: require('../../../assets/crew/muppet.jpeg'),
+};
+
+/** Small round crew face chip. */
+function CrewAvatar({ src, size = 18 }: { src: ImageSourcePropType; size?: number }) {
+  return (
+    <View
+      style={{
+        width: size,
+        height: size,
+        borderRadius: 999,
+        overflow: 'hidden',
+        backgroundColor: '#FFFFFF',
+      }}>
+      <Image source={src} style={{ width: size, height: size, resizeMode: 'cover' }} />
+    </View>
+  );
+}
 // Center capsule is a FIXED medium size — sized for the longest name
 // ("Orchestrator") so every crew sits centered in the same constant box,
 // never stretching per-name. The outer glass pill hugs it flush: the same
@@ -48,8 +83,8 @@ const GLASS_AVAILABLE = Platform.OS === 'ios' && isGlassEffectAPIAvailable();
  */
 export function CrewSwitch({
   selected,
-  manual: _manual,
-  busy: _busy,
+  manual,
+  busy,
   onSelect,
   onExpandChange,
 }: {
@@ -98,8 +133,9 @@ export function CrewSwitch({
     key ? CREW_LIST.findIndex((c) => c.key === key) : -1;
 
   // Natural (unshrunk) per-name width in the expanded row, roughly matching
-  // each name's rendered width at fontSize.small — generous enough to never
-  // clip, since the row scrolls instead of trying to fit everyone at once.
+  // each name's rendered width at fontSize.small. Names only — no avatars
+  // here (cognitive load): all four fit on screen, so the row never needs
+  // to scroll. Avatars appear on the collapsed badge after selection.
   const expandedSlotWidths = useMemo(
     () => CREW_LIST.map((c) => Math.max(SLOT_W * 0.72, c.name.length * 9.5 + 28)),
     []
@@ -129,12 +165,10 @@ export function CrewSwitch({
     if (expanded) {
       // Expanded: the highlight glides to the selected slot's offset and
       // its width glides to that name's slot width — one continuous motion.
+      // No programmatic scroll here: yanking the row under her finger is
+      // what made tapping back and forth feel broken.
       highlightLeft.value = withSpring(expandedOffsets[i] ?? 0, EXTEND_SPRING);
       highlightW.value = withSpring(expandedSlotWidths[i] ?? SLOT_W, EXTEND_SPRING);
-      scrollRef.current?.scrollTo({
-        x: Math.max(0, (expandedOffsets[i] ?? 0) - 40),
-        animated: true,
-      });
       return;
     }
 
@@ -167,8 +201,10 @@ export function CrewSwitch({
   // it; the highlight glides to it immediately, and the panel auto-closes
   // ~2s later.
   useEffect(() => {
+    // 2 * RING: the content padding — without it the pill runs narrower
+    // than its slots and the end capsule presses into the outline.
     const targetPillW = expanded
-      ? Math.min(expandedTotalW, maxExpandedW)
+      ? Math.min(expandedTotalW + 2 * RING, maxExpandedW)
       : PILL_W;
     pillW.value = withSpring(targetPillW, EXTEND_SPRING);
     expandT.value = withTiming(expanded ? 1 : 0, FADE_TIMING);
@@ -211,6 +247,8 @@ export function CrewSwitch({
     clearAutoClose();
     setExpanded(false);
   };
+  // Tap freely — every tap reselects and RESETS the timer; ~2s after the
+  // last tap the pill shrinks back and the avatar badge takes over.
   const selectAndScheduleClose = (key: CrewKey) => {
     onSelect(key);
     clearAutoClose();
@@ -238,7 +276,9 @@ export function CrewSwitch({
           style={{
             height: PILL_H,
             borderRadius: 999,
-            backgroundColor: GLASS_AVAILABLE ? undefined : darkChat.glassBg,
+            // the track behind the capsule wears the colorway's deep ink
+            // (translucent over glass) instead of anonymous gray
+            backgroundColor: GLASS_AVAILABLE ? 'rgba(44,70,101,0.55)' : darkChat.onLight,
             borderWidth: BORDER,
             // brighter neutral white: at low opacity the edge picked up a
             // pale-green cast from the teal gradient behind it
@@ -260,7 +300,12 @@ export function CrewSwitch({
                   width: CENTER_W,
                   height: PILL_H - 2 * RING,
                   borderRadius: 999,
-                  backgroundColor: 'rgba(255,255,255,0.16)',
+                  // the colorway's solid surface: a quiet supporting blue
+                  // from our own palette instead of the plain gray glass.
+                  // A green hairline = manually pinned.
+                  backgroundColor: darkChat.solidSurface,
+                  borderWidth: manual && selected !== null ? 1 : 0,
+                  borderColor: 'rgba(95,217,164,0.65)',
                   shadowColor: '#1B1F3B',
                   shadowOpacity: 0.08,
                   shadowRadius: 4,
@@ -270,24 +315,62 @@ export function CrewSwitch({
                 collapsedCenterStyle,
               ]}
             />
-            {/* Sliding row: only the centered name reads full-strength;
-                neighbors peek faded on either side. */}
-            <Animated.View
-              style={[
-                { flexDirection: 'row', height: INNER_H, alignItems: 'center' },
-                stripStyle,
-              ]}>
-              {CREW_LIST.map((c, idx) => (
-                <ReelLabel
-                  key={c.key}
-                  name={c.name}
-                  idx={idx}
-                  strip={strip}
-                  active={c.key === selected}
-                  onPress={() => selectAndScheduleClose(c.key)}
-                />
-              ))}
-            </Animated.View>
+            {/* Sliding row: only shown while routing is animating (the
+                name reel cycling). At rest a badge sits in the capsule:
+                the crew's round avatar + name once assigned, or the
+                orchestrator face + "New Chat" while unassigned. */}
+            {selected !== null && busy ? (
+              <Animated.View
+                style={[
+                  { flexDirection: 'row', height: INNER_H, alignItems: 'center' },
+                  stripStyle,
+                ]}>
+                {CREW_LIST.map((c, idx) => (
+                  <ReelLabel
+                    key={c.key}
+                    name={c.name}
+                    idx={idx}
+                    strip={strip}
+                    active={c.key === selected}
+                    onPress={() => selectAndScheduleClose(c.key)}
+                  />
+                ))}
+              </Animated.View>
+            ) : (
+              <View
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                }}>
+                {selected === null ? (
+                  <MiniFace size={16} />
+                ) : (
+                  <CrewAvatar src={CREW_ART[selected]} size={18} />
+                )}
+                <Text
+                  style={{
+                    fontSize: fontSize.small,
+                    fontFamily: fontFamily.semibold,
+                    color: darkChat.text,
+                    includeFontPadding: false,
+                  }}>
+                  {selected === null
+                    ? 'New Chat'
+                    : CREW_LIST.find((c) => c.key === selected)?.name}
+                </Text>
+                {/* pinned manually: the ✕ says "tap to release to auto" */}
+                {manual && selected !== null ? (
+                  <Ionicons name="close" size={13} color={darkChat.success} />
+                ) : null}
+              </View>
+            )}
           </Animated.View>
 
           {/* Expanded layer: scrollable single row + gliding highlight. */}
@@ -312,7 +395,8 @@ export function CrewSwitch({
                       top: RING - BORDER,
                       height: PILL_H - 2 * RING,
                       borderRadius: 999,
-                      backgroundColor: 'rgba(255,255,255,0.16)',
+                      // same supporting blue as the collapsed capsule
+                      backgroundColor: darkChat.solidSurface,
                       shadowColor: '#1B1F3B',
                       shadowOpacity: 0.08,
                       shadowRadius: 4,
@@ -328,12 +412,13 @@ export function CrewSwitch({
                     <Pressable
                       key={c.key}
                       onPress={() => selectAndScheduleClose(c.key)}
-                      style={{
+                      style={({ pressed }) => ({
                         width: expandedSlotWidths[idx],
                         height: INNER_H,
                         alignItems: 'center',
                         justifyContent: 'center',
-                      }}>
+                        opacity: pressed ? 0.6 : 1,
+                      })}>
                       <Text
                         numberOfLines={1}
                         style={{
@@ -352,14 +437,57 @@ export function CrewSwitch({
             </ScrollView>
           </Animated.View>
 
-          <Pressable
-            onLongPress={openPanel}
-            delayLongPress={280}
-            disabled={expanded}
-            style={{ position: 'absolute', left: 0, top: 0, width: PILL_W, height: PILL_H }}
-          />
+          {/* long-press catcher lives ONLY while collapsed — a disabled
+              Pressable still swallows touches, which was shading the
+              first 130px of the expanded row (Research/Scribe dead zone) */}
+          {!expanded ? (
+            <Pressable
+              onLongPress={openPanel}
+              delayLongPress={280}
+              // tap on a manually pinned pill = release back to auto
+              onPress={
+                manual && selected !== null ? () => onSelect(selected) : undefined
+              }
+              style={{ position: 'absolute', left: 0, top: 0, width: PILL_W, height: PILL_H }}
+            />
+          ) : null}
         </GlassOrFallback>
       </Animated.View>
+    </View>
+  );
+}
+
+/** The little round orange face (the app's orchestrator mark), sized for
+ * the pill's New Chat badge. */
+function MiniFace({ size = 16 }: { size?: number }) {
+  const k = size / 34;
+  return (
+    <View
+      style={{
+        width: size,
+        height: size,
+        // the app-icon squircle, same as the home console's face
+        borderRadius: size * 0.3,
+        backgroundColor: '#E8563F',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}>
+      <View style={{ flexDirection: 'row', gap: 6 * k, marginBottom: 4 * k }}>
+        <View
+          style={{ width: 4.5 * k, height: 4.5 * k, borderRadius: 999, backgroundColor: '#FFFFFF' }}
+        />
+        <View
+          style={{ width: 4.5 * k, height: 4.5 * k, borderRadius: 999, backgroundColor: '#FFFFFF' }}
+        />
+      </View>
+      <View
+        style={{
+          width: 11 * k,
+          height: 2.5 * k,
+          borderRadius: 2 * k,
+          backgroundColor: 'rgba(255,255,255,0.9)',
+        }}
+      />
     </View>
   );
 }

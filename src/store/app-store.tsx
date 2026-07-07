@@ -1,4 +1,4 @@
-import { createContext, ReactNode, useCallback, useContext, useMemo, useState } from 'react';
+import { createContext, ReactNode, useCallback, useContext, useMemo, useRef, useState } from 'react';
 import type { Approval } from '@/components/ui/approval-card';
 import { ActivityItem, initialActivity } from '@/mock/activity';
 import { initialApprovals } from '@/mock/approvals';
@@ -19,7 +19,8 @@ import {
   RequestLogItem,
 } from '@/mock/permissions';
 import { CrewMember, initialCrew } from '@/mock/crew';
-import { CrewKey, routeCrew } from '@/mock/crew-routing';
+import { CrewKey, ISLAND_CREWS, routeCrew } from '@/mock/crew-routing';
+import { PENDING_PRS } from '@/mock/github';
 import { initialInfra, InfraEndpoint } from '@/mock/infra';
 import { BackgroundTask, initialBackground } from '@/mock/background';
 import { initialServices, ServiceStatus } from '@/mock/services';
@@ -61,6 +62,9 @@ function runCrewSequence(
   });
   setTimeout(onDone, stages.length * CREW_HOLD_MS);
 }
+
+/** Live backend narration for the chat's pinned Thinking Console. */
+export type ThinkingState = { threadId: string; lines: string[]; done: boolean };
 
 /** [HH:MM:SS] using real device time — the terminal log's timestamp style. */
 const logTime = () => {
@@ -119,6 +123,15 @@ type Store = {
   // Chat threads
   threads: Thread[];
   typingThreadId: string | null;
+  /** live backend narration shown in the chat's Thinking Console */
+  thinking: ThinkingState | null;
+  /** set right after a booking so the chat pops the month view open on
+   * that date with the fresh event highlighted */
+  calendarReveal: { date: number; title: string; seq: number } | null;
+  /** which tool(s) the current task is using — drives the header tool icon */
+  activeTool: 'calendar' | 'github' | 'both';
+  /** non-null while the PR console (GitHub data island) should be pinned */
+  prReveal: { threadId: string } | null;
   getThread: (id: string) => Thread | undefined;
   /** create a new thread (optionally seeded with a first user message), returns its id */
   createThread: (seedText?: string) => string;
@@ -203,6 +216,47 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
   const [threads, setThreads] = useState<Thread[]>(initialThreads);
   const [typingThreadId, setTypingThreadId] = useState<string | null>(null);
+  const [thinking, setThinking] = useState<ThinkingState | null>(null);
+  const [calendarReveal, setCalendarReveal] = useState<{
+    date: number;
+    title: string;
+    seq: number;
+  } | null>(null);
+  const [activeTool, setActiveTool] = useState<'calendar' | 'github' | 'both'>('calendar');
+  const [prReveal, setPrReveal] = useState<{ threadId: string } | null>(null);
+  const thinkingTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const thinkingPlan = useRef<{ threadId: string; lines: string[] } | null>(null);
+
+  /** Stream `lines` into the Thinking Console one by one. */
+  const runThinking = useCallback((threadId: string, lines: string[], stepMs = 800) => {
+    thinkingTimers.current.forEach(clearTimeout);
+    thinkingTimers.current = [];
+    thinkingPlan.current = { threadId, lines };
+    setThinking({ threadId, lines: [], done: false });
+    lines.forEach((line, i) => {
+      thinkingTimers.current.push(
+        setTimeout(() => {
+          setThinking((prev) =>
+            prev && prev.threadId === threadId && !prev.done
+              ? { ...prev, lines: [...prev.lines, line] }
+              : prev
+          );
+        }, stepMs * (i + 1))
+      );
+    });
+  }, []);
+
+  /** The reply landed: flush any lines still queued and fold the console. */
+  const finishThinking = useCallback((threadId: string) => {
+    thinkingTimers.current.forEach(clearTimeout);
+    thinkingTimers.current = [];
+    const plan = thinkingPlan.current;
+    setThinking((prev) =>
+      prev && prev.threadId === threadId
+        ? { threadId, lines: plan?.threadId === threadId ? plan.lines : prev.lines, done: true }
+        : prev
+    );
+  }, []);
   const [memories, setMemories] = useState<Memory[]>(initialMemories);
   const [permissions, setPermissions] = useState<Permission[]>(initialPermissions);
   const [requestLog, setRequestLog] = useState<RequestLogItem[]>(initialRequestLog);
@@ -353,12 +407,72 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const respond = useCallback(
     (threadId: string, userText: string) => {
+      // Every new ask resets the tool context; each branch below sets its own.
+      setPrReveal(null);
+      setActiveTool('calendar');
+
+      // Multi-tool flow FIRST (the phrase usually contains "tomorrow", which
+      // would otherwise fall into the plain calendar branch): pull PRs from
+      // GitHub (data → PR console) and block review time (action → chat).
+      if (/\bprs?\b|pull request|github/i.test(userText)) {
+        setTypingThreadId(threadId);
+        setCrewBusy(true);
+        setActiveTool('both');
+        runThinking(threadId, [
+          `${logTime()} parse & plan · two tools: Devtools + Calendar`,
+          `${logTime()} execute · GitHub connected, ${PENDING_PRS.length} PRs pending review`,
+          `${logTime()} execute · Calendar connected, tomorrow morning is open`,
+          `${logTime()} synthesize · blocking 2h deep work`,
+        ]);
+        const prDate = new Date().getDate() + 1;
+        runCrewSequence(['triage', 'orchestrator'], setCrewSelected, () => {
+          setTypingThreadId(null);
+          setCrewBusy(false);
+          finishThinking(threadId);
+          setPrReveal({ threadId });
+          addCalendarEvent(prDate, {
+            title: 'Deep work: PR review',
+            start: '9:00 AM',
+            end: '11:00 AM',
+            color: 'brand',
+          });
+          appendToThread(threadId, {
+            id: nextId('c'),
+            from: 'agent',
+            text: `Found ${PENDING_PRS.length} PRs waiting on you. I blocked tomorrow 9:00 to 11:00 AM for deep work: PR review.`,
+            schedule: {
+              date: prDate,
+              title: 'Deep work: PR review',
+              slots: [],
+              booked: '9:00 AM',
+            },
+          });
+        });
+        return;
+      }
+
       // Schedule-sounding messages get the agentic calendar flow: the week
       // strip "scans" for a while, then a schedule card drops into the thread.
       const parsed = parseScheduleRequest(userText, new Date().getDate());
       if (parsed) {
         setTypingThreadId(threadId);
         setCrewBusy(true);
+        // Narrate the backend: the full 4-stage grammar for the calendar
+        // flow (the reply itself is the "resolve & prompt" stage).
+        runThinking(
+          threadId,
+          parsed.intent === 'check'
+            ? [
+                `${logTime()} parse & plan · schedule request detected`,
+                `${logTime()} execute · Calendar connected, pulling events`,
+                `${logTime()} synthesize · building the day view`,
+              ]
+            : [
+                `${logTime()} parse & plan · "${parsed.title}"${parsed.start ? ` at ${parsed.start}` : ''}`,
+                `${logTime()} execute · Calendar connected, checking conflicts`,
+                `${logTime()} synthesize · lining up open slots`,
+              ]
+        );
         // Transition Hold: Operator holds first, then Orchestrator visibly
         // takes over (auto wins for the calendar flow — there's no standalone
         // Scheduler crew) — the week strip starts the moment Orchestrator's
@@ -371,18 +485,33 @@ export function AppProvider({ children }: { children: ReactNode }) {
             setTypingThreadId(null);
             setCalendarScan(null);
             setCrewBusy(false);
+            finishThinking(threadId);
             const dayEvents = calendarDays.find((d) => d.date === parsed.date)?.events ?? [];
             const dayWord = parsed.date === new Date().getDate() ? 'today' : 'tomorrow';
-            appendToThread(threadId, {
-              id: nextId('c'),
-              from: 'agent',
-              text: `I checked ${dayWord}. Here's how it looks. Want me to book "${parsed.title}"?`,
-              schedule: {
-                date: parsed.date,
-                title: parsed.title,
-                slots: suggestSlots(dayEvents, parsed.start),
-              },
-            });
+            if (parsed.intent === 'check') {
+              // A question gets an answer, not a booking offer.
+              const n = dayEvents.length;
+              appendToThread(threadId, {
+                id: nextId('c'),
+                from: 'agent',
+                text:
+                  n === 0
+                    ? `I checked ${dayWord}. Nothing on the calendar, the day is clear.`
+                    : `I checked ${dayWord}. ${n} event${n === 1 ? '' : 's'} on the books; the evening is open.`,
+                schedule: { date: parsed.date, title: '', slots: [] },
+              });
+            } else {
+              appendToThread(threadId, {
+                id: nextId('c'),
+                from: 'agent',
+                text: `I checked ${dayWord}. Here's how it looks. Want me to book "${parsed.title}"?`,
+                schedule: {
+                  date: parsed.date,
+                  title: parsed.title,
+                  slots: suggestSlots(dayEvents, parsed.start),
+                },
+              });
+            }
           },
           (key) => {
             if (key === 'orchestrator') {
@@ -395,45 +524,69 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
       setTypingThreadId(threadId);
       setCrewBusy(true);
+      // The scripted reply is deterministic — read it up front so its
+      // pipeline steps can narrate through the Thinking Console. The
+      // pipeline never renders as an in-chat card anymore: the console IS
+      // the pipeline view, and the reply keeps only the essentials.
+      const reply = getScriptedReply(userText);
+      const pipelineLines = reply.pipeline
+        ? reply.pipeline.steps.map(
+            (s) => `${logTime()} ${s.label.charAt(0).toLowerCase() + s.label.slice(1)}`
+          )
+        : null;
       // Manual override sticks; otherwise Operator holds first, then the
       // routed crew visibly takes over (Transition Hold) before the reply
       // reveals — Clawstin Core (no crew) just holds on Operator.
       if (!crewManual) {
         const crew = routeCrew(userText);
+        runThinking(
+          threadId,
+          pipelineLines ??
+            (crew
+              ? [
+                  `${logTime()} parse & plan · routing to ${crew.name}`,
+                  `${logTime()} execute · ${crew.name} picked it up`,
+                ]
+              : [`${logTime()} parse & plan · handled by core`])
+        );
         const stages: CrewKey[] = crew ? ['triage', crew.key] : ['triage'];
         runCrewSequence(stages, setCrewSelected, () => {
           setTypingThreadId(null);
           setCrewBusy(false);
-          const reply = getScriptedReply(userText);
+          finishThinking(threadId);
           appendToThread(threadId, {
             id: nextId('c'),
             from: 'agent',
             text: reply.text,
             approval: reply.approval,
             result: reply.result,
-            pipeline: reply.pipeline,
             crewCount: reply.crewCount,
           });
         });
       } else {
         // Manual pick already reflects the active crew — just hold once.
+        runThinking(
+          threadId,
+          pipelineLines ?? [
+            `${logTime()} execute · sent to ${crewSelected ? ISLAND_CREWS[crewSelected].name : 'core'}`,
+          ]
+        );
         setTimeout(() => {
           setTypingThreadId(null);
           setCrewBusy(false);
-          const reply = getScriptedReply(userText);
+          finishThinking(threadId);
           appendToThread(threadId, {
             id: nextId('c'),
             from: 'agent',
             text: reply.text,
             approval: reply.approval,
             result: reply.result,
-            pipeline: reply.pipeline,
             crewCount: reply.crewCount,
           });
         }, CREW_HOLD_MS);
       }
     },
-    [appendToThread, calendarDays, crewManual]
+    [appendToThread, addCalendarEvent, calendarDays, crewManual, crewSelected, runThinking, finishThinking]
   );
 
   const createThread = useCallback(
@@ -455,13 +608,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
           ? `${logTime()} ${connectedTools.length} tool${connectedTools.length === 1 ? '' : 's'} active (${connectedTools.map((p) => p.name).join(', ')}).`
           : `${logTime()} 0 tools active.`;
 
+        // The boot lines live in the Thinking Console (unfolds on entry,
+        // folds once read) — the greeting bubble no longer repeats them.
+        runThinking(id, [gatewayLine, toolsLine]);
+        thinkingTimers.current.push(setTimeout(() => finishThinking(id), 2 * 800 + 900));
+
         if (connectedTools.length === 0) {
           greeting = {
             id: nextId('c'),
             from: 'agent',
-            terminalLog: [gatewayLine, toolsLine],
             text:
-              "Hi Ellie. I'm connected to your Mac mini gateway, but I couldn't find any connected tools yet. Don't worry, I can still monitor your server infrastructure or help you set up your core workflows via desktop.",
+              "Hi Ellie. I couldn't find any connected tools yet. Don't worry, I can still monitor your server infrastructure or help you set up your core workflows via desktop.",
             suggestions: [
               'Run a system health check on my Mac mini',
               'Show me how to connect tools on the desktop web',
@@ -472,8 +629,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           greeting = {
             id: nextId('c'),
             from: 'agent',
-            terminalLog: [gatewayLine, toolsLine],
-            text: "Hi Ellie. Your OpenClaw gateway session is active and fully synced. What can I run for you today?",
+            text: 'What can I run for you today?',
             suggestions: chipSource.map(
               (p) => TOOL_ACTION_PHRASE[p.key] ?? `Do something with ${p.name}`
             ),
@@ -495,15 +651,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
       };
       setThreads((prev) => [newThread, ...prev]);
       if (seeded) respond(id, seeded);
-      // Operator ("triage") lights up the instant a fresh thread opens, so
-      // the crew bar always shows who's home rather than staying blank.
+      // A fresh thread opens unassigned: the pill reads "New Chat" until
+      // the first message routes it to a crew (see sendMessage).
       if (greeting) {
-        setCrewSelected('triage');
+        setCrewSelected(null);
         setCrewManual(false);
       }
       return id;
     },
-    [respond, permissions, gatewayStatus]
+    [respond, permissions, gatewayStatus, runThinking, finishThinking]
   );
 
   const sendMessage = useCallback(
@@ -570,6 +726,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
         from: 'agent',
         text: `Booked: "${schedule.title}" ${dayWord} at ${slot}.`,
       });
+      // Show the receipt: pop the month view open on that day with the
+      // fresh event blinking in. (Session-only, like all mock state.)
+      setCalendarReveal((prev) => ({
+        date: schedule.date,
+        title: schedule.title,
+        seq: (prev?.seq ?? 0) + 1,
+      }));
     },
     [threads, addCalendarEvent, appendToThread]
   );
@@ -624,6 +787,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       getApproval,
       threads,
       typingThreadId,
+      thinking,
+      calendarReveal,
+      activeTool,
+      prReveal,
       getThread,
       createThread,
       sendMessage,
@@ -670,6 +837,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       getApproval,
       threads,
       typingThreadId,
+      thinking,
+      calendarReveal,
+      activeTool,
+      prReveal,
       getThread,
       createThread,
       sendMessage,

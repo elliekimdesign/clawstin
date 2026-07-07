@@ -6,9 +6,9 @@ import Animated, { FadeInUp } from 'react-native-reanimated';
 import type { ServiceState, ServiceStatus } from '@/mock/services';
 import { colors, fontFamily, fontSize, radius, spacing } from '@/theme/theme';
 
-// Dark-panel tokens — the console night-navy family (see the Logs tab):
-// dark + mono = "looking inside the system".
-const PANEL_BG = 'rgba(24,38,63,0.98)';
+// Dark-panel tokens — the SAME deep navy as the home Ask console and the
+// calendar consoles: one system surface everywhere.
+const PANEL_BG = '#0E1626';
 const PANEL_TEXT = '#FFFFFF';
 const PANEL_DIM = 'rgba(255,255,255,0.55)';
 const PANEL_FAINT = 'rgba(255,255,255,0.38)';
@@ -152,7 +152,7 @@ export function StatusPopover({ services, agentsReady, onClose, onManageAccess, 
           paddingVertical: spacing.md,
           paddingHorizontal: spacing.lg,
           borderWidth: 1,
-          borderColor: 'rgba(255,255,255,0.06)',
+          borderColor: 'rgba(255,255,255,0.28)',
           shadowColor: '#000',
           shadowOpacity: 0.35,
           shadowRadius: 24,

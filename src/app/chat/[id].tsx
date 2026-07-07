@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -26,11 +26,13 @@ import { MintBg } from '@/components/ui/mint-bg';
 import { MonthOverlay } from '@/components/ui/month-overlay';
 import { MessageBubble } from '@/components/ui/message-bubble';
 import { PipelineCard } from '@/components/ui/pipeline-card';
+import { PRConsole } from '@/components/ui/pr-console';
 import { ResultCard } from '@/components/ui/result-card';
 import { ScheduleCard } from '@/components/ui/schedule-card';
 import { SuggestionChips } from '@/components/ui/suggestion-chips';
-import { TypingIndicator } from '@/components/ui/typing-indicator';
+import { ThinkingConsole } from '@/components/ui/thinking-console';
 import { WeekStrip } from '@/components/ui/week-strip';
+import { TypingIndicator } from '@/components/ui/typing-indicator';
 import { useAppStore } from '@/store/app-store';
 import { darkChat, fontFamily, fontSize, radius, shadow, spacing } from '@/theme/theme';
 
@@ -40,9 +42,12 @@ export default function ChatThreadScreen() {
   const {
     getThread,
     typingThreadId,
+    thinking,
+    calendarReveal,
+    activeTool,
+    prReveal,
     sendMessage,
     resolveChatApproval,
-    calendarScan,
     calendarDays,
     bookScheduleSlot,
     crewSelected,
@@ -58,13 +63,31 @@ export default function ChatThreadScreen() {
 
   const thread = getThread(id);
   const isTyping = typingThreadId === id;
+  const thinkingHere = thinking?.threadId === id ? thinking : null;
 
-  // Keep the week strip pinned while a schedule suggestion is awaiting a
-  // slot pick, so the user can reference the calendar before deciding.
-  const pendingSchedule = [...(thread?.messages ?? [])]
+  // The dark week-strip console: NOT during thinking (the console narrates
+  // that) — it appears with the calendar answer, right under the console.
+  // Tapping it swaps it for the big month view; closing that dismisses both.
+  const pendingScheduleMsg = [...(thread?.messages ?? [])]
     .reverse()
-    .find((m) => m.schedule && !m.schedule.booked)?.schedule;
-  const stripTarget = calendarScan?.targetDate ?? pendingSchedule?.date ?? null;
+    .find((m) => m.schedule && !m.schedule.booked);
+  const pendingSchedule = pendingScheduleMsg?.schedule;
+  const [stripHidden, setStripHidden] = useState(false);
+  useEffect(() => {
+    // a NEW calendar answer brings the strip back
+    setStripHidden(false);
+  }, [pendingScheduleMsg?.id]);
+
+  // Right after a booking, pop the month view open on that date so the
+  // receipt is visible immediately (the fresh event blinks in).
+  useEffect(() => {
+    if (calendarReveal) {
+      setStripHidden(true);
+      setCalOpen(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [calendarReveal?.seq]);
+  const stripTarget = !stripHidden ? pendingSchedule?.date ?? null : null;
 
   const onSend = () => {
     if (!draft.trim() || !thread) return;
@@ -113,6 +136,7 @@ export default function ChatThreadScreen() {
               icon="chevron-back"
               onPress={() => router.back()}
               onDark
+              tint="rgba(44,70,101,0.55)"
               iconColor={darkChat.text}
               iconSize={22}
               hitSlop={10}
@@ -133,13 +157,56 @@ export default function ChatThreadScreen() {
             entering={FadeIn.duration(150)}
             exiting={FadeOut.duration(120)}
             style={{ width: 48, alignItems: 'flex-end' }}>
-            <GlassIconButton
-              icon={calOpen ? 'close' : 'calendar-clear-outline'}
-              onPress={() => setCalOpen((v) => !v)}
-              onDark
-              iconColor={darkChat.text}
-              iconSize={20}
-            />
+            {activeTool === 'both' && !calOpen ? (
+              // Two tools in play: calendar tucked back-left, GitHub
+              // front-right — same tinted circle as the single-tool button.
+              <Pressable
+                onPress={() => setCalOpen(true)}
+                hitSlop={8}
+                style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}>
+                <View
+                  style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: 999,
+                    backgroundColor: prReveal ? '#0E1626' : 'rgba(44,70,101,0.55)',
+                    borderWidth: 1,
+                    borderColor: 'rgba(255,255,255,0.5)',
+                  }}>
+                  <Ionicons
+                    name="calendar-clear-outline"
+                    size={15}
+                    color="rgba(255,255,255,0.65)"
+                    style={{ position: 'absolute', top: 9, left: 9 }}
+                  />
+                  <Ionicons
+                    name="logo-github"
+                    size={19}
+                    color={darkChat.text}
+                    style={{ position: 'absolute', bottom: 7, right: 7 }}
+                  />
+                </View>
+              </Pressable>
+            ) : (
+              <GlassIconButton
+                icon={calOpen ? 'close' : 'calendar-clear-outline'}
+                onPress={() => {
+                  if (calOpen) {
+                    // X closes the whole calendar moment: month view AND strip
+                    setCalOpen(false);
+                    setStripHidden(true);
+                  } else {
+                    setCalOpen(true);
+                  }
+                }}
+                onDark
+                // console navy while the calendar console is up: the color
+                // says the button and the floating console are one system
+                tint={calOpen || stripTarget != null ? '#0E1626' : 'rgba(44,70,101,0.55)'}
+                iconColor={darkChat.text}
+                iconSize={20}
+              />
+            )}
           </Animated.View>
         ) : null}
       </View>
@@ -149,14 +216,72 @@ export default function ChatThreadScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}>
         <View style={{ flex: 1 }}>
+          {/* Thinking console: in the FLOW, not an overlay — it pushes the
+              conversation down instead of covering it. Hidden while the
+              month view is open so dark edges never stack. */}
+          {thinkingHere && !calOpen ? (
+            <Animated.View
+              entering={FadeInDown.duration(280)}
+              exiting={FadeOutUp.duration(220)}
+              style={{
+                marginHorizontal: spacing.lg,
+                marginTop: spacing.sm,
+                marginBottom: spacing.xs,
+                // the expanded full-log dropdown must float OVER the chat
+                zIndex: 20,
+              }}>
+              <ThinkingConsole
+                threadId={thinkingHere.threadId}
+                lines={thinkingHere.lines}
+                done={thinkingHere.done}
+              />
+            </Animated.View>
+          ) : null}
+
+          {/* PR console: the dynamic console as a GitHub micro-app —
+              pulled DATA up here, the calendar ACTION down in the chat. */}
+          {prReveal?.threadId === id && !calOpen ? (
+            <Animated.View
+              entering={FadeInDown.duration(280)}
+              exiting={FadeOutUp.duration(220)}
+              style={{
+                marginHorizontal: spacing.lg,
+                marginTop: spacing.xs,
+                marginBottom: spacing.xs,
+              }}>
+              <PRConsole />
+            </Animated.View>
+          ) : null}
+
+          {/* Week-strip console: in the flow right below the thinking
+              console. Tap = trade up: the small strip goes away and the
+              big month view opens in front. */}
+          {stripTarget != null && !calOpen ? (
+            <Animated.View
+              entering={FadeInDown.duration(280)}
+              exiting={FadeOutUp.duration(220)}
+              style={{
+                marginHorizontal: spacing.lg,
+                marginTop: spacing.xs,
+                marginBottom: spacing.xs,
+              }}>
+              <Pressable
+                onPress={() => {
+                  setStripHidden(true);
+                  setCalOpen(true);
+                }}
+                style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}>
+                <WeekStrip targetDate={stripTarget} scanning={false} />
+              </Pressable>
+            </Animated.View>
+          ) : null}
           <ScrollView
             ref={scrollRef}
             contentContainerStyle={{
               paddingLeft: spacing.lg,
               // right rail reserved for a future vertical element
               paddingRight: 32,
-              // make room under the week strip overlay
-              paddingTop: spacing.lg + (stripTarget != null ? 150 : 0),
+              paddingTop: spacing.lg,
               paddingBottom: spacing.md,
             }}
             showsVerticalScrollIndicator={false}
@@ -214,23 +339,10 @@ export default function ChatThreadScreen() {
             {isTyping ? <TypingIndicator /> : null}
           </ScrollView>
 
-          {/* Week strip: drops in while Scheduler scans, then stays pinned
-              (ring settled on the target date) until a slot is booked. */}
-          {stripTarget != null ? (
-            <Animated.View
-              pointerEvents="none"
-              entering={FadeInDown.duration(280)}
-              exiting={FadeOutUp.duration(220)}
-              style={{
-                position: 'absolute',
-                top: spacing.sm,
-                left: spacing.lg,
-                right: spacing.lg,
-                zIndex: 10,
-              }}>
-              <WeekStrip targetDate={stripTarget} scanning={!!calendarScan} />
-            </Animated.View>
-          ) : null}
+          {/* The week strip retired from this flow: the thinking console
+              narrates the scan and the in-chat day card answers — one
+              calendar, not two. The month overlay below stays as the
+              deliberate on-demand view. */}
 
           {/* Month calendar: floats over the chat, pinned in place — the
               conversation keeps scrolling underneath. Toggled by the list
@@ -246,9 +358,16 @@ export default function ChatThreadScreen() {
                 top: spacing.sm,
                 left: spacing.lg,
                 right: spacing.lg,
-                zIndex: 12,
+                // frontmost: the month view overlaps everything, including
+                // the thinking console and week strip
+                zIndex: 30,
+                elevation: 30,
               }}>
-              <MonthOverlay days={calendarDays} />
+              <MonthOverlay
+                days={calendarDays}
+                initialDate={calendarReveal?.date ?? null}
+                highlightTitle={calendarReveal?.title ?? null}
+              />
             </Animated.View>
           ) : null}
         </View>

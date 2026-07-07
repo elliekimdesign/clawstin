@@ -52,11 +52,13 @@ export function BlissSwooshBg({ plain }: { plain?: boolean }) {
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
       <Svg width="100%" height="100%" viewBox="0 0 390 844" preserveAspectRatio="xMidYMid slice">
         <Defs>
-          {/* sky (top-left) melting into the green hill (bottom-right) */}
+          {/* sky (top-left) melting into the green hill (bottom-right).
+              The plain (home) variant bakes Crew's white glow into the
+              stops so the bare gradient never reads punchier than Crew. */}
           <LinearGradient id="field" x1="0" y1="0" x2="0.7" y2="1">
-            <Stop offset="0%" stopColor="#8EC9F0" />
-            <Stop offset="33%" stopColor="#5FA8DE" />
-            <Stop offset="74%" stopColor="#5DB14A" />
+            <Stop offset="0%" stopColor={plain ? '#B4DAF5' : '#8EC9F0'} />
+            <Stop offset="33%" stopColor={plain ? '#85BBE6' : '#5FA8DE'} />
+            <Stop offset="74%" stopColor={plain ? '#7CBF6C' : '#5DB14A'} />
           </LinearGradient>
           {!plain && GLOWS.map((g, i) => glow(`g${i}`, g[0], g[1], g[2], g[3], g[4], g[5], g[6]))}
 

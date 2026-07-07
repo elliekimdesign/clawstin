@@ -42,8 +42,16 @@ export const initialPermissions: Permission[] = [
     enabled: true,
     source: 'connected',
   },
+  {
+    key: 'github',
+    icon: 'logo-github',
+    name: 'Devtools',
+    detail: 'Watch repos & PRs',
+    enabled: true,
+    source: 'connected',
+  },
   // Available order matters — the first 3 are what the compact list shows
-  // on the Access screen (Email, Smart Home, Devtools); the rest only surface
+  // on the Access screen (Email, Smart Home, Files); the rest only surface
   // via "More".
   {
     key: 'gmail',
@@ -62,15 +70,6 @@ export const initialPermissions: Permission[] = [
     enabled: false,
     source: 'available',
     setupUrl: 'https://web.openclaw.ai/setup/google-home',
-  },
-  {
-    key: 'github',
-    icon: 'logo-github',
-    name: 'Devtools',
-    detail: 'Watch repos & PRs',
-    enabled: false,
-    source: 'available',
-    setupUrl: 'https://web.openclaw.ai/setup/github',
   },
   {
     key: 'files',

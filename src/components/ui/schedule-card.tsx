@@ -93,7 +93,9 @@ export function ScheduleCard({
         )}
       </View>
 
-      {/* Suggested free slots, or the booked confirmation */}
+      {/* Suggested free slots, or the booked confirmation. A pure
+          "check" answer has no slots — then the timeline alone is the
+          reply and this whole block stays out. */}
       {schedule.booked ? (
         <Text
           style={{
@@ -104,7 +106,7 @@ export function ScheduleCard({
           }}>
           ✓ Booked at {schedule.booked}
         </Text>
-      ) : (
+      ) : schedule.slots.length > 0 ? (
         <View style={{ marginTop: spacing.lg }}>
           <Text
             style={{
@@ -113,7 +115,7 @@ export function ScheduleCard({
               fontFamily: fontFamily.semibold,
               letterSpacing: 1,
             }}>
-            MUPPET SUGGESTS
+            SUGGESTED
           </Text>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.sm }}>
             {schedule.slots.map((slot) => (
@@ -139,7 +141,7 @@ export function ScheduleCard({
             ))}
           </View>
         </View>
-      )}
+      ) : null}
     </View>
   );
 }

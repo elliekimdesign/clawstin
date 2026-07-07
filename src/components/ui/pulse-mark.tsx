@@ -76,15 +76,10 @@ function StaticRing({ size }: { size: number }) {
 }
 
 export function PulseMark({ size = 220, children, style }: Props) {
+  // Rings retired (her call: the mark stands alone) — the component keeps
+  // its centered footprint so onboarding layout stays put.
   return (
     <View style={[{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }, style]}>
-      {/* Static concentric rings — always visible */}
-      <StaticRing size={size} />
-      <StaticRing size={size * 0.72} />
-      <StaticRing size={size * 0.46} />
-      {/* A single, very gentle breathing pulse close to the mark */}
-      <Ring size={size * 0.46} delay={0} duration={2800} />
-      {/* The mark sits dead center */}
       {children}
     </View>
   );

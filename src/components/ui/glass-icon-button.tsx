@@ -18,6 +18,10 @@ type Props = {
   iconColor?: string;
   /** rendered on the chat screen's dark gradient — darker fallback tint */
   onDark?: boolean;
+  /** constant tint painted over the glass so the button keeps ONE stable
+   * look instead of adapting to whatever scrolls behind it (use the crew
+   * pill's ink for rest state, the console navy for active states) */
+  tint?: string;
   /** outer positioning (e.g. absolute placement for FABs) */
   style?: StyleProp<ViewStyle>;
   hitSlop?: number;
@@ -35,6 +39,7 @@ export function GlassIconButton({
   iconSize = Math.round(size / 2),
   iconColor = colors.text,
   onDark,
+  tint,
   style,
   hitSlop = 8,
 }: Props) {
@@ -60,13 +65,19 @@ export function GlassIconButton({
           overflow: 'hidden',
           alignItems: 'center',
           justifyContent: 'center',
-          backgroundColor: GLASS_AVAILABLE
-            ? undefined
+          backgroundColor:
+            tint ??
+            (GLASS_AVAILABLE
+              ? undefined
+              : onDark
+                ? darkChat.glassBg
+                : 'rgba(22,24,29,0.05)'),
+          borderWidth: tint ? 1 : GLASS_AVAILABLE ? 0 : 1,
+          borderColor: tint
+            ? 'rgba(255,255,255,0.5)'
             : onDark
-              ? darkChat.glassBg
-              : 'rgba(22,24,29,0.05)',
-          borderWidth: GLASS_AVAILABLE ? 0 : 1,
-          borderColor: onDark ? darkChat.glassBorder : colors.border,
+              ? darkChat.glassBorder
+              : colors.border,
         }}>
         <Ionicons name={icon} size={iconSize} color={iconColor} />
       </GlassOrFallback>

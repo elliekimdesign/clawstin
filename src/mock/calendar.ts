@@ -94,15 +94,8 @@ export const initialCalendarDays: CalendarDay[] = [
         color: 'brand',
         source: 'google',
       },
-      {
-        id: 'e7b',
-        title: 'Dinner with Jenna',
-        start: '7:00 PM',
-        end: '9:00 PM',
-        location: 'Tartine Manufactory',
-        color: 'yellow',
-        source: 'apple',
-      },
+      // (kept light on purpose: the demo books "Dinner with Jenna 6pm
+      // tmrw" INTO this day — it must not already exist here)
     ],
   },
   {
@@ -343,10 +336,10 @@ export function suggestSlots(events: CalendarEvent[], requested?: string): strin
 export function parseScheduleRequest(
   text: string,
   todayDate: number
-): { date: number; title: string; start?: string } | null {
+): { date: number; title: string; start?: string; intent: 'check' | 'book' } | null {
   const lower = text.toLowerCase();
   const timeMatch = lower.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)/);
-  const tomorrow = lower.includes('tomorrow');
+  const tomorrow = lower.includes('tomorrow') || /\btmrw?\b/.test(lower);
   const triggered =
     timeMatch != null ||
     tomorrow ||
@@ -354,6 +347,14 @@ export function parseScheduleRequest(
     lower.includes('remind') ||
     lower.includes('calendar');
   if (!triggered) return null;
+
+  // "Check my calendar" is a QUESTION, not a booking: nothing to extract,
+  // no slots to offer. Only booking-flavored asks take the book path below.
+  const checkAsk =
+    timeMatch == null && /\b(check|show|what'?s|look at|review)\b/.test(lower);
+  if (checkAsk) {
+    return { date: tomorrow ? todayDate + 1 : todayDate, title: '', intent: 'check' };
+  }
 
   let start: string | undefined;
   if (timeMatch) {
@@ -363,10 +364,16 @@ export function parseScheduleRequest(
   let title = text;
   if (timeMatch) title = title.replace(new RegExp(timeMatch[0], 'i'), ' ');
   title = title
-    .replace(/\b(remind me to|schedule|remind|add|put|please|tomorrow|today|calendar|my|to|at|on)\b/gi, ' ')
+    .replace(
+      /\b(remind me to|schedule|remind|add|put|please|tomorrow|tmrw|tmr|today|calendar|my|to|at|on)\b/gi,
+      ' '
+    )
     .replace(/\s+/g, ' ')
     .trim();
   title = title ? title.charAt(0).toUpperCase() + title.slice(1) : 'New event';
+  // "dinner with jenna" → "Dinner with Jenna": whatever follows "with" is
+  // a name, and a lowercase name reads like a broken extraction.
+  title = title.replace(/\bwith (\w)/i, (_m, c: string) => `with ${c.toUpperCase()}`);
 
-  return { date: tomorrow ? todayDate + 1 : todayDate, title, start };
+  return { date: tomorrow ? todayDate + 1 : todayDate, title, start, intent: 'book' };
 }

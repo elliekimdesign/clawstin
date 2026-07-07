@@ -10,8 +10,10 @@ import Animated, {
 
 import { fontFamily, fontSize, spacing } from '@/theme/theme';
 
-const STRIP_BG = '#111214';
-const CHARCOAL = '#16181D';
+// The app's one system-surface dark: same deep navy as the home Ask
+// console, the Logs field, and the status popover family.
+const STRIP_BG = '#0E1626';
+const CHARCOAL = '#0E1626';
 const DIM = 'rgba(255,255,255,0.35)';
 const LABEL = 'rgba(255,255,255,0.55)';
 const RING = 'rgba(255,255,255,0.9)';

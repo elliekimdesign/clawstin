@@ -78,8 +78,29 @@ const GLASS_AVAILABLE = Platform.OS === 'ios' && isGlassEffectAPIAvailable();
 // Home section material. 'milk' = the Acid Pop recipe (blur + a strong
 // milky veil, the field whispers through). Flip to 'paper' to restore
 // solid white cards instantly.
-const SECTION_MATERIAL: 'paper' | 'milk' = 'paper';
-const MILK = (SECTION_MATERIAL as 'paper' | 'milk') === 'milk';
+const SECTION_MATERIAL: 'paper' | 'milk' | 'night' = 'paper';
+const MILK = (SECTION_MATERIAL as string) === 'milk';
+// 'night' = Logs-tone dark sections (experiment; 'paper' is the way back)
+const NIGHT = (SECTION_MATERIAL as string) === 'night';
+
+// Section ink: content colors that flip with the material.
+const SINK = NIGHT
+  ? {
+      text: '#FFFFFF',
+      strong: '#FFFFFF',
+      dim: 'rgba(255,255,255,0.55)',
+      faint: 'rgba(255,255,255,0.4)',
+      line: 'rgba(255,255,255,0.10)',
+      tile: 'rgba(255,255,255,0.08)',
+    }
+  : {
+      text: '#1F3A57',
+      strong: '#12233D',
+      dim: 'rgba(31,58,87,0.6)',
+      faint: 'rgba(31,58,87,0.45)',
+      line: 'rgba(31,58,87,0.12)',
+      tile: 'rgba(31,58,87,0.04)',
+    };
 
 // Cloud wisps for the hero card, as fractions of the card size.
 // [cx, cy, rx, ry, rotation, peak opacity]
@@ -92,14 +113,15 @@ const CARD_CLOUDS: [number, number, number, number, number, number][] = [
 
 /** Muppet's round character face: orange circle, two dot eyes, a small
  * mouth. The agent's mark, drawn in code so it scales anywhere. */
-function MuppetFace({ size = 34 }: { size?: number }) {
+function MuppetFace({ size = 34, square }: { size?: number; square?: boolean }) {
   const k = size / 34;
   return (
     <View
       style={{
         width: size,
         height: size,
-        borderRadius: 999,
+        // square: the app-icon squircle face (onboarding mark)
+        borderRadius: square ? size * 0.3 : 999,
         backgroundColor: GLASS.avatar,
         alignItems: 'center',
         justifyContent: 'center',
@@ -187,13 +209,20 @@ function LiquidCard({
           borderColor: 'rgba(255,255,255,0.4)',
           backgroundColor: 'rgba(255,255,255,0.12)',
         }
-      : MILK
+      : NIGHT
         ? {
             borderWidth: 1,
-            borderColor: 'rgba(255,255,255,0.35)',
-            backgroundColor: 'rgba(255,255,255,0.18)',
+            borderColor: 'rgba(255,255,255,0.10)',
+            // slate gray: the night idea without the near-black weight
+            backgroundColor: '#4A525E',
           }
-        : { backgroundColor: '#FFFFFF' }),
+        : MILK
+          ? {
+              borderWidth: 1,
+              borderColor: 'rgba(255,255,255,0.35)',
+              backgroundColor: 'rgba(255,255,255,0.18)',
+            }
+          : { backgroundColor: '#FFFFFF' }),
     shadowColor: '#2E3252',
     shadowOpacity: 0.13,
     shadowRadius: 16,
@@ -271,7 +300,7 @@ function LiquidCard({
           }}>
           <Text
             style={{
-              color: onTint ? 'rgba(255,255,255,0.85)' : GLASS.dim,
+              color: onTint ? 'rgba(255,255,255,0.85)' : SINK.dim,
               fontSize: 11,
               fontFamily: fontFamily.medium,
               letterSpacing: 1,
@@ -360,7 +389,7 @@ export default function HomeScreen() {
   const needsYou = background.filter((t) => t.state === 'waiting').length + approvals.length;
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: GLASS.bg }} edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#B4DAF5' }} edges={['top']}>
       {connected ? <StatusBar style="dark" /> : null}
       {/* Home rides the bare bliss gradient; other tabs keep the swoosh art */}
       {!connected && <BlissSwooshBg plain />}
@@ -467,7 +496,7 @@ export default function HomeScreen() {
                 />
               </View>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-                <MuppetFace size={26} />
+                <MuppetFace size={22} square />
                 <Text
                   style={{
                     color: '#FFFFFF',
@@ -503,8 +532,8 @@ export default function HomeScreen() {
                       flex: 1,
                       height: 72,
                       borderRadius: 16,
-                      // same gray inner-bento as the Crew Perf stat tiles
-                      backgroundColor: 'rgba(31,58,87,0.04)',
+                      // same inner-bento grammar as the Crew Perf stat tiles
+                      backgroundColor: SINK.tile,
                       paddingHorizontal: 14,
                       paddingTop: 10,
                       paddingBottom: 10,
@@ -513,7 +542,7 @@ export default function HomeScreen() {
                     })}>
                     <Text
                       style={{
-                        color: GLASS.dim,
+                        color: SINK.dim,
                         fontSize: 11,
                         fontFamily: fontFamily.medium,
                         letterSpacing: 1,
@@ -523,14 +552,14 @@ export default function HomeScreen() {
                     <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4 }}>
                       <Text
                         style={{
-                          color: GLASS.textStrong,
+                          color: SINK.strong,
                           fontSize: 22,
                           lineHeight: 26,
                           fontFamily: fontFamily.bold,
                         }}>
                         {runningCount}
                       </Text>
-                      <Text style={{ color: GLASS.dim, fontSize: 11 }}>
+                      <Text style={{ color: SINK.dim, fontSize: 11 }}>
                         {runningCount === 1 ? 'task' : 'tasks'}
                       </Text>
                     </View>
@@ -542,8 +571,8 @@ export default function HomeScreen() {
                       flex: 1,
                       height: 72,
                       borderRadius: 16,
-                      // same gray inner-bento as the Crew Perf stat tiles
-                      backgroundColor: 'rgba(31,58,87,0.04)',
+                      // same inner-bento grammar as the Crew Perf stat tiles
+                      backgroundColor: SINK.tile,
                       paddingHorizontal: 14,
                       paddingTop: 10,
                       paddingBottom: 10,
@@ -558,7 +587,7 @@ export default function HomeScreen() {
                       }}>
                       <Text
                         style={{
-                          color: GLASS.dim,
+                          color: SINK.dim,
                           fontSize: 11,
                           fontFamily: fontFamily.medium,
                           letterSpacing: 1,
@@ -579,14 +608,14 @@ export default function HomeScreen() {
                     <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4 }}>
                       <Text
                         style={{
-                          color: GLASS.textStrong,
+                          color: SINK.strong,
                           fontSize: 22,
                           lineHeight: 26,
                           fontFamily: fontFamily.bold,
                         }}>
                         {needsYou}
                       </Text>
-                      <Text style={{ color: GLASS.dim, fontSize: 11 }}>
+                      <Text style={{ color: SINK.dim, fontSize: 11 }}>
                         waiting
                       </Text>
                     </View>
@@ -624,14 +653,14 @@ export default function HomeScreen() {
                         // clears the 44pt minimum target
                         paddingVertical: 16,
                         borderTopWidth: i === 0 ? 0 : 1,
-                        borderTopColor: GLASS.line,
+                        borderTopColor: SINK.line,
                         opacity: pressed ? 0.5 : 1,
                       })}>
                       <Text
                         numberOfLines={1}
                         style={{
                           flex: 1,
-                          color: GLASS.text,
+                          color: SINK.text,
                           fontSize: fontSize.small,
                           fontWeight: fontWeight.semibold,
                         }}>
@@ -661,7 +690,7 @@ export default function HomeScreen() {
                           <RunningDot />
                           <Text
                             style={{
-                              color: GLASS.dim,
+                              color: SINK.dim,
                               fontSize: 11,
                               fontFamily: fontFamily.mono,
                             }}>
@@ -687,7 +716,7 @@ export default function HomeScreen() {
               {threads.length === 0 ? (
                 <Text
                   style={{
-                    color: GLASS.dim,
+                    color: SINK.dim,
                     fontSize: fontSize.small,
                     padding: spacing.lg,
                     paddingTop: spacing.sm,
@@ -706,7 +735,7 @@ export default function HomeScreen() {
                       paddingHorizontal: spacing.lg,
                       paddingVertical: 15,
                       borderTopWidth: i === 0 ? 0 : 1,
-                      borderTopColor: GLASS.line,
+                      borderTopColor: SINK.line,
                       opacity: pressed ? 0.5 : 1,
                     })}>
                     {/* unread dot column: finished, not yet opened */}
@@ -722,7 +751,7 @@ export default function HomeScreen() {
                     <View style={{ flex: 1 }}>
                       <Text
                         style={{
-                          color: GLASS.text,
+                          color: SINK.text,
                           fontSize: fontSize.small,
                           fontWeight: fontWeight.semibold,
                         }}
@@ -730,14 +759,14 @@ export default function HomeScreen() {
                         {t.title}
                       </Text>
                       <Text
-                        style={{ color: GLASS.dim, fontSize: fontSize.caption, marginTop: 2 }}
+                        style={{ color: SINK.dim, fontSize: fontSize.caption, marginTop: 2 }}
                         numberOfLines={1}>
                         {t.lastPreview}
                       </Text>
                     </View>
                     <Text
                       style={{
-                        color: GLASS.faint,
+                        color: SINK.faint,
                         fontSize: 11,
                         fontFamily: fontFamily.mono,
                         marginTop: 2,
@@ -776,7 +805,7 @@ export default function HomeScreen() {
           <View style={{ flex: 1 }} />
           <View style={{ alignItems: 'center' }}>
             {/* Agent mark inside pulsing rings */}
-            <PulseMark size={220}>
+            <PulseMark size={140}>
               <View
                 style={{
                   width: 80.5,
