@@ -16,6 +16,8 @@ export type BackgroundTask = {
   deadline?: string;
   /** display age; multi-day = soft-aged (sinks and dims, never deleted) */
   age?: string;
+  /** running tasks only: short live progress line, e.g. "2 of 4 sites" */
+  progress?: string;
 };
 
 export const initialBackground: BackgroundTask[] = [
@@ -25,6 +27,7 @@ export const initialBackground: BackgroundTask[] = [
     label: 'Comparing flight prices to Seoul',
     state: 'running',
     threadId: 't1',
+    progress: '2 of 4 sites',
   },
   {
     id: 'b2',

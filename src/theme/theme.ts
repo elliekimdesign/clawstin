@@ -169,6 +169,29 @@ export const chatThemes: Record<'darkGreen' | 'skyBlue' | 'skyBlueOs' | 'mintOs'
 /** The active chat colorway. Swap here (or via a future user setting). */
 export const darkChat = chatThemes.blueCloudOs;
 
+/** The crew's signature light blue: chart bars, agent marks, composer
+ * send/mic circles. One blue on every surface. */
+export const brandBlue = '#8FBFF2';
+
+/** Semantic system colors (defined 2026-07-07 for the acid home skin).
+ * One meaning, one color, everywhere. */
+export const sysColor = {
+  /** needs you: the brand pink, our signature action color (tag text) */
+  action: '#D9438F',
+  /** needs you: dot/badge form of the action pink */
+  actionDot: '#F45FA8',
+  /** in progress: crew at work */
+  running: '#2E6FBF',
+  /** done / ready: completion accents (unread dots, ready marks) */
+  ready: '#55A32F',
+  /** done timestamps and quiet finished text */
+  doneDim: 'rgba(38,48,31,0.55)',
+  /** fail / deny / destructive (terminal red) */
+  fail: '#E5484D',
+  /** degraded / pending system state */
+  degraded: '#F0812F',
+};
+
 export const spacing = {
   xs: 4,
   sm: 8,

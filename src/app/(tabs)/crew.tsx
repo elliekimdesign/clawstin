@@ -18,7 +18,7 @@ import { DarkCloudBg } from '@/components/ui/dark-cloud-bg';
 import type { ActivityItem } from '@/mock/activity';
 import type { CrewMember } from '@/mock/crew';
 import { useAppStore } from '@/store/app-store';
-import { fontFamily, fontSize, fontWeight, radius, spacing } from '@/theme/theme';
+import { brandBlue, fontFamily, fontSize, fontWeight, radius, spacing } from '@/theme/theme';
 
 // cinema tones: the Crew tab shares the home board's dark_cloud field,
 // and the cards go DARKER than the field — characters lit like movie
@@ -185,7 +185,7 @@ function ContributionCard({ crew }: { crew: CrewMember[] }) {
             <View key={m.id} style={{ flex: 1, alignItems: 'center' }}>
               <Text
                 style={{
-                  color: INK_DIM,
+                  color: brandBlue,
                   fontSize: 11,
                   fontWeight: fontWeight.semibold,
                   marginBottom: 4,
@@ -346,7 +346,7 @@ function PerfSection({ member, recent }: { member: CrewMember; recent: ActivityI
           <Ionicons name="ellipsis-horizontal" size={16} color={INK} />
         </View>
       </View>
-      <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
+      <View style={{ flexDirection: 'row', gap: 8, marginTop: 16 }}>
         <StatTile label="AUTONOMY" value={`${member.autonomy}%`} />
         <StatTile label="TIME SAVED" value={`${member.timeSavedH}h`} />
         <StatTile label="TOKENS" value={`${member.tokensM}M`} />
@@ -354,14 +354,14 @@ function PerfSection({ member, recent }: { member: CrewMember; recent: ActivityI
 
       {/* the actual user prompts this agent handled, newest first --
           seeing who handled what nudges the user toward Add crew */}
-      <View style={{ marginTop: 12, paddingHorizontal: 2 }}>
+      <View style={{ marginTop: 16, paddingHorizontal: 2 }}>
         <Text
           style={{
             color: INK_DIM,
             fontSize: 9,
             fontWeight: fontWeight.semibold,
             letterSpacing: 0.8,
-            marginBottom: 6,
+            marginBottom: 10,
           }}>
           RECENT PROMPTS
         </Text>
@@ -373,7 +373,7 @@ function PerfSection({ member, recent }: { member: CrewMember; recent: ActivityI
               flexDirection: 'row',
               alignItems: 'center',
               gap: 6,
-              marginBottom: 4,
+              marginBottom: 9,
               opacity: pressed ? 0.6 : 1,
             })}>
             <Text style={{ color: 'rgba(243,248,252,0.35)', fontSize: 12 }}>

@@ -28,20 +28,20 @@ import { AuroraLine } from '@/components/ui/aurora-line';
 import { Card } from '@/components/ui/card';
 import { GlassIconButton } from '@/components/ui/glass-icon-button';
 import { BlissSwooshBg } from '@/components/ui/bliss-swoosh-bg';
-import { DarkCloudBg } from '@/components/ui/dark-cloud-bg';
+import { AcidSwooshBg } from '@/components/ui/acid-swoosh-bg';
 import { PromptHistorySheet } from '@/components/ui/prompt-history-sheet';
 import { PulseMark } from '@/components/ui/pulse-mark';
 import { StatusPopover, worstServiceState } from '@/components/ui/status-popover';
 import { TOOL_ACTION_PHRASE, useAppStore } from '@/store/app-store';
 import {
   colors,
-  darkChat,
   fontFamily,
   fontSize,
   fontWeight,
   radius,
   shadow,
   spacing,
+  sysColor,
 } from '@/theme/theme';
 
 const USER_NAME = 'Ellie';
@@ -85,6 +85,58 @@ const GLASS = {
 // expo-glass-effect is iOS-only; fall back to a translucent dark fill.
 const GLASS_AVAILABLE = Platform.OS === 'ios' && isGlassEffectAPIAvailable();
 
+/** The V Acid Pop card material: liquid-glass blur under a translucent
+ * white veil (0.35 -> 0.18, the field whispers through) with a thin rim
+ * light along the top edge. Fill for any rounded overflow-hidden card.
+ * effect: 'clear' shows the liquid lens (small cards); 'regular' is a
+ * uniform frost for tall cards where clear's edge lensing reads as a
+ * dark band; 'none' = veil only. */
+function AcidGlassFill({ effect = 'clear' }: { effect?: 'clear' | 'regular' | 'none' }) {
+  return (
+    <>
+      {GLASS_AVAILABLE && effect !== 'none' ? (
+        <GlassView
+          glassEffectStyle={effect}
+          colorScheme="light"
+          style={StyleSheet.absoluteFill}
+          pointerEvents="none"
+        />
+      ) : null}
+      <Svg style={StyleSheet.absoluteFill} pointerEvents="none" preserveAspectRatio="none">
+        <Defs>
+          {/* brushed-steel veil: bright silver up top settling into a
+              lime-green cast, more opaque than plain glass */}
+          <SvgGradient id="acidveil" x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0%" stopColor="#F3F6EF" stopOpacity={0.6} />
+            <Stop offset="55%" stopColor="#E7EFD8" stopOpacity={0.5} />
+            <Stop offset="100%" stopColor="#D9E6C2" stopOpacity={0.45} />
+          </SvgGradient>
+          {/* cold silver sheen sweeping off the top-left corner */}
+          <SvgGradient id="acidsheen" x1="0" y1="0" x2="0.85" y2="0.9">
+            <Stop offset="0%" stopColor="#FFFFFF" stopOpacity={0.22} />
+            <Stop offset="45%" stopColor="#FFFFFF" stopOpacity={0.05} />
+            <Stop offset="100%" stopColor="#FFFFFF" stopOpacity={0} />
+          </SvgGradient>
+        </Defs>
+        <Rect x="0" y="0" width="100%" height="100%" fill="url(#acidveil)" />
+        <Rect x="0" y="0" width="100%" height="100%" fill="url(#acidsheen)" />
+      </Svg>
+      <View
+        pointerEvents="none"
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 12,
+          right: 12,
+          height: 1.5,
+          borderRadius: 1,
+          backgroundColor: 'rgba(255,255,255,0.7)',
+        }}
+      />
+    </>
+  );
+}
+
 // Home section material. 'milk' = the Acid Pop recipe (blur + a strong
 // milky veil, the field whispers through). Flip to 'paper' to restore
 // solid white cards instantly.
@@ -106,7 +158,7 @@ const NHOME = {
   bg: '#141F33',
   text: 'rgba(255,255,255,0.92)',
   secondary: 'rgba(255,255,255,0.62)',
-  dim: 'rgba(255,255,255,0.48)',
+  dim: 'rgba(255,255,255,0.55)',
   faint: 'rgba(255,255,255,0.32)',
   row: 'rgba(255,255,255,0.06)',
   rowBorder: 'rgba(255,255,255,0.08)',
@@ -114,6 +166,17 @@ const NHOME = {
   ok: '#7ED9A0',
   warn: '#F0B25F',
   green: '#5FD9A4',
+};
+
+// Ink for the acid glass surfaces (light field): dark olive text, quiet
+// hairlines, and state colors deep enough to hold contrast on pale glass.
+const AINK = {
+  text: '#26301F',
+  dim: 'rgba(38,48,31,0.55)',
+  divider: 'rgba(38,48,31,0.08)',
+  running: sysColor.running,
+  warn: sysColor.action,
+  accent: sysColor.ready,
 };
 
 // "silkstyle" — logstyle's exact layout, re-inked for the silk_swoosh
@@ -194,7 +257,7 @@ function MuppetFace({ size = 34, square }: { size?: number; square?: boolean }) 
 }
 
 /** Small breathing dot for in-flight background work. */
-function RunningDot() {
+function RunningDot({ color = GLASS.blue, size = 7 }: { color?: string; size?: number }) {
   const o = useSharedValue(0.3);
   useEffect(() => {
     o.value = withRepeat(
@@ -205,10 +268,7 @@ function RunningDot() {
   const style = useAnimatedStyle(() => ({ opacity: o.value }));
   return (
     <Animated.View
-      style={[
-        { width: 7, height: 7, borderRadius: 999, backgroundColor: GLASS.blue },
-        style,
-      ]}
+      style={[{ width: size, height: size, borderRadius: 999, backgroundColor: color }, style]}
     />
   );
 }
@@ -422,7 +482,7 @@ export default function HomeScreen() {
   const [homeTab, setHomeTab] = useState<'all' | 'running' | 'needsYou' | 'done'>('all');
   const worst = worstServiceState(services);
   const statusDot: string =
-    worst === 'down' ? colors.danger : worst === 'degraded' ? colors.warning : colors.success;
+    worst === 'down' ? sysColor.fail : worst === 'degraded' ? sysColor.degraded : sysColor.ready;
   const statusLabel = worst === 'down' ? 'Issue' : worst === 'degraded' ? 'Degraded' : 'Online';
 
   const now = new Date();
@@ -447,21 +507,79 @@ export default function HomeScreen() {
   // Open conversations live on the desk above, not here.
   const doneThreads = threads.filter((t) => t.outcome);
 
+  // Rows for the list container, priority top to bottom; stale asks
+  // (age in days) sink to the end. Approvals ARE "needs you".
+  const activeRows =
+    homeTab === 'done'
+      ? []
+      : [
+          ...background
+            .filter((t) =>
+              homeTab === 'all'
+                ? true
+                : homeTab === 'running'
+                  ? t.state === 'running'
+                  : t.state === 'waiting'
+            )
+            .map((t) => ({
+              key: t.id,
+              label: t.label,
+              waiting: t.state === 'waiting',
+              deadline: t.deadline,
+              age: t.age,
+              onPress: () => router.push(`/chat/${t.threadId}`),
+            })),
+          ...(homeTab === 'all' || homeTab === 'needsYou'
+            ? approvals.map((a) => ({
+                key: a.id,
+                label: a.title,
+                waiting: true,
+                deadline: undefined as string | undefined,
+                age: a.age,
+                onPress: () => a.threadId && router.push(`/chat/${a.threadId}`),
+              }))
+            : []),
+        ].sort(
+          (a, b) =>
+            Number(a.age?.endsWith('d') ?? false) - Number(b.age?.endsWith('d') ?? false)
+        );
+  const visibleDone = homeTab === 'all' || homeTab === 'done' ? doneThreads : [];
+
+  // Live focus for the dashboard widgets: the one running task (real-time
+  // pulse) and the front of the needs-you queue (the next action).
+  const runningTask = background.find((t) => t.state === 'running');
+  const nextAsk = [
+    ...background
+      .filter((t) => t.state === 'waiting')
+      .map((t) => ({
+        label: t.label,
+        suffix: t.deadline ?? t.age,
+        aged: t.age?.endsWith('d') ?? false,
+        threadId: t.threadId as string | undefined,
+      })),
+    ...approvals.map((a) => ({
+      label: a.title,
+      suffix: a.age === 'now' ? undefined : a.age,
+      aged: a.age?.endsWith('d') ?? false,
+      threadId: a.threadId,
+    })),
+  ].sort((a, b) => Number(a.aged) - Number(b.aged))[0];
+
   return (
     <SafeAreaView
-      style={{ flex: 1, backgroundColor: connected ? '#243A54' : '#B4DAF5' }}
+      style={{ flex: 1, backgroundColor: connected ? '#EEF1E8' : '#B4DAF5' }}
       edges={['top']}>
-      {connected ? <StatusBar style="light" /> : null}
+      {connected ? <StatusBar style="dark" /> : null}
       {/* One daylight bliss field for onboarding AND the board */}
       {!connected && <BlissSwooshBg plain />}
       {connected ? (
         // ───────────────────────── State board ─────────────────────────
         <>
-          <DarkCloudBg />
+          <AcidSwooshBg />
           <View style={{ flex: 1 }}>
             <ScrollView
               ref={scrollRef}
-              contentContainerStyle={{ padding: spacing.lg, paddingBottom: 170 }}
+              contentContainerStyle={{ padding: spacing.lg, paddingBottom: 120 }}
               showsVerticalScrollIndicator={false}>
               {/* top row: the wordmark left, gateway status right */}
               <View
@@ -471,15 +589,48 @@ export default function HomeScreen() {
                   justifyContent: 'space-between',
                   marginTop: 4,
                 }}>
-                <Text
-                  style={{
-                    color: '#F7FBFF',
-                    fontSize: 20,
-                    letterSpacing: -0.3,
-                    fontFamily: fontFamily.bold,
-                  }}>
-                  Clawstin
-                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  {/* the square face mark, tiny: dark olive + lime, the
+                      same pair as the hero's arrow orb */}
+                  <View
+                    style={{
+                      width: 22,
+                      height: 22,
+                      borderRadius: 7,
+                      // softened olive; the wordmark uses the same ink
+                      backgroundColor: 'rgba(35,48,24,0.85)',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}>
+                    <View style={{ flexDirection: 'row', gap: 3.5, marginBottom: 3 }}>
+                      <View
+                        style={{ width: 3, height: 3, borderRadius: 999, backgroundColor: '#D9FF3D' }}
+                      />
+                      <View
+                        style={{ width: 3, height: 3, borderRadius: 999, backgroundColor: '#D9FF3D' }}
+                      />
+                    </View>
+                    <View
+                      style={{
+                        width: 8,
+                        height: 1.5,
+                        borderRadius: 1,
+                        backgroundColor: 'rgba(217,255,61,0.9)',
+                      }}
+                    />
+                  </View>
+                  <Text
+                    style={{
+                      color: 'rgba(35,48,24,0.85)',
+                      fontSize: 20,
+                      letterSpacing: -0.3,
+                      fontFamily: fontFamily.bold,
+                    }}>
+                    Clawstin
+                  </Text>
+                </View>
+                {/* status lives in a tag (crew-pill grammar, light mode)
+                    so it stays readable on the pale sky */}
                 <Pressable
                   onPress={() => setStatusOpen(true)}
                   hitSlop={8}
@@ -487,20 +638,22 @@ export default function HomeScreen() {
                     flexDirection: 'row',
                     alignItems: 'center',
                     gap: 6,
+                    paddingVertical: 6,
+                    paddingHorizontal: 12,
+                    borderRadius: 999,
+                    backgroundColor: 'rgba(255,255,255,0.5)',
+                    borderWidth: 1.2,
+                    borderColor: 'rgba(255,255,255,0.8)',
                     opacity: pressed ? 0.6 : 1,
                   })}>
-                  <View
-                    style={{ width: 7, height: 7, borderRadius: 999, backgroundColor: statusDot }}
-                  />
                   <Text
                     style={{
-                      color: 'rgba(255,255,255,0.6)',
-                      fontSize: 12,
-                      fontFamily: fontFamily.mono,
+                      color: 'rgba(38,48,31,0.8)',
+                      fontSize: 11,
                     }}>
                     {statusLabel.toLowerCase()}
                   </Text>
-                  <Ionicons name="chevron-down" size={12} color="rgba(255,255,255,0.4)" />
+                  <Ionicons name="chevron-down" size={11} color="rgba(38,48,31,0.5)" />
                 </Pressable>
               </View>
 
@@ -513,15 +666,188 @@ export default function HomeScreen() {
                   lineHeight: 30,
                   fontFamily: fontFamily.bold,
                   letterSpacing: -0.5,
-                  color: '#F7FBFF',
+                  // the wordmark's previous shadow ink, one step softer
+                  color: 'rgba(38,48,31,0.7)',
                 }}>
                 {hello}, {USER_NAME}
               </Text>
 
-              {/* state tabs — the 3-state model as navigation */}
+              {/* ── Acid dashboard (V Acid Pop grammar): lime hero ask
+                  card + two frosted state tiles. Hero = the one chat
+                  entry; tiles carry the 3-state counts and filter the
+                  list below on tap. ── */}
+              <Pressable
+                onPress={startChat}
+                style={({ pressed }) => ({
+                  marginTop: 24,
+                  height: 136,
+                  borderRadius: 22,
+                  borderWidth: 1.2,
+                  borderColor: 'rgba(255,255,255,0.8)',
+                  overflow: 'hidden',
+                  shadowColor: '#26301F',
+                  shadowOpacity: 0.14,
+                  shadowRadius: 20,
+                  shadowOffset: { width: 0, height: 8 },
+                  elevation: 6,
+                  opacity: pressed ? 0.88 : 1,
+                })}>
+                <AcidGlassFill />
+                <Text
+                  style={{
+                    position: 'absolute',
+                    top: 14,
+                    left: 15,
+                    fontSize: 11,
+                    fontWeight: fontWeight.semibold,
+                    letterSpacing: 1,
+                    color: 'rgba(35,48,24,0.9)',
+                  }}>
+                  CREW
+                </Text>
+                <View
+                  style={{
+                    position: 'absolute',
+                    top: 28,
+                    right: 14,
+                    width: 30,
+                    height: 30,
+                    borderRadius: 999,
+                    backgroundColor: '#233018',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}>
+                  <Ionicons
+                    name="arrow-forward"
+                    size={15}
+                    color="#D6F25F"
+                    style={{ transform: [{ rotate: '-45deg' }] }}
+                  />
+                </View>
+                <Text
+                  style={{
+                    position: 'absolute',
+                    left: 16,
+                    bottom: 24,
+                    fontSize: 26,
+                    fontFamily: fontFamily.bold,
+                    letterSpacing: -0.5,
+                    color: '#233018',
+                  }}>
+                  Ask your crew
+                </Text>
+              </Pressable>
+
+              {/* live-focus widgets: not counters (the nav below carries
+                  the counts) but the thing itself — the running task's
+                  pulse, and the front of the needs-you queue. Tap = jump
+                  straight into that chat. */}
+              <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+                {(
+                  [
+                    {
+                      key: 'running',
+                      label: 'RUNNING',
+                      title: runningTask ? runningTask.label : 'No tasks running',
+                      caption: runningTask
+                        ? (runningTask.progress ?? 'crew at work')
+                        : 'all clear',
+                      live: !!runningTask,
+                      alert: false,
+                      threadId: runningTask?.threadId,
+                    },
+                    {
+                      key: 'needsYou',
+                      label: 'NEEDS YOU',
+                      title: nextAsk ? nextAsk.label : 'Nothing waiting',
+                      caption: nextAsk ? 'next' : 'all clear',
+                      live: false,
+                      alert: !!nextAsk,
+                      threadId: nextAsk?.threadId,
+                    },
+                  ] as const
+                ).map((w) => (
+                  <Pressable
+                    key={w.key}
+                    onPress={() => w.threadId && router.push(`/chat/${w.threadId}`)}
+                    style={({ pressed }) => ({
+                      flex: 1,
+                      height: 100,
+                      borderRadius: 22,
+                      borderWidth: 1.2,
+                      borderColor: 'rgba(255,255,255,0.8)',
+                      overflow: 'hidden',
+                      padding: 14,
+                      shadowColor: '#26301F',
+                      shadowOpacity: 0.14,
+                      shadowRadius: 20,
+                      shadowOffset: { width: 0, height: 8 },
+                      elevation: 6,
+                      opacity: pressed ? 0.85 : 1,
+                    })}>
+                    <AcidGlassFill />
+                    <Text
+                      style={{
+                        fontSize: 11,
+                        fontWeight: fontWeight.semibold,
+                        letterSpacing: 1,
+                        color: 'rgba(58,74,44,0.9)',
+                      }}>
+                      {w.label}
+                    </Text>
+                    {w.alert ? (
+                      <View
+                        style={{
+                          position: 'absolute',
+                          top: 14,
+                          right: 14,
+                          width: 8,
+                          height: 8,
+                          borderRadius: 999,
+                          backgroundColor: sysColor.actionDot,
+                        }}
+                      />
+                    ) : null}
+                    {w.live ? (
+                      <View style={{ position: 'absolute', top: 14, right: 14 }}>
+                        <RunningDot color={sysColor.running} size={8} />
+                      </View>
+                    ) : null}
+                    <Text
+                      numberOfLines={2}
+                      style={{
+                        marginTop: 8,
+                        fontSize: 13,
+                        lineHeight: 17,
+                        fontWeight: fontWeight.semibold,
+                        color: AINK.text,
+                      }}>
+                      {w.title}
+                    </Text>
+                    <Text
+                      numberOfLines={1}
+                      style={{
+                        marginTop: 'auto' as const,
+                        alignSelf: 'flex-end' as const,
+                        fontSize: 11,
+                        color: 'rgba(38,48,31,0.6)',
+                      }}>
+                      {w.caption}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+
+              {/* sorting nav: the 3-state model as navigation (counts
+                  live here now, not in the widgets). Indented to the
+                  cards' inner content line, quiet type, fat hit area. */}
               <View
-                onLayout={(e) => setApprovalsY(e.nativeEvent.layout.y)}
-                style={{ flexDirection: 'row', gap: 20, marginTop: 52, marginBottom: 14 }}>
+                style={{
+                  flexDirection: 'row',
+                  gap: 18,
+                  marginTop: 26,
+                  marginBottom: 10,
+                }}>
                 {(
                   [
                     ['all', 'All', runningCount + needsYou + doneThreads.length],
@@ -530,12 +856,16 @@ export default function HomeScreen() {
                     ['done', 'Done', doneThreads.length],
                   ] as const
                 ).map(([key, label, count]) => (
-                  <Pressable key={key} onPress={() => setHomeTab(key)} hitSlop={6}>
+                  <Pressable
+                    key={key}
+                    onPress={() => setHomeTab(key)}
+                    hitSlop={10}
+                    style={{ paddingVertical: 6 }}>
                     <Text
                       style={{
-                        fontSize: 15,
+                        fontSize: 13,
                         fontFamily: homeTab === key ? fontFamily.bold : fontFamily.semibold,
-                        color: homeTab === key ? '#FFFFFF' : 'rgba(255,255,255,0.45)',
+                        color: homeTab === key ? AINK.text : 'rgba(38,48,31,0.45)',
                       }}>
                       {`${label} ${count}`}
                     </Text>
@@ -543,107 +873,94 @@ export default function HomeScreen() {
                 ))}
               </View>
 
-              {/* full-width bars, one per line — priority reads top to
-                  bottom. Same near-square bar shape as logstyle. */}
-              <View style={{ gap: 10 }}>
-                {homeTab !== 'done'
-                  ? [
-                      ...background
-                        .filter((t) =>
-                          homeTab === 'all'
-                            ? true
-                            : homeTab === 'running'
-                              ? t.state === 'running'
-                              : t.state === 'waiting'
-                        )
-                        .map((t) => ({
-                          key: t.id,
-                          label: t.label,
-                          waiting: t.state === 'waiting',
-                          deadline: t.deadline,
-                          age: t.age,
-                          onPress: () => router.push(`/chat/${t.threadId}`),
-                        })),
-                      // approvals ARE "needs you" — same concept, one list.
-                      ...(homeTab === 'all' || homeTab === 'needsYou'
-                        ? approvals.map((a) => ({
-                            key: a.id,
-                            label: a.title,
-                            waiting: true,
-                            deadline: undefined,
-                            age: a.age,
-                            onPress: () => a.threadId && router.push(`/chat/${a.threadId}`),
-                          }))
-                        : []),
-                    ]
-                      // Soft aging: stale asks sink to the end and dim.
-                      .sort(
-                        (a, b) =>
-                          Number(a.age?.endsWith('d') ?? false) -
-                          Number(b.age?.endsWith('d') ?? false)
-                      )
-                      .map((row) => {
-                        const aged = row.age?.endsWith('d') ?? false;
-                        const statusSuffix = row.deadline ?? (aged ? row.age : null);
-                        return (
-                          <Pressable
-                            key={row.key}
-                            onPress={row.onPress}
-                            style={({ pressed }) => ({
-                              flexDirection: 'row',
-                              alignItems: 'center',
-                              gap: spacing.sm,
-                              // the STATE tints the surface, logstyle bars:
-                              // amber = blocked on you, blue = crew at work
-                              backgroundColor: row.waiting
-                                ? 'rgba(243,140,58,0.22)'
-                                : 'rgba(143,191,242,0.27)',
-                              borderRadius: 12,
-                              paddingHorizontal: 16,
-                              paddingVertical: 17,
-                              opacity: pressed ? 0.5 : aged ? 0.45 : 1,
-                            })}>
-                            <Text
-                              numberOfLines={1}
-                              style={{
-                                flex: 1,
-                                color: NHOME.text,
-                                fontSize: fontSize.small,
-                                fontWeight: fontWeight.semibold,
-                              }}>
-                              {row.label}
-                            </Text>
-                            <Text
-                              style={{
-                                color: row.waiting ? NHOME.warn : NHOME.blue,
-                                fontSize: 11,
-                                fontFamily: fontFamily.mono,
-                              }}>
-                              {row.waiting
-                                ? statusSuffix
-                                  ? `needs you  ${statusSuffix}`
-                                  : 'needs you'
-                                : 'running'}
-                            </Text>
-                          </Pressable>
-                        );
-                      })
-                  : null}
-                {homeTab === 'all' || homeTab === 'done'
-                  ? doneThreads.map((t) => (
+              {/* one steel-glass container; every chat is a hairline-
+                  divided row inside. Priority reads top to bottom. */}
+              {activeRows.length + visibleDone.length > 0 ? (
+                <View
+                  onLayout={(e) => setApprovalsY(e.nativeEvent.layout.y)}
+                  style={{
+                    borderRadius: 22,
+                    borderWidth: 1.2,
+                    borderColor: 'rgba(255,255,255,0.8)',
+                    overflow: 'hidden',
+                    shadowColor: '#26301F',
+                    shadowOpacity: 0.14,
+                    shadowRadius: 20,
+                    shadowOffset: { width: 0, height: 8 },
+                    elevation: 6,
+                  }}>
+                  {/* tall card: 'regular' frost avoids clear-glass edge
+                      lensing showing as a dark band at the bottom */}
+                  <AcidGlassFill effect="regular" />
+                  {activeRows.map((row, idx) => {
+                    const aged = row.age?.endsWith('d') ?? false;
+                    // no deadline in the tag (it reads as noise); only
+                    // soft-aged rows show their age
+                    const statusSuffix = aged ? row.age : null;
+                    return (
+                      <View key={row.key}>
+                        {idx > 0 ? (
+                          <View
+                            style={{
+                              height: 1,
+                              marginHorizontal: 18,
+                              backgroundColor: AINK.divider,
+                            }}
+                          />
+                        ) : null}
+                        <Pressable
+                          onPress={row.onPress}
+                          style={({ pressed }) => ({
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            gap: spacing.sm,
+                            paddingHorizontal: 18,
+                            paddingVertical: 15,
+                            opacity: pressed ? 0.5 : aged ? 0.5 : 1,
+                          })}>
+                          <Text
+                            numberOfLines={1}
+                            style={{
+                              flex: 1,
+                              color: AINK.text,
+                              fontSize: fontSize.small,
+                              fontWeight: fontWeight.semibold,
+                            }}>
+                            {row.label}
+                          </Text>
+                          <Text
+                            style={{
+                              fontSize: 11,
+                              color: row.waiting ? AINK.warn : AINK.running,
+                            }}>
+                            {row.waiting
+                              ? statusSuffix
+                                ? `needs you  ${statusSuffix}`
+                                : 'needs you'
+                              : 'running'}
+                          </Text>
+                        </Pressable>
+                      </View>
+                    );
+                  })}
+                  {visibleDone.map((t, idx) => (
+                    <View key={t.id}>
+                      {idx > 0 || activeRows.length > 0 ? (
+                        <View
+                          style={{
+                            height: 1,
+                            marginHorizontal: 18,
+                            backgroundColor: AINK.divider,
+                          }}
+                        />
+                      ) : null}
                       <Pressable
-                        key={t.id}
                         onPress={() => openThread(t.id)}
                         style={({ pressed }) => ({
                           flexDirection: 'row',
                           alignItems: 'center',
                           gap: spacing.sm,
-                          backgroundColor:
-                            t.outcome === 'expired'
-                              ? 'rgba(243,140,58,0.15)'
-                              : 'rgba(126,217,160,0.29)',
-                          borderRadius: 12,
-                          paddingHorizontal: 16,
+                          paddingHorizontal: 18,
                           paddingVertical: 13,
                           opacity: pressed ? 0.5 : t.outcome === 'expired' ? 0.6 : 1,
                         })}>
@@ -653,7 +970,7 @@ export default function HomeScreen() {
                               numberOfLines={1}
                               style={{
                                 flexShrink: 1,
-                                color: NHOME.text,
+                                color: AINK.text,
                                 fontSize: fontSize.small,
                                 fontWeight: fontWeight.semibold,
                               }}>
@@ -665,92 +982,47 @@ export default function HomeScreen() {
                                   width: 7,
                                   height: 7,
                                   borderRadius: 999,
-                                  backgroundColor: NHOME.blue,
+                                  backgroundColor: AINK.accent,
                                 }}
                               />
                             ) : null}
                           </View>
                           <Text
                             numberOfLines={1}
-                            style={{ color: NHOME.dim, fontSize: fontSize.caption, marginTop: 3 }}>
+                            style={{ color: AINK.dim, fontSize: fontSize.caption, marginTop: 3 }}>
                             {t.lastPreview}
                           </Text>
                         </View>
                         <Text
                           style={{
-                            fontFamily: fontFamily.mono,
                             fontSize: 11,
-                            color: t.outcome === 'expired' ? NHOME.warn : 'rgba(126,217,160,0.8)',
+                            color: AINK.dim,
                           }}>
                           {t.outcome === 'expired' ? 'expired' : t.updatedAt}
                         </Text>
                       </Pressable>
-                    ))
-                  : null}
-              </View>
-              {homeTab === 'done' ? (
+                    </View>
+                  ))}
+                </View>
+              ) : null}
+              {visibleDone.length > 0 ? (
                 <Pressable
                   onPress={() => setHistoryOpen(true)}
                   style={({ pressed }) => ({
                     marginTop: 14,
+                    alignSelf: 'flex-start' as const,
                     opacity: pressed ? 0.6 : 1,
                   })}>
                   <Text
                     style={{
-                      fontFamily: fontFamily.mono,
-                      fontSize: 12,
-                      color: 'rgba(255,255,255,0.55)',
+                      fontSize: 11,
+                      color: AINK.dim,
                     }}>
                     {'full history ›'}
                   </Text>
                 </Pressable>
               ) : null}
             </ScrollView>
-
-            {/* the ask pill FLOATS over the list: no band behind it, just
-                the input outline — the bars scroll underneath. Same
-                composer grammar as the chat rooms: glass pill, near-white
-                circle, navy mic — one entry everywhere */}
-            <Pressable
-              onPress={startChat}
-              style={({ pressed }) => ({
-                position: 'absolute',
-                left: spacing.lg,
-                right: spacing.lg,
-                bottom: 102,
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: spacing.sm,
-                paddingLeft: 20,
-                paddingRight: 4,
-                paddingVertical: 4,
-                borderRadius: 999,
-                backgroundColor: darkChat.solidSurface,
-                borderWidth: 1,
-                borderColor: darkChat.glassBorder,
-                opacity: pressed ? 0.85 : 1,
-              })}>
-              <Text
-                style={{
-                  flex: 1,
-                  paddingVertical: spacing.md,
-                  color: darkChat.textTertiary,
-                  fontSize: 15,
-                }}>
-                Ask your crew
-              </Text>
-              <View
-                style={{
-                  width: 38,
-                  height: 38,
-                  borderRadius: 999,
-                  backgroundColor: darkChat.text,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}>
-                <Ionicons name="mic" size={19} color={darkChat.onLight} />
-              </View>
-            </Pressable>
           </View>
 
           {/* Connection status popover (over the board) */}

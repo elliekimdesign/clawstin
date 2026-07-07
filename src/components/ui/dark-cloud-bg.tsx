@@ -24,7 +24,7 @@ export function DarkCloudBg() {
           <LinearGradient id="darksky" x1="0" y1="0" x2="0.15" y2="1">
             <Stop offset="0%" stopColor="#243A54" />
             <Stop offset="45%" stopColor="#335170" />
-            <Stop offset="100%" stopColor="#7195BD" />
+            <Stop offset="100%" stopColor="#6689B3" />
           </LinearGradient>
           {PUFFS.map((p, i) => (
             <RadialGradient

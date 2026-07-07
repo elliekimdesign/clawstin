@@ -34,7 +34,7 @@ import { ThinkingConsole } from '@/components/ui/thinking-console';
 import { WeekStrip } from '@/components/ui/week-strip';
 import { TypingIndicator } from '@/components/ui/typing-indicator';
 import { useAppStore } from '@/store/app-store';
-import { darkChat, fontFamily, fontSize, radius, shadow, spacing } from '@/theme/theme';
+import { brandBlue, darkChat, fontFamily, fontSize, radius, shadow, spacing } from '@/theme/theme';
 
 /** Full-screen conversation view for one thread (pushed over the tabs). */
 export default function ChatThreadScreen() {
@@ -519,7 +519,7 @@ export default function ChatThreadScreen() {
                 width: 38,
                 height: 38,
                 borderRadius: 999,
-                backgroundColor: darkChat.text,
+                backgroundColor: brandBlue,
                 alignItems: 'center',
                 justifyContent: 'center',
                 opacity: pressed ? 0.8 : 1,
