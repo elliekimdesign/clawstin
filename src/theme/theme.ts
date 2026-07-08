@@ -176,8 +176,10 @@ export const brandBlue = '#8FBFF2';
 /** Semantic system colors (defined 2026-07-07 for the acid home skin).
  * One meaning, one color, everywhere. */
 export const sysColor = {
-  /** needs you: the brand pink, our signature action color (tag text) */
-  action: '#D9438F',
+  /** needs you: the brand pink, our signature action color (tag text).
+   * Darkened from #D9438F to clear WCAG 4.5:1 on the acid glass rows
+   * (measured 5.2:1 vs 3.6:1); the dot below keeps the vivid brand hue. */
+  action: '#C2185B',
   /** needs you: dot/badge form of the action pink */
   actionDot: '#F45FA8',
   /** in progress: crew at work */

@@ -567,11 +567,78 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView
-      style={{ flex: 1, backgroundColor: connected ? '#EEF1E8' : '#B4DAF5' }}
+      style={{ flex: 1, backgroundColor: connected ? '#EEF1E8' : '#EEF1E8' }}
       edges={['top']}>
-      {connected ? <StatusBar style="dark" /> : null}
-      {/* One daylight bliss field for onboarding AND the board */}
-      {!connected && <BlissSwooshBg plain />}
+      <StatusBar style="dark" />
+      {/* start field: the app's quiet sage-lime theme, but livelier — an
+          Apple-style mesh of soft bright glows (warm light behind the
+          mark, lime top-left, meadow low-right, a whisper of sky) */}
+      {!connected && (
+        <View style={StyleSheet.absoluteFill} pointerEvents="none">
+          <Svg
+            width="100%"
+            height="100%"
+            viewBox="0 0 390 844"
+            preserveAspectRatio="xMidYMid slice">
+            <Defs>
+              <SvgGradient id="onbase" x1="0" y1="0" x2="0.4" y2="1">
+                <Stop offset="0%" stopColor="#F2F5EC" />
+                <Stop offset="50%" stopColor="#E4ECD6" />
+                <Stop offset="100%" stopColor="#D3E2BC" />
+              </SvgGradient>
+              <RadialGradient
+                id="onwarm"
+                gradientUnits="userSpaceOnUse"
+                cx="195"
+                cy="330"
+                rx="250"
+                ry="270">
+                <Stop offset="0%" stopColor="#FFFFFF" stopOpacity={0.75} />
+                <Stop offset="60%" stopColor="#FFFFFF" stopOpacity={0.28} />
+                <Stop offset="100%" stopColor="#FFFFFF" stopOpacity={0} />
+              </RadialGradient>
+              <RadialGradient
+                id="onlime"
+                gradientUnits="userSpaceOnUse"
+                cx="50"
+                cy="150"
+                rx="230"
+                ry="210">
+                <Stop offset="0%" stopColor="#CCFF00" stopOpacity={0.2} />
+                <Stop offset="60%" stopColor="#CCFF00" stopOpacity={0.07} />
+                <Stop offset="100%" stopColor="#CCFF00" stopOpacity={0} />
+              </RadialGradient>
+              <RadialGradient
+                id="onmeadow"
+                gradientUnits="userSpaceOnUse"
+                cx="340"
+                cy="720"
+                rx="270"
+                ry="250">
+                <Stop offset="0%" stopColor="#6FA344" stopOpacity={0.22} />
+                <Stop offset="60%" stopColor="#6FA344" stopOpacity={0.08} />
+                <Stop offset="100%" stopColor="#6FA344" stopOpacity={0} />
+              </RadialGradient>
+              <RadialGradient
+                id="onsky"
+                gradientUnits="userSpaceOnUse"
+                cx="360"
+                cy="110"
+                rx="200"
+                ry="180">
+                <Stop offset="0%" stopColor="#A7CBEF" stopOpacity={0.16} />
+                <Stop offset="60%" stopColor="#A7CBEF" stopOpacity={0.06} />
+                <Stop offset="100%" stopColor="#A7CBEF" stopOpacity={0} />
+              </RadialGradient>
+            </Defs>
+            <Rect x="0" y="0" width="390" height="844" fill="url(#onbase)" />
+            <Rect x="0" y="0" width="390" height="844" fill="url(#onlime)" />
+            <Rect x="0" y="0" width="390" height="844" fill="url(#onsky)" />
+            <Rect x="0" y="0" width="390" height="844" fill="url(#onmeadow)" />
+            <Rect x="0" y="0" width="390" height="844" fill="url(#onwarm)" />
+          </Svg>
+        </View>
+      )}
       {connected ? (
         // ───────────────────────── State board ─────────────────────────
         <>
@@ -604,10 +671,10 @@ export default function HomeScreen() {
                     }}>
                     <View style={{ flexDirection: 'row', gap: 3.5, marginBottom: 3 }}>
                       <View
-                        style={{ width: 3, height: 3, borderRadius: 999, backgroundColor: '#D9FF3D' }}
+                        style={{ width: 3, height: 3, borderRadius: 999, backgroundColor: '#DEFF4F' }}
                       />
                       <View
-                        style={{ width: 3, height: 3, borderRadius: 999, backgroundColor: '#D9FF3D' }}
+                        style={{ width: 3, height: 3, borderRadius: 999, backgroundColor: '#DEFF4F' }}
                       />
                     </View>
                     <View
@@ -615,7 +682,7 @@ export default function HomeScreen() {
                         width: 8,
                         height: 1.5,
                         borderRadius: 1,
-                        backgroundColor: 'rgba(217,255,61,0.9)',
+                        backgroundColor: 'rgba(226,234,216,0.55)',
                       }}
                     />
                   </View>
@@ -680,7 +747,7 @@ export default function HomeScreen() {
                 onPress={startChat}
                 style={({ pressed }) => ({
                   marginTop: 24,
-                  height: 136,
+                  height: 135,
                   borderRadius: 22,
                   borderWidth: 1.2,
                   borderColor: 'rgba(255,255,255,0.8)',
@@ -708,7 +775,7 @@ export default function HomeScreen() {
                 <View
                   style={{
                     position: 'absolute',
-                    top: 28,
+                    top: 14,
                     right: 14,
                     width: 30,
                     height: 30,
@@ -720,7 +787,7 @@ export default function HomeScreen() {
                   <Ionicons
                     name="arrow-forward"
                     size={15}
-                    color="#D6F25F"
+                    color="#CCFF00"
                     style={{ transform: [{ rotate: '-45deg' }] }}
                   />
                 </View>
@@ -1056,19 +1123,21 @@ export default function HomeScreen() {
                   width: 80.5,
                   height: 80.5,
                   borderRadius: 24,
-                  backgroundColor: AGENT_MARK,
+                  // the home header mark, hero size: soft olive square,
+                  // electric lime face
+                  backgroundColor: 'rgba(35,48,24,0.85)',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  shadowColor: '#1A1F3B',
-                  shadowOpacity: 0.18,
-                  shadowRadius: 16,
-                  shadowOffset: { width: 0, height: 8 },
+                  shadowColor: '#26301F',
+                  shadowOpacity: 0.22,
+                  shadowRadius: 20,
+                  shadowOffset: { width: 0, height: 10 },
                   elevation: 6,
                 }}>
-                {/* Eyes */}
+                {/* Eyes: bright lime; mouth stays quiet gray-green */}
                 <View style={{ flexDirection: 'row', gap: 15, marginBottom: 11 }}>
-                  <View style={{ width: 10, height: 10, borderRadius: 999, backgroundColor: '#FFFFFF' }} />
-                  <View style={{ width: 10, height: 10, borderRadius: 999, backgroundColor: '#FFFFFF' }} />
+                  <View style={{ width: 10, height: 10, borderRadius: 999, backgroundColor: '#DEFF4F' }} />
+                  <View style={{ width: 10, height: 10, borderRadius: 999, backgroundColor: '#DEFF4F' }} />
                 </View>
                 {/* Mouth */}
                 <View
@@ -1076,7 +1145,7 @@ export default function HomeScreen() {
                     width: 27,
                     height: 5,
                     borderRadius: 3,
-                    backgroundColor: 'rgba(255,255,255,0.85)',
+                    backgroundColor: 'rgba(226,234,216,0.55)',
                   }}
                 />
               </View>
@@ -1085,7 +1154,7 @@ export default function HomeScreen() {
             {/* Headline */}
             <Text
               style={{
-                color: FIG_TEXT,
+                color: 'rgba(35,48,24,0.85)',
                 fontSize: 35,
                 fontFamily: fontFamily.bold,
                 letterSpacing: -0.8,
@@ -1099,7 +1168,7 @@ export default function HomeScreen() {
             {/* Subtitle */}
             <Text
               style={{
-                color: FIG_TEXT,
+                color: 'rgba(38,48,31,0.6)',
                 fontSize: fontSize.bodyLg,
                 lineHeight: 23,
                 textAlign: 'center',
@@ -1116,14 +1185,16 @@ export default function HomeScreen() {
             style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}>
             <View
               style={{
-                backgroundColor: colors.accent,
+                // calm olive, same family as the mark; lime stays an
+                // accent (eyes), not a surface
+                backgroundColor: '#2B3A1D',
                 borderRadius: radius.lg,
                 paddingVertical: spacing.lg,
                 alignItems: 'center',
               }}>
               <Text
                 style={{
-                  color: colors.accentText,
+                  color: '#F4F8EC',
                   fontSize: fontSize.bodyLg,
                   fontFamily: fontFamily.semibold,
                 }}>
