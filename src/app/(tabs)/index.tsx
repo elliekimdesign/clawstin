@@ -3,10 +3,13 @@ import { router } from 'expo-router';
 import { ReactNode, useEffect, useRef, useState } from 'react';
 import {
   Image,
+  Keyboard,
+  KeyboardAvoidingView,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   useWindowDimensions,
   View,
   type ViewStyle,
@@ -16,6 +19,7 @@ import { StatusBar } from 'expo-status-bar';
 import { Platform } from 'react-native';
 import Svg, { Defs, LinearGradient as SvgGradient, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
 import Animated, {
+  Easing,
   useAnimatedStyle,
   useSharedValue,
   withRepeat,
@@ -94,13 +98,23 @@ const GLASS_AVAILABLE = Platform.OS === 'ios' && isGlassEffectAPIAvailable();
 function AcidGlassFill({
   effect = 'clear',
   dense = false,
+  bright = false,
 }: {
   effect?: 'clear' | 'regular' | 'none';
   /** denser veil for text-heavy cards (the list): more legible, still
    * one step lighter than the original 0.6/0.5/0.45 */
   dense?: boolean;
+  /** one notch more white than dense: the dashboard cards, where the
+   * small labels need the extra contrast */
+  bright?: boolean;
 }) {
-  const veil = dense ? [0.57, 0.48, 0.43] : [0.52, 0.43, 0.38];
+  // soap-bubble veil: flat, membrane-like — barely darker at the foot,
+  // so the surface reads as one smooth film over the blur
+  // dashboard tier sits flatter and more solid (pastel-card feel);
+  // the list keeps its clearer glass
+  // dense (the list) sits between clear glass and the solid dashboard:
+  // enough color to stand off the field, still lighter than the cards
+  const veil = bright ? [0.85, 0.82, 0.8] : dense ? [0.48, 0.45, 0.42] : [0.22, 0.16, 0.12];
   return (
     <>
       {GLASS_AVAILABLE && effect !== 'none' ? (
@@ -113,83 +127,62 @@ function AcidGlassFill({
       ) : null}
       <Svg style={StyleSheet.absoluteFill} pointerEvents="none" preserveAspectRatio="none">
         <Defs>
-          {/* brushed-steel veil: bright silver up top settling into a
-              lime-green cast, more opaque than plain glass */}
+          {/* pastel-card veil: pale yellow-green in the field's own
+              family (not white, not mint) so sections read as solid
+              soft cards cut from the same cloth as the background */}
           <SvgGradient id="acidveil" x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0%" stopColor="#F3F6EF" stopOpacity={veil[0]} />
-            <Stop offset="55%" stopColor="#E7EFD8" stopOpacity={veil[1]} />
-            <Stop offset="100%" stopColor="#D9E6C2" stopOpacity={veil[2]} />
+            <Stop offset="0%" stopColor="#E6EDB8" stopOpacity={veil[0]} />
+            <Stop offset="55%" stopColor="#DBE5A2" stopOpacity={veil[1]} />
+            <Stop offset="100%" stopColor="#CEDA8C" stopOpacity={veil[2]} />
           </SvgGradient>
-          {/* cold silver sheen sweeping off the top-left corner */}
+          {/* whisper of internal light: the bubble's curvature, not an edge */}
           <SvgGradient id="acidsheen" x1="0" y1="0" x2="0.85" y2="0.9">
-            <Stop offset="0%" stopColor="#FFFFFF" stopOpacity={0.18} />
-            <Stop offset="45%" stopColor="#FFFFFF" stopOpacity={0.04} />
+            <Stop offset="0%" stopColor="#FFFFFF" stopOpacity={0.08} />
+            <Stop offset="45%" stopColor="#FFFFFF" stopOpacity={0.02} />
             <Stop offset="100%" stopColor="#FFFFFF" stopOpacity={0} />
           </SvgGradient>
         </Defs>
         <Rect x="0" y="0" width="100%" height="100%" fill="url(#acidveil)" />
         <Rect x="0" y="0" width="100%" height="100%" fill="url(#acidsheen)" />
       </Svg>
-      <View
-        pointerEvents="none"
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 12,
-          right: 12,
-          height: 1.5,
-          borderRadius: 1,
-          backgroundColor: 'rgba(255,255,255,0.7)',
-        }}
-      />
     </>
   );
 }
 
-/** Watermark waves for the Crew hero card: the field's swoosh grammar
- * (acid-swoosh-bg) miniaturized and faded way down — a meadow ribbon
- * and a white counter-arc crossing it. Layer between AcidGlassFill and
- * the card content; the veil colors stay in charge. */
-function CrewSwooshTexture() {
-  return (
-    <Svg
-      style={StyleSheet.absoluteFill}
-      pointerEvents="none"
-      viewBox="0 0 360 108"
-      preserveAspectRatio="none">
-      <Defs>
-        <SvgGradient id="crewRibbon" x1="1" y1="0" x2="0.2" y2="1">
-          <Stop offset="0%" stopColor="#6FA344" stopOpacity={0.1} />
-          <Stop offset="60%" stopColor="#6FA344" stopOpacity={0.04} />
-          <Stop offset="100%" stopColor="#6FA344" stopOpacity={0} />
-        </SvgGradient>
-        <SvgGradient id="crewArc" x1="0" y1="1" x2="0.3" y2="0">
-          <Stop offset="0%" stopColor="#FFFFFF" stopOpacity={0.14} />
-          <Stop offset="55%" stopColor="#FFFFFF" stopOpacity={0.05} />
-          <Stop offset="100%" stopColor="#FFFFFF" stopOpacity={0} />
-        </SvgGradient>
-      </Defs>
-      {/* meadow ribbon: swells in from the top-right corner and melts
-          toward the bottom-left, same dive as the field's deep ribbon */}
-      <Path
-        d="M 360 -10 L 360 34
-           C 268 40, 188 62, 128 92
-           C 98 107, 60 116, 20 118
-           L 360 118 Z"
-        fill="url(#crewRibbon)"
-      />
-      {/* light counter-arc sweeping up across the ribbon and off the
-          top edge, right of the headline */}
-      <Path
-        d="M 150 118
-           C 216 78, 252 40, 258 -10
-           L 316 -10
-           C 306 52, 258 96, 206 118 Z"
-        fill="url(#crewArc)"
-      />
-    </Svg>
-  );
-}
+// Post-action control mock: the agent's most recent [WRITE] action and
+// its rollback window. Trust = approvals (before) + undo (after).
+const LAST_ACTION = {
+  label: 'Archived 12 newsletter emails',
+  ago: '2m ago',
+  // t1 = Inbox cleanup: the thread whose crew actually ran the action.
+  // Undo always routes back to its executor's thread.
+  threadId: 't1',
+};
+
+// Recent [WRITE] actions, newest first. Each knows its executor thread;
+// the keywords route free-form undo asks. No visible time windows: the
+// user-facing rule is "actions can be undone; if one can't, the crew
+// says so right there" (the past-undo ask will arrive as a popup later).
+const UNDOABLES = [
+  {
+    label: 'Archived 12 newsletter emails',
+    threadId: 't1',
+    ask: 'Undo this: archived 12 newsletter emails',
+    re: /archiv|email|newsletter/i,
+  },
+  {
+    label: 'Held 2 dinner slots for Friday',
+    threadId: 't5',
+    ask: 'Undo this: held 2 dinner slots',
+    re: /dinner|slot|hold/i,
+  },
+  {
+    label: 'Labeled 6 GitHub notifications',
+    threadId: 't4',
+    ask: 'Undo this: labeled 6 GitHub notifications',
+    re: /github|label|notification/i,
+  },
+];
 
 // Home section material. 'milk' = the Acid Pop recipe (blur + a strong
 // milky veil, the field whispers through). Flip to 'paper' to restore
@@ -327,6 +320,34 @@ function RunningDot({ color = GLASS.blue, size = 7 }: { color?: string; size?: n
   );
 }
 
+/** Tiny rotating ring: the "working on it" state tag for list rows.
+ * Quiet gray, one open segment, continuous spin. */
+function RowSpinner({ size = 12 }: { size?: number }) {
+  const spin = useSharedValue(0);
+  useEffect(() => {
+    spin.value = withRepeat(
+      withTiming(360, { duration: 1100, easing: Easing.linear }),
+      -1
+    );
+  }, [spin]);
+  const style = useAnimatedStyle(() => ({ transform: [{ rotate: `${spin.value}deg` }] }));
+  return (
+    <Animated.View
+      style={[
+        {
+          width: size,
+          height: size,
+          borderRadius: 999,
+          borderWidth: 1.5,
+          borderColor: 'rgba(22,36,27,0.35)',
+          borderTopColor: 'transparent',
+        },
+        style,
+      ]}
+    />
+  );
+}
+
 /** One liquid-glass window: native background blur (where available)
  * under a milky white veil, a bright hairline border with a brighter top
  * rim, a title row with its status dot on the right, and an optional blue
@@ -385,9 +406,7 @@ function LiquidCard({
             }
           : GLASSY
             ? {
-                borderWidth: 1,
-                borderColor: 'rgba(255,255,255,0.55)',
-                backgroundColor: 'rgba(255,255,255,0.35)',
+                                backgroundColor: 'rgba(255,255,255,0.35)',
               }
             : { backgroundColor: '#FFFFFF' }),
     shadowColor: '#2E3252',
@@ -549,6 +568,70 @@ export default function HomeScreen() {
   // Scroll-to-approvals (the charcoal count tile jumps here).
   const scrollRef = useRef<ScrollView>(null);
   const [approvalsY, setApprovalsY] = useState(0);
+  // measured so the ask bar's gradient rim SVG can be drawn at exact size
+  const [askBarSize, setAskBarSize] = useState<{ w: number; h: number } | null>(null);
+  // type-first compose: keyboard rises over the board; submit lands in
+  // a new chat with the message already sent
+  const [askOpen, setAskOpen] = useState(false);
+  const [askText, setAskText] = useState('');
+  const [askPanelSize, setAskPanelSize] = useState<{ w: number; h: number } | null>(null);
+  // TRUST widget: calibration proposal -> autonomy summary. 'allowed'
+  // promotes the pattern to auto-approve; 'kept' snoozes the proposal.
+  const [trustHandled, setTrustHandled] = useState<null | 'allowed' | 'kept'>(null);
+  const askInputRef = useRef<TextInput>(null);
+  // while the keyboard is down the panel clears the floating tab bar;
+  // once it rises, KeyboardAvoidingView takes over the spacing
+  const [kbUp, setKbUp] = useState(false);
+  useEffect(() => {
+    const show = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      () => setKbUp(true)
+    );
+    const hide = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setKbUp(false)
+    );
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
+  // autoFocus alone can silently fail right after mount; nudge focus
+  // once the overlay is actually up
+  useEffect(() => {
+    if (!askOpen) return;
+    const t = setTimeout(() => askInputRef.current?.focus(), 80);
+    return () => clearTimeout(t);
+  }, [askOpen]);
+
+  const submitAsk = () => {
+    const text = askText.trim();
+    if (!text) return;
+    setAskOpen(false);
+    setAskText('');
+    // undo speaks to the original executor in the original thread. The
+    // router matches keywords against recent undoable actions; with no
+    // match, the new chat's router asks back with chips. Everything
+    // else is a normal new chat.
+    if (/undo|revert/i.test(text)) {
+      const target = UNDOABLES.find((u) => u.re.test(text));
+      if (target) {
+        sendMessage(target.threadId, text);
+        router.push(`/chat/${target.threadId}`);
+        return;
+      }
+    }
+    router.push(`/chat/${createThread(text)}`);
+  };
+
+  // LAST ACTION expands in place: the card grows downward into the
+  // full undoable queue instead of opening a separate sheet
+  const [lastActionOpen, setLastActionOpen] = useState(false);
+  const undoAction = (u: (typeof UNDOABLES)[number]) => {
+    setLastActionOpen(false);
+    sendMessage(u.threadId, u.ask);
+    router.push(`/chat/${u.threadId}`);
+  };
   // Full prompt-history bottom sheet, opened from the RECENT card
   const [historyOpen, setHistoryOpen] = useState(false);
   const scrollToApprovals = () => scrollRef.current?.scrollTo({ y: approvalsY, animated: true });
@@ -697,10 +780,16 @@ export default function HomeScreen() {
         // ───────────────────────── State board ─────────────────────────
         <>
           <AcidSwooshBg />
+          {/* silk veil: a white film over the field so content reads
+              first; the butter-lime keeps its hue, just diluted */}
+          <View
+            pointerEvents="none"
+            style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(255,255,255,0.4)' }]}
+          />
           <View style={{ flex: 1 }}>
             <ScrollView
               ref={scrollRef}
-              contentContainerStyle={{ padding: spacing.lg, paddingBottom: 120 }}
+              contentContainerStyle={{ padding: spacing.lg, paddingBottom: 190 }}
               showsVerticalScrollIndicator={false}>
               {/* top row: the wordmark left, gateway status right */}
               <View
@@ -762,9 +851,9 @@ export default function HomeScreen() {
                     paddingVertical: 6,
                     paddingHorizontal: 12,
                     borderRadius: 999,
-                    backgroundColor: 'rgba(255,255,255,0.5)',
-                    borderWidth: 1.2,
-                    borderColor: 'rgba(255,255,255,0.8)',
+                    // dashboard pastel: the pill pops as a solid chip
+                    // of the same cloth as the cards (edgeless)
+                    backgroundColor: '#E3EAB0',
                     opacity: pressed ? 0.6 : 1,
                   })}>
                   <Text
@@ -793,79 +882,175 @@ export default function HomeScreen() {
                 {hello}, {USER_NAME}
               </Text>
 
-              {/* ── Acid dashboard (V Acid Pop grammar): lime hero ask
-                  card + two frosted state tiles. Hero = the one chat
-                  entry; tiles carry the 3-state counts and filter the
-                  list below on tap. ── */}
-              <Pressable
-                onPress={startChat}
-                style={({ pressed }) => ({
-                  marginTop: 24,
-                  // matches the state widgets below so the stack reads
-                  // as one grid
-                  height: 108,
-                  borderRadius: 18,
-                  borderWidth: 1.2,
-                  borderColor: 'rgba(255,255,255,0.8)',
-                  overflow: 'hidden',
-                  shadowColor: '#16241B',
-                  shadowOpacity: 0.14,
-                  shadowRadius: 20,
-                  shadowOffset: { width: 0, height: 8 },
-                  elevation: 6,
-                  opacity: pressed ? 0.88 : 1,
-                })}>
-                <AcidGlassFill />
-                <CrewSwooshTexture />
-                <Text
-                  style={{
-                    position: 'absolute',
-                    top: 14,
-                    left: 15,
-                    fontSize: 11,
-                    fontWeight: fontWeight.semibold,
-                    color: 'rgba(22,36,27,0.55)',
-                  }}>
-                  CREW
-                </Text>
+              {/* ── Control-tower dashboard: the trust cycle as a board.
+                  YOUR TURN asks (pre-action), RUNNING shows delegation
+                  at work, TRUST calibrates what stops needing approval,
+                  LAST ACTION below undoes what went through. Every
+                  approval feeds TRUST; TRUST slims YOUR TURN; undo makes
+                  the added autonomy safe. ── */}
+              {nextAsk || !trustHandled ? (
+                <Pressable
+                  disabled={!trustHandled}
+                  onPress={() => nextAsk && router.push(`/chat/${nextAsk.threadId}`)}
+                  style={({ pressed }) => ({
+                    marginTop: 24,
+                    borderRadius: 18,
+                    overflow: 'hidden',
+                    padding: 18,
+                    shadowColor: '#16241B',
+                    shadowOpacity: 0.1,
+                    shadowRadius: 22,
+                    shadowOffset: { width: 0, height: 8 },
+                    elevation: 6,
+                    opacity: pressed ? 0.85 : 1,
+                  })}>
+                  {/* keyed: this card also changes height when the
+                      proposal resolves */}
+                  <AcidGlassFill
+                    key={trustHandled ? 'resolved' : 'proposal'}
+                    effect="regular"
+                    bright
+                  />
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                    <Text
+                      style={{
+                        fontSize: 11,
+                        fontWeight: fontWeight.semibold,
+                        color: 'rgba(22,36,27,0.55)',
+                      }}>
+                      YOUR TURN
+                    </Text>
+                    {(!trustHandled ? needsYou : needsYou - 1) > 0 ? (
+                      <Pressable
+                        onPress={() => {
+                          setHomeTab('needsYou');
+                          scrollRef.current?.scrollTo({ y: approvalsY, animated: true });
+                        }}
+                        hitSlop={10}>
+                        <Text
+                          style={{
+                            fontSize: 11,
+                            fontWeight: fontWeight.semibold,
+                            color: AINK.text,
+                          }}>
+                          {`+${!trustHandled ? needsYou : needsYou - 1} more`}
+                        </Text>
+                      </Pressable>
+                    ) : null}
+                  </View>
+                  {!trustHandled ? (
+                    // a system proposal waits in the same queue as crew
+                    // asks: decisions have exactly one home
+                    <>
+                      <Text
+                        numberOfLines={1}
+                        style={{
+                          marginTop: 14,
+                          fontSize: fontSize.body,
+                          fontWeight: fontWeight.semibold,
+                          color: AINK.text,
+                        }}>
+                        Auto-approve contact merges?
+                      </Text>
+                      <View
+                        style={{
+                          marginTop: 12,
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          gap: 12,
+                        }}>
+                        {/* one button size everywhere: 36pt visual pill
+                            + hitSlop reaching the 44pt HIG touch target */}
+                        <Pressable
+                          onPress={() => setTrustHandled('allowed')}
+                          hitSlop={8}
+                          style={({ pressed }) => ({
+                            backgroundColor: 'rgba(20,34,25,0.9)',
+                            borderRadius: 999,
+                            paddingHorizontal: 16,
+                            paddingVertical: 9,
+                            opacity: pressed ? 0.7 : 1,
+                          })}>
+                          <Text
+                            style={{
+                              fontSize: 13,
+                              fontWeight: fontWeight.semibold,
+                              color: '#DEFF4F',
+                            }}>
+                            Allow
+                          </Text>
+                        </Pressable>
+                        <Pressable
+                          onPress={() => setTrustHandled('kept')}
+                          hitSlop={8}
+                          style={({ pressed }) => ({
+                            paddingVertical: 9,
+                            opacity: pressed ? 0.5 : 1,
+                          })}>
+                          <Text style={{ fontSize: 13, color: AINK.dim }}>Keep asking</Text>
+                        </Pressable>
+                      </View>
+                    </>
+                  ) : (
+                    <Text
+                      numberOfLines={1}
+                      style={{
+                        marginTop: 14,
+                        fontSize: fontSize.body,
+                        fontWeight: fontWeight.semibold,
+                        color: AINK.text,
+                      }}>
+                      {nextAsk?.label}
+                    </Text>
+                  )}
+                </Pressable>
+              ) : null}
+
+              <View style={{ flexDirection: 'row', gap: 12, marginTop: 12 }}>
+                {/* TRUST: the calibration loop. Watches approvals; when a
+                    kind is always approved, proposes promoting it to
+                    auto-approve. Otherwise shows how much runs alone. */}
                 <View
                   style={{
-                    position: 'absolute',
-                    top: 14,
-                    right: 14,
-                    width: 30,
-                    height: 30,
-                    borderRadius: 999,
-                    backgroundColor: '#152A1E',
-                    alignItems: 'center',
-                    justifyContent: 'center',
+                    flex: 1,
+                    height: 124,
+                    borderRadius: 18,
+                    overflow: 'hidden',
+                    padding: 18,
+                    shadowColor: '#16241B',
+                    shadowOpacity: 0.1,
+                    shadowRadius: 22,
+                    shadowOffset: { width: 0, height: 8 },
+                    elevation: 6,
                   }}>
-                  <Ionicons
-                    name="arrow-forward"
-                    size={15}
-                    color="#CCFF00"
-                    style={{ transform: [{ rotate: '-45deg' }] }}
-                  />
+                  <AcidGlassFill effect="regular" bright />
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                    <Text
+                      style={{
+                        fontSize: 11,
+                        fontWeight: fontWeight.semibold,
+                        color: 'rgba(22,36,27,0.55)',
+                      }}>
+                      AUTOPILOT
+                    </Text>
+                    <Text style={{ fontSize: 11, color: AINK.dim }}>this week</Text>
+                  </View>
+                  {/* pure gauge: how much runs on its own. Proposals
+                      queue in YOUR TURN, never here. */}
+                  <View style={{ flex: 1, justifyContent: 'center' }}>
+                    <Text
+                      style={{
+                        fontSize: fontSize.body,
+                        fontWeight: fontWeight.semibold,
+                        color: AINK.text,
+                      }}>
+                      {trustHandled === 'allowed' ? '78% on its own' : '71% on its own'}
+                    </Text>
+                    <Text style={{ marginTop: 5, fontSize: 11, color: AINK.dim }}>
+                      {trustHandled === 'allowed' ? '4 rules' : '3 rules'}
+                    </Text>
+                  </View>
                 </View>
-                <Text
-                  style={{
-                    position: 'absolute',
-                    left: 16,
-                    bottom: 20,
-                    fontSize: 26,
-                    fontFamily: fontFamily.bold,
-                    letterSpacing: -0.5,
-                    color: '#152A1E',
-                  }}>
-                  Ask your crew
-                </Text>
-              </Pressable>
-
-              {/* live-focus widgets: not counters (the nav below carries
-                  the counts) but the thing itself — the running task's
-                  pulse, and the front of the needs-you queue. Tap = jump
-                  straight into that chat. */}
-              <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
                 {(
                   [
                     {
@@ -883,16 +1068,6 @@ export default function HomeScreen() {
                       filter: 'running' as const,
                       threadId: runningTask?.threadId,
                     },
-                    {
-                      key: 'needsYou',
-                      label: 'NEEDS YOU',
-                      title: nextAsk ? nextAsk.label : 'Nothing waiting',
-                      progress: null,
-                      more: nextAsk ? Math.max(needsYou - 1, 0) : 0,
-                      moreColor: AINK.text,
-                      filter: 'needsYou' as const,
-                      threadId: nextAsk?.threadId,
-                    },
                   ] as const
                 ).map((w) => (
                   <Pressable
@@ -900,20 +1075,18 @@ export default function HomeScreen() {
                     onPress={() => w.threadId && router.push(`/chat/${w.threadId}`)}
                     style={({ pressed }) => ({
                       flex: 1,
-                      height: 108,
+                      height: 124,
                       borderRadius: 18,
-                      borderWidth: 1.2,
-                      borderColor: 'rgba(255,255,255,0.8)',
                       overflow: 'hidden',
-                      padding: 14,
+                      padding: 18,
                       shadowColor: '#16241B',
-                      shadowOpacity: 0.14,
-                      shadowRadius: 20,
+                      shadowOpacity: 0.1,
+                      shadowRadius: 22,
                       shadowOffset: { width: 0, height: 8 },
                       elevation: 6,
                       opacity: pressed ? 0.85 : 1,
                     })}>
-                    <AcidGlassFill />
+                    <AcidGlassFill effect="regular" bright />
                     <Text
                       style={{
                         fontSize: 11,
@@ -953,13 +1126,13 @@ export default function HomeScreen() {
                       style={{
                         flex: 1,
                         justifyContent: 'center',
-                        marginBottom: 12,
+                        marginBottom: 14,
                       }}>
                       <Text
                         numberOfLines={2}
                         style={{
-                          fontSize: 13,
-                          lineHeight: 17,
+                          fontSize: fontSize.body,
+                          lineHeight: 20,
                           fontWeight: fontWeight.semibold,
                           color: AINK.text,
                         }}>
@@ -972,9 +1145,9 @@ export default function HomeScreen() {
                       <View
                         style={{
                           position: 'absolute',
-                          left: 14,
-                          right: 14,
-                          bottom: 15,
+                          left: 18,
+                          right: 18,
+                          bottom: 18,
                           height: 6,
                           borderRadius: 3,
                           backgroundColor: 'rgba(22,36,27,0.1)',
@@ -984,13 +1157,135 @@ export default function HomeScreen() {
                           style={{
                             width: `${Math.round(w.progress * 100)}%`,
                             height: 6,
-                            backgroundColor: 'rgba(22,36,27,0.65)',
+                            // pop lime, one step deeper than the arrow
+                            // chip's #CCFF00 so it holds on pale glass
+                            backgroundColor: '#A3D700',
                           }}
                         />
                       </View>
                     ) : null}
                   </Pressable>
                 ))}
+              </View>
+
+              {/* post-action control: the agent's most recent write
+                  action stays undoable here instead of scrolling away
+                  in chat. "+N more" expands the card in place into the
+                  full undoable queue; the descending minutes column
+                  explains itself, no caption needed. */}
+              <View
+                style={{
+                  marginTop: 12,
+                  borderRadius: 18,
+                  overflow: 'hidden',
+                  padding: 18,
+                  shadowColor: '#16241B',
+                  shadowOpacity: 0.1,
+                  shadowRadius: 22,
+                  shadowOffset: { width: 0, height: 8 },
+                  elevation: 6,
+                }}>
+                {/* keyed so the native glass layer remounts at the new
+                    size when the card expands/collapses */}
+                <AcidGlassFill
+                  key={lastActionOpen ? 'expanded' : 'collapsed'}
+                  effect="regular"
+                  bright
+                />
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                  <Text
+                    style={{
+                      fontSize: 11,
+                      fontWeight: fontWeight.semibold,
+                      color: 'rgba(22,36,27,0.55)',
+                    }}>
+                    LAST ACTION
+                  </Text>
+                  {lastActionOpen ? (
+                    <Pressable hitSlop={10} onPress={() => setLastActionOpen(false)}>
+                      <Ionicons name="close" size={15} color={AINK.dim} />
+                    </Pressable>
+                  ) : UNDOABLES.length > 1 ? (
+                    <Pressable hitSlop={10} onPress={() => setLastActionOpen(true)}>
+                      <Text
+                        style={{
+                          fontSize: 11,
+                          fontWeight: fontWeight.semibold,
+                          color: AINK.text,
+                        }}>
+                        {`+${UNDOABLES.length - 1} more undoable`}
+                      </Text>
+                    </Pressable>
+                  ) : null}
+                </View>
+                {(lastActionOpen ? UNDOABLES : UNDOABLES.slice(0, 1)).map((u, idx) => (
+                  <View
+                    key={u.label}
+                    style={{
+                      // one rhythm for every row: equal padding above
+                      // and below, hairlines always the same distance
+                      // from the text
+                      marginTop: idx === 0 ? (lastActionOpen ? 4 : 14) : 0,
+                      paddingVertical: lastActionOpen ? 12 : 0,
+                      borderTopWidth: lastActionOpen && idx > 0 ? 1 : 0,
+                      borderTopColor: AINK.divider,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: spacing.sm,
+                    }}>
+                    <Text
+                      numberOfLines={1}
+                      style={{
+                        flex: 1,
+                        fontSize: fontSize.body,
+                        fontWeight: fontWeight.semibold,
+                        color: AINK.text,
+                      }}>
+                      {u.label}
+                    </Text>
+                    {/* secondary by design: undo is the rare path.
+                        Pressing it speaks to the executor in the
+                        original thread. */}
+                    <Pressable
+                      hitSlop={8}
+                      onPress={() => undoAction(u)}
+                      style={({ pressed }) => ({
+                        backgroundColor: 'rgba(22,36,27,0.08)',
+                        borderRadius: 999,
+                        paddingHorizontal: 16,
+                        paddingVertical: 9,
+                        opacity: pressed ? 0.6 : 1,
+                      })}>
+                      <Text
+                        style={{
+                          fontSize: 13,
+                          fontWeight: fontWeight.semibold,
+                          color: 'rgba(22,36,27,0.75)',
+                        }}>
+                        Undo
+                      </Text>
+                    </Pressable>
+                  </View>
+                ))}
+                {lastActionOpen ? (
+                  // conversation is the fallback for everything older
+                  <Pressable
+                    onPress={() => {
+                      setLastActionOpen(false);
+                      setAskText('undo ');
+                      setAskOpen(true);
+                    }}
+                    style={({ pressed }) => ({
+                      paddingTop: 12,
+                      borderTopWidth: 1,
+                      borderTopColor: AINK.divider,
+                      opacity: pressed ? 0.6 : 1,
+                    })}>
+                    <Text style={{ fontSize: 12, color: AINK.dim }}>
+                      Older actions? Just ask your crew.
+                    </Text>
+                  </Pressable>
+                ) : null}
               </View>
 
               {/* sorting nav: the 3-state model as navigation (counts
@@ -1007,7 +1302,7 @@ export default function HomeScreen() {
                   [
                     ['all', 'All', runningCount + needsYou + doneThreads.length],
                     ['running', 'Running', runningCount],
-                    ['needsYou', 'Needs you', needsYou],
+                    ['needsYou', 'Your turn', needsYou],
                     ['done', 'Done', doneThreads.length],
                   ] as const
                 ).map(([key, label, count]) => (
@@ -1035,19 +1330,25 @@ export default function HomeScreen() {
                   onLayout={(e) => setApprovalsY(e.nativeEvent.layout.y)}
                   style={{
                     borderRadius: 18,
-                    borderWidth: 1.2,
-                    borderColor: 'rgba(255,255,255,0.8)',
-                    overflow: 'hidden',
+                                        overflow: 'hidden',
                     shadowColor: '#16241B',
-                    shadowOpacity: 0.14,
-                    shadowRadius: 20,
+                    shadowOpacity: 0.1,
+                    shadowRadius: 22,
                     shadowOffset: { width: 0, height: 8 },
                     elevation: 6,
                   }}>
                   {/* tall card: 'regular' frost avoids clear-glass edge
                       lensing showing as a dark band at the bottom;
                       denser veil for the text-heavy list */}
-                  <AcidGlassFill effect="regular" dense />
+                  {/* keyed so the native glass layer remounts whenever
+                      the list's height changes (tab switch, rows aging
+                      in/out) — otherwise the fill keeps its old size
+                      and a hard edge shows near the bottom rows */}
+                  <AcidGlassFill
+                    key={`list-${homeTab}-${activeRows.length}-${visibleDone.length}`}
+                    effect="regular"
+                    dense
+                  />
                   {activeRows.map((row, idx) => {
                     const aged = row.age?.endsWith('d') ?? false;
                     // no deadline in the tag (it reads as noise); only
@@ -1079,22 +1380,44 @@ export default function HomeScreen() {
                             style={{
                               flex: 1,
                               color: AINK.text,
-                              fontSize: fontSize.small,
-                              fontWeight: fontWeight.semibold,
+                              fontSize: fontSize.body,
+                              // only the front of the queue shouts;
+                              // the tail settles into regular weight
+                              fontWeight: idx < 3 ? fontWeight.semibold : fontWeight.regular,
                             }}>
                             {row.label}
+                            {homeTab === 'all' && row.waiting && !aged ? (
+                              // your-turn mark: a small pop-lime dot with a
+                              // real space gap (inline margins are ignored),
+                              // riding just above the text center. Aged rows
+                              // are past asking, so no dot.
+                              <>
+                                {'  '}
+                                <View
+                                  style={{
+                                    width: 5,
+                                    height: 5,
+                                    borderRadius: 999,
+                                    backgroundColor: '#A3D700',
+                                    transform: [{ translateY: -9 }],
+                                  }}
+                                />
+                              </>
+                            ) : null}
                           </Text>
-                          <Text
-                            style={{
-                              fontSize: 11,
-                              color: row.waiting ? AINK.text : AINK.running,
-                            }}>
-                            {row.waiting
-                              ? statusSuffix
-                                ? `needs you  ${statusSuffix}`
-                                : 'needs you'
-                              : 'running'}
-                          </Text>
+                          {homeTab === 'all' ? (
+                            // right side: spinner while running, age for
+                            // soft-aged asks; states only mix in All
+                            row.waiting ? (
+                              statusSuffix ? (
+                                <Text style={{ fontSize: 11, color: AINK.dim }}>
+                                  {statusSuffix}
+                                </Text>
+                              ) : null
+                            ) : (
+                              <RowSpinner />
+                            )
+                          ) : null}
                         </Pressable>
                       </View>
                     );
@@ -1127,21 +1450,11 @@ export default function HomeScreen() {
                               style={{
                                 flexShrink: 1,
                                 color: AINK.text,
-                                fontSize: fontSize.small,
-                                fontWeight: fontWeight.semibold,
+                                fontSize: fontSize.body,
+                                fontWeight: fontWeight.regular,
                               }}>
                               {t.title}
                             </Text>
-                            {t.unread ? (
-                              <View
-                                style={{
-                                  width: 7,
-                                  height: 7,
-                                  borderRadius: 999,
-                                  backgroundColor: AINK.accent,
-                                }}
-                              />
-                            ) : null}
                           </View>
                           <Text
                             numberOfLines={1}
@@ -1179,6 +1492,257 @@ export default function HomeScreen() {
                 </Pressable>
               ) : null}
             </ScrollView>
+
+            {/* floating ask bar: the one chat entry, pinned above the
+                tab bar. A dark console (mascot-face family) under an
+                aurora rim: eyeball lime sweeping into meadow green.
+                The slash chip hints at commands (undo, pause, status)
+                to come. */}
+            <View
+              pointerEvents="box-none"
+              style={{
+                position: 'absolute',
+                left: 16,
+                right: 16,
+                bottom: 90,
+                // lime glow instead of a gray drop: the bar emits light
+                shadowColor: '#C9DC7A',
+                shadowOpacity: 0.22,
+                shadowRadius: 12,
+                shadowOffset: { width: 0, height: 3 },
+                elevation: 10,
+                opacity: askOpen ? 0 : 1,
+              }}>
+              <Pressable
+                onPress={() => setAskOpen(true)}
+                disabled={askOpen}
+                onLayout={(e) =>
+                  setAskBarSize({
+                    w: e.nativeEvent.layout.width,
+                    h: e.nativeEvent.layout.height,
+                  })
+                }
+                style={({ pressed }) => ({
+                  height: 52,
+                  borderRadius: 999,
+                  overflow: 'hidden',
+                  backgroundColor: 'rgba(16,28,20,0.95)',
+                  opacity: pressed ? 0.85 : 1,
+                })}>
+                <View
+                  style={{
+                    flex: 1,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    paddingHorizontal: 18,
+                  }}>
+                  <Text style={{ flex: 1, fontSize: fontSize.body, color: 'rgba(230,240,220,0.65)' }}>
+                    Ask anything
+                  </Text>
+                  {/* command entry: opens compose already holding
+                      "undo " — the input is never a blank page */}
+                  <Pressable
+                    hitSlop={10}
+                    onPress={() => {
+                      setAskText('undo ');
+                      setAskOpen(true);
+                    }}
+                    style={({ pressed }) => ({
+                      width: 22,
+                      height: 22,
+                      borderRadius: 6,
+                      backgroundColor: 'rgba(255,255,255,0.1)',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      opacity: pressed ? 0.6 : 1,
+                    })}>
+                    <Text
+                      style={{
+                        fontSize: 11,
+                        fontWeight: fontWeight.semibold,
+                        color: 'rgba(222,255,79,0.8)',
+                      }}>
+                      /
+                    </Text>
+                  </Pressable>
+                </View>
+              </Pressable>
+              {askBarSize ? (
+                <Svg
+                  pointerEvents="none"
+                  width={askBarSize.w}
+                  height={askBarSize.h}
+                  style={{ position: 'absolute', top: 0, left: 0 }}>
+                  <Defs>
+                    <SvgGradient id="askrim" x1="0" y1="0" x2="1" y2="0">
+                      <Stop offset="0" stopColor="#E3EFA9" />
+                      <Stop offset="0.5" stopColor="#A9C57C" />
+                      <Stop offset="1" stopColor="#D9E794" />
+                    </SvgGradient>
+                  </Defs>
+                  {/* soft aurora bleed under the crisp rim */}
+                  <Rect
+                    x={0.75}
+                    y={0.75}
+                    width={askBarSize.w - 1.5}
+                    height={askBarSize.h - 1.5}
+                    rx={(askBarSize.h - 1.5) / 2}
+                    fill="none"
+                    stroke="url(#askrim)"
+                    strokeWidth={5}
+                    opacity={0.1}
+                  />
+                  <Rect
+                    x={0.75}
+                    y={0.75}
+                    width={askBarSize.w - 1.5}
+                    height={askBarSize.h - 1.5}
+                    rx={(askBarSize.h - 1.5) / 2}
+                    fill="none"
+                    stroke="url(#askrim)"
+                    strokeWidth={1.5}
+                  />
+                </Svg>
+              ) : null}
+            </View>
+
+            {/* compose layer: board dims, keyboard rises, the console
+                expands in place. Submit seeds a new chat and jumps in. */}
+            {askOpen ? (
+              <View style={StyleSheet.absoluteFill}>
+                <Pressable
+                  onPress={() => setAskOpen(false)}
+                  style={[
+                    StyleSheet.absoluteFill,
+                    { backgroundColor: 'rgba(10,18,12,0.35)' },
+                  ]}
+                />
+                <KeyboardAvoidingView
+                  behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                  pointerEvents="box-none"
+                  style={{ flex: 1, justifyContent: 'flex-end' }}>
+                  <View
+                    pointerEvents="box-none"
+                    style={{ padding: 16, paddingBottom: kbUp ? 16 : 104, gap: 10 }}>
+                    {/* prompt starters: prefill, stay editable */}
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                      {['Plan my day', 'Find time Friday', 'Summarize my inbox'].map((chip) => (
+                        <Pressable
+                          key={chip}
+                          onPress={() => setAskText(chip)}
+                          style={({ pressed }) => ({
+                            paddingHorizontal: 14,
+                            paddingVertical: 8,
+                            borderRadius: 999,
+                            backgroundColor: 'rgba(16,28,20,0.85)',
+                            opacity: pressed ? 0.7 : 1,
+                          })}>
+                          <Text style={{ fontSize: 13, color: 'rgba(230,240,220,0.85)' }}>
+                            {chip}
+                          </Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                    {/* expanded console: same aurora rim, room to think */}
+                    <View
+                      style={{
+                        shadowColor: '#C9DC7A',
+                        shadowOpacity: 0.22,
+                        shadowRadius: 12,
+                        shadowOffset: { width: 0, height: 3 },
+                        elevation: 10,
+                      }}>
+                      <View
+                        onLayout={(e) =>
+                          setAskPanelSize({
+                            w: e.nativeEvent.layout.width,
+                            h: e.nativeEvent.layout.height,
+                          })
+                        }
+                        style={{
+                          borderRadius: 26,
+                          backgroundColor: 'rgba(16,28,20,0.97)',
+                          padding: 14,
+                          flexDirection: 'row',
+                          alignItems: 'flex-end',
+                          gap: 10,
+                        }}>
+                        <TextInput
+                          ref={askInputRef}
+                          autoFocus
+                          multiline
+                          value={askText}
+                          onChangeText={setAskText}
+                          placeholder="Ask anything"
+                          placeholderTextColor="rgba(230,240,220,0.5)"
+                          style={{
+                            flex: 1,
+                            minHeight: 72,
+                            maxHeight: 120,
+                            fontSize: fontSize.body,
+                            lineHeight: 21,
+                            color: 'rgba(230,240,220,0.92)',
+                            paddingTop: 4,
+                          }}
+                        />
+                        <Pressable
+                          onPress={submitAsk}
+                          disabled={!askText.trim()}
+                          hitSlop={8}
+                          style={({ pressed }) => ({
+                            width: 34,
+                            height: 34,
+                            borderRadius: 999,
+                            backgroundColor: '#A3D700',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            opacity: !askText.trim() ? 0.4 : pressed ? 0.7 : 1,
+                          })}>
+                          <Ionicons name="arrow-up" size={18} color="#152A1E" />
+                        </Pressable>
+                        {askPanelSize ? (
+                          <Svg
+                            pointerEvents="none"
+                            width={askPanelSize.w}
+                            height={askPanelSize.h}
+                            style={{ position: 'absolute', top: 0, left: 0 }}>
+                            <Defs>
+                              <SvgGradient id="askpanelrim" x1="0" y1="0" x2="1" y2="0">
+                                <Stop offset="0" stopColor="#E3EFA9" />
+                                <Stop offset="0.5" stopColor="#A9C57C" />
+                                <Stop offset="1" stopColor="#D9E794" />
+                              </SvgGradient>
+                            </Defs>
+                            <Rect
+                              x={0.75}
+                              y={0.75}
+                              width={askPanelSize.w - 1.5}
+                              height={askPanelSize.h - 1.5}
+                              rx={25}
+                              fill="none"
+                              stroke="url(#askpanelrim)"
+                              strokeWidth={5}
+                              opacity={0.1}
+                            />
+                            <Rect
+                              x={0.75}
+                              y={0.75}
+                              width={askPanelSize.w - 1.5}
+                              height={askPanelSize.h - 1.5}
+                              rx={25}
+                              fill="none"
+                              stroke="url(#askpanelrim)"
+                              strokeWidth={1.5}
+                            />
+                          </Svg>
+                        ) : null}
+                      </View>
+                    </View>
+                  </View>
+                </KeyboardAvoidingView>
+              </View>
+            ) : null}
+
           </View>
 
           {/* Connection status popover (over the board) */}

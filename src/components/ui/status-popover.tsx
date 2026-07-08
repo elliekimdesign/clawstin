@@ -6,14 +6,13 @@ import Animated, { FadeInUp } from 'react-native-reanimated';
 import type { ServiceState, ServiceStatus } from '@/mock/services';
 import { colors, fontFamily, fontSize, radius, spacing } from '@/theme/theme';
 
-// Dark-panel tokens — the SAME deep navy as the home Ask console and the
-// calendar consoles: one system surface everywhere.
-const PANEL_BG = '#0E1626';
-const PANEL_TEXT = '#FFFFFF';
-const PANEL_DIM = 'rgba(255,255,255,0.55)';
-const PANEL_FAINT = 'rgba(255,255,255,0.38)';
+// Dark-olive console tokens: the same deep green family as the mascot
+// face, the ask bar, and the Allow pill — the app's dark surface.
+const PANEL_BG = '#16241B';
+const PANEL_TEXT = 'rgba(230,240,220,0.95)';
+const PANEL_DIM = 'rgba(230,240,220,0.6)';
+const PANEL_FAINT = 'rgba(230,240,220,0.42)';
 const DIVIDER = 'rgba(255,255,255,0.08)';
-const MONO = 'Menlo';
 
 // Exactly three states, 1:1 with colors — the dot alone should read.
 const STATE_COLOR: Record<ServiceState, string> = {
@@ -55,12 +54,12 @@ function GroupLabel({ text, first }: { text: string; first?: boolean }) {
   return (
     <Text
       style={{
-        // a clear step below the SYSTEM STATUS title: darker AND smaller,
-        // so "title vs divider" reads as two layers
-        color: 'rgba(255,255,255,0.28)',
-        fontFamily: MONO,
-        fontSize: 9,
-        letterSpacing: 1.4,
+        // a clear step below the SYSTEM STATUS title: fainter AND
+        // smaller, so "title vs divider" reads as two layers
+        color: PANEL_FAINT,
+        fontWeight: '600',
+        fontSize: 10,
+        letterSpacing: 1.2,
         marginTop: first ? 0 : spacing.md,
         marginBottom: 2,
         paddingTop: first ? 0 : spacing.md,
@@ -86,15 +85,13 @@ function ServiceRow({ s, onIssue }: { s: ServiceStatus; onIssue: () => void }) {
           justifyContent: 'space-between',
         }}>
         <Text
-          style={{ color: PANEL_TEXT, fontFamily: MONO, fontSize: 13, flexShrink: 1 }}
+          style={{ color: PANEL_TEXT, fontWeight: '600', fontSize: 13, flexShrink: 1 }}
           numberOfLines={1}>
           {s.name}
         </Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginLeft: 8 }}>
           {s.pingMs != null ? (
-            <Text style={{ color: PANEL_FAINT, fontFamily: MONO, fontSize: 11 }}>
-              {s.pingMs}ms
-            </Text>
+            <Text style={{ color: PANEL_FAINT, fontSize: 11 }}>{s.pingMs}ms</Text>
           ) : null}
           <View
             style={{ width: 6, height: 6, borderRadius: 999, backgroundColor: STATE_COLOR[s.state] }}
@@ -108,7 +105,6 @@ function ServiceRow({ s, onIssue }: { s: ServiceStatus; onIssue: () => void }) {
         <Text
           style={{
             color: STATE_COLOR[s.state],
-            fontFamily: MONO,
             fontSize: 11,
             marginTop: 3,
           }}>
@@ -155,26 +151,20 @@ export function StatusPopover({ services, agentsReady, onClose, onManageAccess, 
           right: spacing.lg,
           width: 300,
           backgroundColor: PANEL_BG,
-          borderRadius: radius.lg,
+          borderRadius: 18,
           paddingVertical: spacing.md,
           paddingHorizontal: spacing.lg,
-          borderWidth: 1,
-          borderColor: 'rgba(255,255,255,0.28)',
-          shadowColor: '#000',
+          shadowColor: '#16241B',
           shadowOpacity: 0.35,
-          shadowRadius: 24,
-          shadowOffset: { width: 0, height: 12 },
+          shadowRadius: 28,
+          shadowOffset: { width: 0, height: 10 },
           elevation: 12,
         }}>
-        {/* Header */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <View
-            style={{ width: 7, height: 7, borderRadius: 999, backgroundColor: STATE_COLOR[worst] }}
-          />
-          <Text style={{ color: PANEL_DIM, fontFamily: MONO, fontSize: 11, letterSpacing: 1.2 }}>
-            SYSTEM STATUS
-          </Text>
-        </View>
+        {/* Header: no dot up here — the summary text and the row dots
+            already carry the state */}
+        <Text style={{ color: PANEL_DIM, fontWeight: '600', fontSize: 11, letterSpacing: 1 }}>
+          SYSTEM STATUS
+        </Text>
         <Text
           style={{
             color: PANEL_TEXT,
@@ -200,7 +190,7 @@ export function StatusPopover({ services, agentsReady, onClose, onManageAccess, 
               paddingVertical: 7,
               opacity: pressed ? 0.55 : 1,
             })}>
-            <Text style={{ color: PANEL_TEXT, fontFamily: MONO, fontSize: 13 }}>Agents</Text>
+            <Text style={{ color: PANEL_TEXT, fontWeight: '600', fontSize: 13 }}>Agents</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <View
                 style={{ width: 6, height: 6, borderRadius: 999, backgroundColor: colors.success }}

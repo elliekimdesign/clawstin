@@ -40,8 +40,8 @@ function glow(
 // Dreamy underlayer, matched to the Figma V Acid Pop frame.
 // [cx, cy, rx, ry, rotation, color, peak opacity]
 const GLOWS: [number, number, number, number, number, string, number][] = [
-  [100, 200, 360, 300, 0, '#FFFFFF', 0.6], // top-left light source
-  [330, 450, 200, 150, 0, '#E2EFC2', 0.5], // pale lime shimmer mid-right
+  [100, 200, 360, 300, 0, '#FFFFFF', 0.3], // top-left light source
+  [330, 450, 200, 150, 0, '#EFF5B0', 0.5], // pale lime shimmer mid-right
   [150, 750, 230, 170, 0, '#6FA344', 0.3], // meadow pool at the bottom
 ];
 
@@ -55,9 +55,12 @@ export function AcidSwooshBg() {
               not electric); previous stops #F8FAE6 / #E2EABC / #B4CB93
               live at commit 3739da4 for rollback. */}
           <LinearGradient id="acidfield" x1="0" y1="0" x2="0.7" y2="1">
-            <Stop offset="0%" stopColor="#FAFBE8" />
-            <Stop offset="33%" stopColor="#EAF1C0" />
-            <Stop offset="74%" stopColor="#C4DA9C" />
+            {/* 2026-07-08: near-white, barest lime cast; swoosh ribbons
+                and glows stay as the pattern. Previous butter-lime
+                stops #F7FAC6 / #EFF4A8 / #D3E28C for recall. */}
+            <Stop offset="0%" stopColor="#FEFEF9" />
+            <Stop offset="33%" stopColor="#FBFCEE" />
+            <Stop offset="74%" stopColor="#F3F6DE" />
           </LinearGradient>
           {GLOWS.map((g, i) => glow(`ag${i}`, g[0], g[1], g[2], g[3], g[4], g[5], g[6]))}
 

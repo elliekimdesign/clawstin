@@ -14,66 +14,66 @@ import {
 import type { ImageSourcePropType } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { DarkCloudBg } from '@/components/ui/dark-cloud-bg';
+import { AcidCloudBg } from '@/components/ui/acid-cloud-bg';
 import type { ActivityItem } from '@/mock/activity';
 import type { CrewMember } from '@/mock/crew';
 import { useAppStore } from '@/store/app-store';
 import { brandBlue, fontFamily, fontSize, fontWeight, radius, spacing } from '@/theme/theme';
 
-// cinema tones: the Crew tab shares the home board's dark_cloud field,
-// and the cards go DARKER than the field — characters lit like movie
-// stars on a dim stage. Light ink on dark surface.
-const CARD = '#16233A'; // baked into assets/crew/dark/* canvases too
-const INK = '#F3F8FC';
-const INK_DIM = 'rgba(243,248,252,0.6)';
-const INK_SOFT = 'rgba(255,255,255,0.08)';
-const INK_EDGE = 'rgba(255,255,255,0.18)';
-const NAME_GHOST = 'rgba(255,255,255,0.09)';
+// daylight tones: the Crew tab shares the acidglass home field, and the
+// cards go WHITE — characters as transparent cutouts on paper. Dark
+// olive ink on light surface.
+const CARD = '#FFFFFF';
+const INK = '#26301F';
+const INK_DIM = 'rgba(38,48,31,0.6)';
+const INK_SOFT = 'rgba(38,48,31,0.06)';
+const INK_EDGE = 'rgba(38,48,31,0.14)';
+const NAME_GHOST = 'rgba(38,48,31,0.07)';
 
-// Character art per agent. Cards without art stay white placeholders.
-// (Current images are internal placeholders only, not for release.)
+// Character art per agent: the -pop cutouts (transparent PNG) sit on the
+// white cards. (Current images are internal placeholders only.)
 const CREW_ART: Record<string, ImageSourcePropType> = {
-  muppet: require('../../../assets/crew/dark/muppet.jpeg'),
-  scout: require('../../../assets/crew/dark/beaker.jpeg'),
-  quill: require('../../../assets/crew/dark/misspiggy.jpeg'),
-  pilot: require('../../../assets/crew/dark/gonzo.jpeg'),
+  muppet: require('../../../assets/crew/muppet-pop.png'),
+  scout: require('../../../assets/crew/beaker-pop.png'),
+  quill: require('../../../assets/crew/misspiggy-pop.png'),
+  pilot: require('../../../assets/crew/gonzo-pop.png'),
 };
 
 
 /** One agent card: a white placeholder canvas (character art lands here
  * later) with the agent's name as huge display type clipped at the bottom
  * edge, a role pill top-left, and a "..." circle top-right. Tap → detail. */
-function AgentCard({ member }: { member: CrewMember }) {
+function AgentCard({ member, onPress }: { member: CrewMember; onPress?: () => void }) {
   const roleTag = member.role.split(' · ')[0];
   const art = CREW_ART[member.id];
   return (
     <Pressable
-      onPress={() => router.push(`/crew/${member.id}`)}
+      onPress={onPress ?? (() => router.push(`/crew/${member.id}`))}
       style={({ pressed }) => ({
         height: 200,
         borderRadius: 22,
         overflow: 'hidden',
         backgroundColor: CARD,
-        shadowColor: '#000000',
-        shadowOpacity: 0.35,
+        shadowColor: '#26301F',
+        shadowOpacity: 0.14,
         shadowRadius: 16,
         shadowOffset: { width: 0, height: 8 },
         elevation: 6,
         opacity: pressed ? 0.9 : 1,
       })}>
-      {/* character art fills the card when available */}
+      {/* character cutout, whole figure fitted on the white canvas */}
       {art ? (
         <Image
           source={art}
           style={{
             position: 'absolute',
-            top: 0,
+            top: 12,
             left: 0,
             right: 0,
             bottom: 0,
             width: undefined,
             height: undefined,
-            resizeMode: 'cover',
+            resizeMode: 'contain',
           }}
         />
       ) : null}
@@ -99,9 +99,10 @@ function AgentCard({ member }: { member: CrewMember }) {
           position: 'absolute',
           top: spacing.lg,
           left: spacing.lg,
-          backgroundColor: INK_SOFT,
+          // clean bright tag with a thin light-gray hairline
+          backgroundColor: 'rgba(255,255,255,0.8)',
           borderWidth: 1,
-          borderColor: INK_EDGE,
+          borderColor: 'rgba(38,48,31,0.1)',
           borderRadius: radius.pill,
           paddingVertical: 6,
           paddingHorizontal: 12,
@@ -111,9 +112,11 @@ function AgentCard({ member }: { member: CrewMember }) {
         </Text>
       </View>
 
-      {/* "..." circle */}
-      <View
-        style={{
+      {/* "..." circle: always the door to the member's detail page */}
+      <Pressable
+        onPress={() => router.push(`/crew/${member.id}`)}
+        hitSlop={8}
+        style={({ pressed }) => ({
           position: 'absolute',
           top: spacing.lg,
           right: spacing.lg,
@@ -123,9 +126,10 @@ function AgentCard({ member }: { member: CrewMember }) {
           backgroundColor: INK_SOFT,
           alignItems: 'center',
           justifyContent: 'center',
-        }}>
+          opacity: pressed ? 0.5 : 1,
+        })}>
         <Ionicons name="ellipsis-horizontal" size={16} color={INK} />
-      </View>
+      </Pressable>
     </Pressable>
   );
 }
@@ -140,8 +144,8 @@ function ContributionCard({ crew }: { crew: CrewMember[] }) {
       style={{
         borderRadius: 22,
         backgroundColor: CARD,
-        shadowColor: '#000000',
-        shadowOpacity: 0.35,
+        shadowColor: '#26301F',
+        shadowOpacity: 0.14,
         shadowRadius: 16,
         shadowOffset: { width: 0, height: 8 },
         elevation: 6,
@@ -164,7 +168,7 @@ function ContributionCard({ crew }: { crew: CrewMember[] }) {
           }}>
           ACTION RUNS
         </Text>
-        <Text style={{ color: 'rgba(243,248,252,0.45)', fontSize: 10 }}>
+        <Text style={{ color: 'rgba(38,48,31,0.45)', fontSize: 10 }}>
           tasks · last 7 days
         </Text>
       </View>
@@ -175,7 +179,7 @@ function ContributionCard({ crew }: { crew: CrewMember[] }) {
           justifyContent: 'space-around',
           marginTop: 14,
           borderBottomWidth: 1,
-          borderBottomColor: 'rgba(255,255,255,0.14)',
+          borderBottomColor: 'rgba(38,48,31,0.12)',
           paddingBottom: 0,
         }}>
         {crew.map((m) => {
@@ -200,11 +204,11 @@ function ContributionCard({ crew }: { crew: CrewMember[] }) {
                     borderRadius: 999,
                     overflow: 'hidden',
                     borderWidth: 1.5,
-                    borderColor: 'rgba(255,255,255,0.35)',
+                    borderColor: 'rgba(38,48,31,0.25)',
                     backgroundColor: CARD,
                     marginBottom: -6,
                     zIndex: 1,
-                    shadowColor: '#000000',
+                    shadowColor: '#26301F',
                     shadowOpacity: 0.2,
                     shadowRadius: 4,
                     shadowOffset: { width: 0, height: 2 },
@@ -254,7 +258,7 @@ function StatTile({ label, value }: { label: string; value: string }) {
       style={{
         flex: 1,
         borderRadius: 12,
-        backgroundColor: 'rgba(255,255,255,0.06)',
+        backgroundColor: 'rgba(38,48,31,0.05)',
         paddingVertical: 10,
         paddingHorizontal: 12,
       }}>
@@ -292,8 +296,8 @@ function PerfSection({ member, recent }: { member: CrewMember; recent: ActivityI
       style={({ pressed }) => ({
         borderRadius: 22,
         backgroundColor: CARD,
-        shadowColor: '#000000',
-        shadowOpacity: 0.35,
+        shadowColor: '#26301F',
+        shadowOpacity: 0.14,
         shadowRadius: 16,
         shadowOffset: { width: 0, height: 8 },
         elevation: 6,
@@ -306,9 +310,9 @@ function PerfSection({ member, recent }: { member: CrewMember; recent: ActivityI
             flexDirection: 'row',
             alignItems: 'center',
             gap: 6,
-            backgroundColor: INK_SOFT,
+            backgroundColor: 'rgba(255,255,255,0.8)',
             borderWidth: 1,
-            borderColor: INK_EDGE,
+            borderColor: 'rgba(38,48,31,0.1)',
             borderRadius: radius.pill,
             paddingVertical: 4,
             paddingLeft: 5,
@@ -376,15 +380,15 @@ function PerfSection({ member, recent }: { member: CrewMember; recent: ActivityI
               marginBottom: 9,
               opacity: pressed ? 0.6 : 1,
             })}>
-            <Text style={{ color: 'rgba(243,248,252,0.35)', fontSize: 12 }}>
+            <Text style={{ color: 'rgba(38,48,31,0.35)', fontSize: 12 }}>
               {'\u21b3'}
             </Text>
             <Text
               numberOfLines={1}
-              style={{ flex: 1, color: 'rgba(243,248,252,0.75)', fontSize: 12 }}>
+              style={{ flex: 1, color: 'rgba(38,48,31,0.8)', fontSize: 12 }}>
               {entry.prompt}
             </Text>
-            <Text style={{ color: 'rgba(243,248,252,0.45)', fontSize: 12 }}>
+            <Text style={{ color: 'rgba(38,48,31,0.45)', fontSize: 12 }}>
               {entry.ago}
             </Text>
           </Pressable>
@@ -406,9 +410,9 @@ function ModeToggle({
     <View
       style={{
         flexDirection: 'row',
-        backgroundColor: 'rgba(255,255,255,0.10)',
+        backgroundColor: 'rgba(38,48,31,0.06)',
         borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.22)',
+        borderColor: 'rgba(38,48,31,0.15)',
         borderRadius: radius.pill,
         padding: 3,
       }}>
@@ -420,8 +424,8 @@ function ModeToggle({
             paddingVertical: 5,
             paddingHorizontal: 16,
             borderRadius: radius.pill,
-            backgroundColor: mode === m ? 'rgba(255,255,255,0.25)' : 'transparent',
-            shadowColor: '#000000',
+            backgroundColor: mode === m ? '#FFFFFF' : 'transparent',
+            shadowColor: '#26301F',
             shadowOpacity: mode === m ? 0.12 : 0,
             shadowRadius: 6,
             shadowOffset: { width: 0, height: 2 },
@@ -440,20 +444,81 @@ function ModeToggle({
   );
 }
 
+// Collapsed deck geometry: peeking band per card, full front card.
+const PEEK = 56;
+
+/** Collapsed accordion row: a clean white band with just the role tag
+ * and the "..." mark (detail shortcut) — no art. */
+function PeekBand({ label, onMore }: { label: string; onMore?: () => void }) {
+  return (
+    <View
+      style={{
+        height: PEEK,
+        borderRadius: 22,
+        backgroundColor: CARD,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: spacing.lg,
+        shadowColor: '#26301F',
+        shadowOpacity: 0.1,
+        shadowRadius: 10,
+        shadowOffset: { width: 0, height: 4 },
+        elevation: 3,
+      }}>
+      <View
+        style={{
+          backgroundColor: 'rgba(255,255,255,0.8)',
+          borderWidth: 1,
+          borderColor: 'rgba(38,48,31,0.1)',
+          borderRadius: radius.pill,
+          paddingVertical: 6,
+          paddingHorizontal: 12,
+        }}>
+        <Text style={{ color: INK, fontSize: 12, fontWeight: fontWeight.semibold }}>{label}</Text>
+      </View>
+      <Pressable
+        onPress={onMore}
+        disabled={!onMore}
+        hitSlop={8}
+        style={({ pressed }) => ({
+          width: 30,
+          height: 30,
+          borderRadius: 999,
+          backgroundColor: INK_SOFT,
+          alignItems: 'center',
+          justifyContent: 'center',
+          opacity: pressed ? 0.5 : 1,
+        })}>
+        <Ionicons name="ellipsis-horizontal" size={16} color={INK} />
+      </Pressable>
+    </View>
+  );
+}
+
 /** The hired crew — assistant characters with pro skills. */
 export default function CrewScreen() {
   const { crew, activity } = useAppStore();
   const [mode, setMode] = useState<'info' | 'perf'>('info');
+  // Info view accordion: each member folds/unfolds on its own; Scribe
+  // starts open as the face of the deck.
+  const [openIds, setOpenIds] = useState<string[]>(() => (crew[2] ? [crew[2].id] : []));
 
   const switchMode = (m: 'info' | 'perf') => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setMode(m);
   };
+  const toggleCard = (id: string) => {
+    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+    setOpenIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#243A54' }} edges={['top']}>
-      <StatusBar style="light" />
-      <DarkCloudBg />
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#F8FAE6' }} edges={['top']}>
+      <StatusBar style="dark" />
+      <AcidCloudBg />
       <ScrollView
         contentContainerStyle={{ padding: spacing.lg, paddingBottom: 110 }}
         showsVerticalScrollIndicator={false}>
@@ -479,10 +544,43 @@ export default function CrewScreen() {
         </View>
 
         {mode === 'info' ? (
-          <View style={{ gap: spacing.md }}>
-            {crew.map((m) => (
-              <AgentCard key={m.id} member={m} />
-            ))}
+          // accordion deck: tap a band to unfold just that member, tap
+          // the open card to fold it back; "..." goes to the detail.
+          <View style={{ gap: 6 }}>
+            {crew.map((m) =>
+              openIds.includes(m.id) ? (
+                <AgentCard key={m.id} member={m} onPress={() => toggleCard(m.id)} />
+              ) : (
+                <Pressable key={m.id} onPress={() => toggleCard(m.id)}>
+                  <PeekBand
+                    label={m.role.split(' · ')[0]}
+                    onMore={() => router.push(`/crew/${m.id}`)}
+                  />
+                </Pressable>
+              )
+            )}
+            {/* the empty slot: register the next member */}
+            <Pressable
+              onPress={() =>
+                Alert.alert('Coming soon', 'Hiring new crew members is on the way.')
+              }
+              style={({ pressed }) => ({
+                height: PEEK,
+                borderRadius: 22,
+                borderWidth: 1.5,
+                borderStyle: 'dashed',
+                borderColor: 'rgba(38,48,31,0.3)',
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 6,
+                opacity: pressed ? 0.6 : 1,
+              })}>
+              <Ionicons name="add" size={16} color={INK_DIM} />
+              <Text style={{ color: INK_DIM, fontSize: 13, fontWeight: fontWeight.semibold }}>
+                Add crew
+              </Text>
+            </Pressable>
           </View>
         ) : (
           <View style={{ gap: spacing.md }}>
@@ -497,7 +595,9 @@ export default function CrewScreen() {
           </View>
         )}
 
-        {/* Add crew — MVP placeholder */}
+        {/* Add crew — MVP placeholder (Info mode carries the full-size
+            dashed slot inside the fan instead) */}
+        {mode === 'info' ? null : (
         <Pressable
           onPress={() => Alert.alert('Coming soon', 'Hiring new crew members is on the way.')}
           style={({ pressed }) => ({
@@ -510,7 +610,7 @@ export default function CrewScreen() {
             borderRadius: radius.lg,
             borderWidth: 1,
             borderStyle: 'dashed',
-            borderColor: 'rgba(255,255,255,0.35)',
+            borderColor: 'rgba(38,48,31,0.25)',
             opacity: pressed ? 0.6 : 1,
           })}>
           <Ionicons name="add" size={18} color={INK} />
@@ -518,6 +618,7 @@ export default function CrewScreen() {
             Add crew
           </Text>
         </Pressable>
+        )}
       </ScrollView>
     </SafeAreaView>
   );

@@ -139,7 +139,42 @@ const EDGE_FOLLOWUPS: {
   tool: 'calendar' | 'github';
   lines: string[];
   text: string;
+  /** optional follow-up chips (e.g. the ambiguous-undo disambiguation) */
+  suggestions?: string[];
 }[] = [
+  // Conversational undo: the recipient is the original executor and the
+  // reply lands in the original thread, so "executed -> undone" reads as
+  // one story. The thinking lines double as the audit trail. Specific
+  // matches first; the bare "undo" fallback asks back with chips.
+  {
+    re: /(undo|revert)[\s\S]*(archiv|email|newsletter)|(archiv|email|newsletter)[\s\S]*(undo|revert)/i,
+    tool: 'calendar',
+    lines: ['undo requested · archived 12 emails', 'execute · mail.unarchive 12 · 0.6s'],
+    text: 'Undone. All 12 newsletter emails are back in your inbox. The undo window for this action is closed out.',
+  },
+  {
+    re: /(undo|revert|release)[\s\S]*(dinner|slot|hold)|(dinner|slot|hold)[\s\S]*(undo|revert)/i,
+    tool: 'calendar',
+    lines: ['undo requested · held dinner slots', 'execute · opentable.release 2 holds · 0.4s'],
+    text: 'Released both held slots. Nothing is booked for Friday anymore; say the word if you want them back.',
+  },
+  {
+    re: /(undo|revert)[\s\S]*(github|label|notification)|(github|label|notification)[\s\S]*(undo|revert)/i,
+    tool: 'github',
+    lines: ['undo requested · labeled notifications', 'execute · github.unlabel 6 · 0.5s'],
+    text: 'Removed the 6 labels. Your GitHub notifications are back exactly as they were.',
+  },
+  {
+    re: /undo|revert/i,
+    tool: 'calendar',
+    lines: ['undo requested · no target named', 'route · matching recent undoable actions'],
+    text: 'Which one? These are still inside their undo window:',
+    suggestions: [
+      'Undo: archived 12 newsletter emails',
+      'Undo: held 2 dinner slots',
+      'Undo: labeled 6 GitHub notifications',
+    ],
+  },
   {
     re: /keep retrying/i,
     tool: 'github',
@@ -577,7 +612,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
           setTypingThreadId(null);
           setCrewBusy(false);
           finishThinking(threadId);
-          appendToThread(threadId, { id: nextId('c'), from: 'agent', text: edge.text });
+          appendToThread(threadId, {
+            id: nextId('c'),
+            from: 'agent',
+            text: edge.text,
+            suggestions: edge.suggestions,
+          });
         });
         return;
       }
