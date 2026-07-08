@@ -14,7 +14,7 @@ import {
 import { GlassView, isGlassEffectAPIAvailable } from 'expo-glass-effect';
 import { StatusBar } from 'expo-status-bar';
 import { Platform } from 'react-native';
-import Svg, { Defs, LinearGradient as SvgGradient, RadialGradient, Rect, Stop } from 'react-native-svg';
+import Svg, { Defs, LinearGradient as SvgGradient, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -146,6 +146,51 @@ function AcidGlassFill({
   );
 }
 
+/** Watermark waves for the Crew hero card: the field's swoosh grammar
+ * (acid-swoosh-bg) miniaturized and faded way down — a meadow ribbon
+ * and a white counter-arc crossing it. Layer between AcidGlassFill and
+ * the card content; the veil colors stay in charge. */
+function CrewSwooshTexture() {
+  return (
+    <Svg
+      style={StyleSheet.absoluteFill}
+      pointerEvents="none"
+      viewBox="0 0 360 108"
+      preserveAspectRatio="none">
+      <Defs>
+        <SvgGradient id="crewRibbon" x1="1" y1="0" x2="0.2" y2="1">
+          <Stop offset="0%" stopColor="#6FA344" stopOpacity={0.1} />
+          <Stop offset="60%" stopColor="#6FA344" stopOpacity={0.04} />
+          <Stop offset="100%" stopColor="#6FA344" stopOpacity={0} />
+        </SvgGradient>
+        <SvgGradient id="crewArc" x1="0" y1="1" x2="0.3" y2="0">
+          <Stop offset="0%" stopColor="#FFFFFF" stopOpacity={0.14} />
+          <Stop offset="55%" stopColor="#FFFFFF" stopOpacity={0.05} />
+          <Stop offset="100%" stopColor="#FFFFFF" stopOpacity={0} />
+        </SvgGradient>
+      </Defs>
+      {/* meadow ribbon: swells in from the top-right corner and melts
+          toward the bottom-left, same dive as the field's deep ribbon */}
+      <Path
+        d="M 360 -10 L 360 34
+           C 268 40, 188 62, 128 92
+           C 98 107, 60 116, 20 118
+           L 360 118 Z"
+        fill="url(#crewRibbon)"
+      />
+      {/* light counter-arc sweeping up across the ribbon and off the
+          top edge, right of the headline */}
+      <Path
+        d="M 150 118
+           C 216 78, 252 40, 258 -10
+           L 316 -10
+           C 306 52, 258 96, 206 118 Z"
+        fill="url(#crewArc)"
+      />
+    </Svg>
+  );
+}
+
 // Home section material. 'milk' = the Acid Pop recipe (blur + a strong
 // milky veil, the field whispers through). Flip to 'paper' to restore
 // solid white cards instantly.
@@ -180,9 +225,9 @@ const NHOME = {
 // Ink for the acid glass surfaces (light field): dark olive text, quiet
 // hairlines, and state colors deep enough to hold contrast on pale glass.
 const AINK = {
-  text: '#26301F',
-  dim: 'rgba(38,48,31,0.55)',
-  divider: 'rgba(38,48,31,0.08)',
+  text: '#16241B',
+  dim: 'rgba(22,36,27,0.55)',
+  divider: 'rgba(22,36,27,0.08)',
   running: sysColor.running,
   warn: sysColor.action,
   accent: sysColor.ready,
@@ -317,7 +362,7 @@ function LiquidCard({
   // Plain sections: milky glass (Acid Pop) or solid white, by the
   // SECTION_MATERIAL switch above. Hero keeps its tinted glass either way.
   const base: ViewStyle = {
-    borderRadius: 22,
+    borderRadius: 18,
     overflow: 'hidden',
     ...(onTint
       ? {
@@ -674,7 +719,7 @@ export default function HomeScreen() {
                       height: 22,
                       borderRadius: 7,
                       // softened olive; the wordmark uses the same ink
-                      backgroundColor: 'rgba(35,48,24,0.85)',
+                      backgroundColor: 'rgba(20,34,25,0.85)',
                       alignItems: 'center',
                       justifyContent: 'center',
                     }}>
@@ -697,7 +742,7 @@ export default function HomeScreen() {
                   </View>
                   <Text
                     style={{
-                      color: 'rgba(35,48,24,0.85)',
+                      color: 'rgba(20,34,25,0.85)',
                       fontSize: 20,
                       letterSpacing: -0.3,
                       fontFamily: fontFamily.bold,
@@ -724,12 +769,12 @@ export default function HomeScreen() {
                   })}>
                   <Text
                     style={{
-                      color: 'rgba(38,48,31,0.8)',
+                      color: 'rgba(22,36,27,0.8)',
                       fontSize: 11,
                     }}>
                     {statusLabel.toLowerCase()}
                   </Text>
-                  <Ionicons name="chevron-down" size={11} color="rgba(38,48,31,0.5)" />
+                  <Ionicons name="chevron-down" size={11} color="rgba(22,36,27,0.5)" />
                 </Pressable>
               </View>
 
@@ -743,7 +788,7 @@ export default function HomeScreen() {
                   fontFamily: fontFamily.bold,
                   letterSpacing: -0.5,
                   // the wordmark's previous shadow ink, one step softer
-                  color: 'rgba(38,48,31,0.7)',
+                  color: 'rgba(22,36,27,0.7)',
                 }}>
                 {hello}, {USER_NAME}
               </Text>
@@ -756,12 +801,14 @@ export default function HomeScreen() {
                 onPress={startChat}
                 style={({ pressed }) => ({
                   marginTop: 24,
-                  height: 135,
-                  borderRadius: 22,
+                  // matches the state widgets below so the stack reads
+                  // as one grid
+                  height: 108,
+                  borderRadius: 18,
                   borderWidth: 1.2,
                   borderColor: 'rgba(255,255,255,0.8)',
                   overflow: 'hidden',
-                  shadowColor: '#26301F',
+                  shadowColor: '#16241B',
                   shadowOpacity: 0.14,
                   shadowRadius: 20,
                   shadowOffset: { width: 0, height: 8 },
@@ -769,6 +816,7 @@ export default function HomeScreen() {
                   opacity: pressed ? 0.88 : 1,
                 })}>
                 <AcidGlassFill />
+                <CrewSwooshTexture />
                 <Text
                   style={{
                     position: 'absolute',
@@ -776,8 +824,7 @@ export default function HomeScreen() {
                     left: 15,
                     fontSize: 11,
                     fontWeight: fontWeight.semibold,
-                    letterSpacing: 1,
-                    color: 'rgba(35,48,24,0.9)',
+                    color: 'rgba(22,36,27,0.55)',
                   }}>
                   CREW
                 </Text>
@@ -789,7 +836,7 @@ export default function HomeScreen() {
                     width: 30,
                     height: 30,
                     borderRadius: 999,
-                    backgroundColor: '#233018',
+                    backgroundColor: '#152A1E',
                     alignItems: 'center',
                     justifyContent: 'center',
                   }}>
@@ -804,11 +851,11 @@ export default function HomeScreen() {
                   style={{
                     position: 'absolute',
                     left: 16,
-                    bottom: 24,
+                    bottom: 20,
                     fontSize: 26,
                     fontFamily: fontFamily.bold,
                     letterSpacing: -0.5,
-                    color: '#233018',
+                    color: '#152A1E',
                   }}>
                   Ask your crew
                 </Text>
@@ -825,20 +872,25 @@ export default function HomeScreen() {
                       key: 'running',
                       label: 'RUNNING',
                       title: runningTask ? runningTask.label : 'No tasks running',
-                      caption: runningTask
-                        ? (runningTask.progress ?? 'crew at work')
-                        : 'all clear',
-                      live: !!runningTask,
-                      alert: false,
+                      // "2 of 4 sites" -> 0.5; quiet fallback when the
+                      // task has no parsable progress line
+                      progress: (() => {
+                        const m = runningTask?.progress?.match(/(\d+)\s+of\s+(\d+)/);
+                        return m ? Number(m[1]) / Number(m[2]) : runningTask ? 0.4 : null;
+                      })(),
+                      more: Math.max(runningCount - 1, 0),
+                      moreColor: sysColor.running,
+                      filter: 'running' as const,
                       threadId: runningTask?.threadId,
                     },
                     {
                       key: 'needsYou',
                       label: 'NEEDS YOU',
                       title: nextAsk ? nextAsk.label : 'Nothing waiting',
-                      caption: nextAsk ? 'next' : 'all clear',
-                      live: false,
-                      alert: !!nextAsk,
+                      progress: null,
+                      more: nextAsk ? Math.max(needsYou - 1, 0) : 0,
+                      moreColor: AINK.text,
+                      filter: 'needsYou' as const,
                       threadId: nextAsk?.threadId,
                     },
                   ] as const
@@ -848,13 +900,13 @@ export default function HomeScreen() {
                     onPress={() => w.threadId && router.push(`/chat/${w.threadId}`)}
                     style={({ pressed }) => ({
                       flex: 1,
-                      height: 100,
-                      borderRadius: 22,
+                      height: 108,
+                      borderRadius: 18,
                       borderWidth: 1.2,
                       borderColor: 'rgba(255,255,255,0.8)',
                       overflow: 'hidden',
                       padding: 14,
-                      shadowColor: '#26301F',
+                      shadowColor: '#16241B',
                       shadowOpacity: 0.14,
                       shadowRadius: 20,
                       shadowOffset: { width: 0, height: 8 },
@@ -866,50 +918,77 @@ export default function HomeScreen() {
                       style={{
                         fontSize: 11,
                         fontWeight: fontWeight.semibold,
-                        letterSpacing: 1,
-                        color: 'rgba(58,74,44,0.9)',
+                        color: 'rgba(22,36,27,0.55)',
                       }}>
                       {w.label}
                     </Text>
-                    {w.alert ? (
+                    {w.more > 0 ? (
+                      // "+N more": the rest of the queue, one tap away
+                      <Pressable
+                        onPress={() => {
+                          setHomeTab(w.filter);
+                          scrollRef.current?.scrollTo({ y: approvalsY, animated: true });
+                        }}
+                        hitSlop={10}
+                        style={({ pressed }) => ({
+                          position: 'absolute',
+                          top: 12,
+                          right: 14,
+                          opacity: pressed ? 0.5 : 1,
+                        })}>
+                        <Text
+                          style={{
+                            fontSize: 11,
+                            fontWeight: fontWeight.semibold,
+                            color: w.moreColor,
+                          }}>
+                          {`+${w.more} more`}
+                        </Text>
+                      </Pressable>
+                    ) : null}
+                    {/* title floats centered between the label above and
+                        the progress bar; the margin is reserved even without
+                        a bar so titles align across sibling cards */}
+                    <View
+                      style={{
+                        flex: 1,
+                        justifyContent: 'center',
+                        marginBottom: 12,
+                      }}>
+                      <Text
+                        numberOfLines={2}
+                        style={{
+                          fontSize: 13,
+                          lineHeight: 17,
+                          fontWeight: fontWeight.semibold,
+                          color: AINK.text,
+                        }}>
+                        {w.title}
+                      </Text>
+                    </View>
+                    {w.progress != null ? (
+                      // progress strip: a little thicker, lifted off the
+                      // bottom edge, quiet dark gray
                       <View
                         style={{
                           position: 'absolute',
-                          top: 14,
+                          left: 14,
                           right: 14,
-                          width: 8,
-                          height: 8,
-                          borderRadius: 999,
-                          backgroundColor: sysColor.actionDot,
-                        }}
-                      />
-                    ) : null}
-                    {w.live ? (
-                      <View style={{ position: 'absolute', top: 14, right: 14 }}>
-                        <RunningDot color={sysColor.running} size={8} />
+                          bottom: 15,
+                          height: 6,
+                          borderRadius: 3,
+                          backgroundColor: 'rgba(22,36,27,0.1)',
+                          overflow: 'hidden',
+                        }}>
+                        <View
+                          style={{
+                            width: `${Math.round(w.progress * 100)}%`,
+                            height: 6,
+                            backgroundColor: 'rgba(22,36,27,0.65)',
+                          }}
+                        />
                       </View>
                     ) : null}
-                    <Text
-                      numberOfLines={2}
-                      style={{
-                        marginTop: 8,
-                        fontSize: 13,
-                        lineHeight: 17,
-                        fontWeight: fontWeight.semibold,
-                        color: AINK.text,
-                      }}>
-                      {w.title}
-                    </Text>
-                    <Text
-                      numberOfLines={1}
-                      style={{
-                        marginTop: 'auto' as const,
-                        alignSelf: 'flex-end' as const,
-                        fontSize: 11,
-                        color: 'rgba(38,48,31,0.6)',
-                      }}>
-                      {w.caption}
-                    </Text>
                   </Pressable>
                 ))}
               </View>
@@ -941,7 +1020,7 @@ export default function HomeScreen() {
                       style={{
                         fontSize: 13,
                         fontFamily: homeTab === key ? fontFamily.bold : fontFamily.semibold,
-                        color: homeTab === key ? AINK.text : 'rgba(38,48,31,0.45)',
+                        color: homeTab === key ? AINK.text : 'rgba(22,36,27,0.45)',
                       }}>
                       {`${label} ${count}`}
                     </Text>
@@ -955,11 +1034,11 @@ export default function HomeScreen() {
                 <View
                   onLayout={(e) => setApprovalsY(e.nativeEvent.layout.y)}
                   style={{
-                    borderRadius: 22,
+                    borderRadius: 18,
                     borderWidth: 1.2,
                     borderColor: 'rgba(255,255,255,0.8)',
                     overflow: 'hidden',
-                    shadowColor: '#26301F',
+                    shadowColor: '#16241B',
                     shadowOpacity: 0.14,
                     shadowRadius: 20,
                     shadowOffset: { width: 0, height: 8 },
@@ -1008,7 +1087,7 @@ export default function HomeScreen() {
                           <Text
                             style={{
                               fontSize: 11,
-                              color: row.waiting ? AINK.warn : AINK.running,
+                              color: row.waiting ? AINK.text : AINK.running,
                             }}>
                             {row.waiting
                               ? statusSuffix
@@ -1135,10 +1214,10 @@ export default function HomeScreen() {
                   borderRadius: 24,
                   // the home header mark, hero size: soft olive square,
                   // electric lime face
-                  backgroundColor: 'rgba(35,48,24,0.85)',
+                  backgroundColor: 'rgba(20,34,25,0.85)',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  shadowColor: '#26301F',
+                  shadowColor: '#16241B',
                   shadowOpacity: 0.22,
                   shadowRadius: 20,
                   shadowOffset: { width: 0, height: 10 },
@@ -1164,7 +1243,7 @@ export default function HomeScreen() {
             {/* Headline */}
             <Text
               style={{
-                color: 'rgba(35,48,24,0.85)',
+                color: 'rgba(20,34,25,0.85)',
                 fontSize: 35,
                 fontFamily: fontFamily.bold,
                 letterSpacing: -0.8,
@@ -1178,7 +1257,7 @@ export default function HomeScreen() {
             {/* Subtitle */}
             <Text
               style={{
-                color: 'rgba(38,48,31,0.6)',
+                color: 'rgba(22,36,27,0.6)',
                 fontSize: fontSize.bodyLg,
                 lineHeight: 23,
                 textAlign: 'center',
@@ -1195,9 +1274,9 @@ export default function HomeScreen() {
             style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}>
             <View
               style={{
-                // calm olive, same family as the mark; lime stays an
-                // accent (eyes), not a surface
-                backgroundColor: '#2B3A1D',
+                // exactly the mark's face color, so CTA and logo read
+                // as one material
+                backgroundColor: 'rgba(20,34,25,0.85)',
                 borderRadius: radius.lg,
                 paddingVertical: spacing.lg,
                 alignItems: 'center',
