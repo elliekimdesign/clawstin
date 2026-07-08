@@ -55,9 +55,9 @@ export function AcidSwooshBg() {
               Air pastel direction); previous stops #EEF1E8 / #CBD8B8 /
               #9BC178 live at commit c248337 for rollback. */}
           <LinearGradient id="acidfield" x1="0" y1="0" x2="0.7" y2="1">
-            <Stop offset="0%" stopColor="#F4F6E3" />
-            <Stop offset="33%" stopColor="#D6E0B3" />
-            <Stop offset="74%" stopColor="#A8C97D" />
+            <Stop offset="0%" stopColor="#F8FAE6" />
+            <Stop offset="33%" stopColor="#E2EABC" />
+            <Stop offset="74%" stopColor="#B4CB93" />
           </LinearGradient>
           {GLOWS.map((g, i) => glow(`ag${i}`, g[0], g[1], g[2], g[3], g[4], g[5], g[6]))}
 

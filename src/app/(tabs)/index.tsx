@@ -91,7 +91,16 @@ const GLASS_AVAILABLE = Platform.OS === 'ios' && isGlassEffectAPIAvailable();
  * effect: 'clear' shows the liquid lens (small cards); 'regular' is a
  * uniform frost for tall cards where clear's edge lensing reads as a
  * dark band; 'none' = veil only. */
-function AcidGlassFill({ effect = 'clear' }: { effect?: 'clear' | 'regular' | 'none' }) {
+function AcidGlassFill({
+  effect = 'clear',
+  dense = false,
+}: {
+  effect?: 'clear' | 'regular' | 'none';
+  /** denser veil for text-heavy cards (the list): more legible, still
+   * one step lighter than the original 0.6/0.5/0.45 */
+  dense?: boolean;
+}) {
+  const veil = dense ? [0.57, 0.48, 0.43] : [0.52, 0.43, 0.38];
   return (
     <>
       {GLASS_AVAILABLE && effect !== 'none' ? (
@@ -107,14 +116,14 @@ function AcidGlassFill({ effect = 'clear' }: { effect?: 'clear' | 'regular' | 'n
           {/* brushed-steel veil: bright silver up top settling into a
               lime-green cast, more opaque than plain glass */}
           <SvgGradient id="acidveil" x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0%" stopColor="#F3F6EF" stopOpacity={0.6} />
-            <Stop offset="55%" stopColor="#E7EFD8" stopOpacity={0.5} />
-            <Stop offset="100%" stopColor="#D9E6C2" stopOpacity={0.45} />
+            <Stop offset="0%" stopColor="#F3F6EF" stopOpacity={veil[0]} />
+            <Stop offset="55%" stopColor="#E7EFD8" stopOpacity={veil[1]} />
+            <Stop offset="100%" stopColor="#D9E6C2" stopOpacity={veil[2]} />
           </SvgGradient>
           {/* cold silver sheen sweeping off the top-left corner */}
           <SvgGradient id="acidsheen" x1="0" y1="0" x2="0.85" y2="0.9">
-            <Stop offset="0%" stopColor="#FFFFFF" stopOpacity={0.22} />
-            <Stop offset="45%" stopColor="#FFFFFF" stopOpacity={0.05} />
+            <Stop offset="0%" stopColor="#FFFFFF" stopOpacity={0.18} />
+            <Stop offset="45%" stopColor="#FFFFFF" stopOpacity={0.04} />
             <Stop offset="100%" stopColor="#FFFFFF" stopOpacity={0} />
           </SvgGradient>
         </Defs>
@@ -567,7 +576,7 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView
-      style={{ flex: 1, backgroundColor: '#F4F6E3' }}
+      style={{ flex: 1, backgroundColor: '#F8FAE6' }}
       edges={['top']}>
       <StatusBar style="dark" />
       {/* start field: the app's quiet sage-lime theme, but livelier — an
@@ -957,8 +966,9 @@ export default function HomeScreen() {
                     elevation: 6,
                   }}>
                   {/* tall card: 'regular' frost avoids clear-glass edge
-                      lensing showing as a dark band at the bottom */}
-                  <AcidGlassFill effect="regular" />
+                      lensing showing as a dark band at the bottom;
+                      denser veil for the text-heavy list */}
+                  <AcidGlassFill effect="regular" dense />
                   {activeRows.map((row, idx) => {
                     const aged = row.age?.endsWith('d') ?? false;
                     // no deadline in the tag (it reads as noise); only
