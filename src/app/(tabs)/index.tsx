@@ -567,7 +567,7 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView
-      style={{ flex: 1, backgroundColor: connected ? '#EEF1E8' : '#EEF1E8' }}
+      style={{ flex: 1, backgroundColor: '#F4F6E3' }}
       edges={['top']}>
       <StatusBar style="dark" />
       {/* start field: the app's quiet sage-lime theme, but livelier — an
