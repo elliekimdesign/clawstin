@@ -30,9 +30,9 @@ function cloudGrad(
       rx={rx}
       ry={ry}
       gradientTransform={`rotate(${rot} ${cx} ${cy})`}>
-      <Stop offset="0%" stopColor="#FFFFFF" stopOpacity={opacity} />
-      <Stop offset="60%" stopColor="#FFFFFF" stopOpacity={opacity * 0.45} />
-      <Stop offset="100%" stopColor="#FFFFFF" stopOpacity={0} />
+      <Stop offset="0%" stopColor="#BFCFE9" stopOpacity={opacity} />
+      <Stop offset="60%" stopColor="#BFCFE9" stopOpacity={opacity * 0.45} />
+      <Stop offset="100%" stopColor="#BFCFE9" stopOpacity={0} />
     </RadialGradient>
   );
 }
@@ -60,9 +60,9 @@ export function CloudBg() {
         <Defs>
           {/* open sky: richer overhead, paler toward the horizon below */}
           <LinearGradient id="sky" x1="0" y1="0" x2="0.15" y2="1">
-            <Stop offset="0%" stopColor="#5D89BE" />
-            <Stop offset="45%" stopColor="#4F7CB4" />
-            <Stop offset="100%" stopColor="#7FA6CF" />
+            <Stop offset="0%" stopColor="#F3F7FD" />
+            <Stop offset="45%" stopColor="#E7EEFA" />
+            <Stop offset="100%" stopColor="#DCE7F7" />
           </LinearGradient>
           {CLOUDS.map((c, i) => cloudGrad(`c${i}`, c[0], c[1], c[2], c[3], c[4], c[5]))}
         </Defs>

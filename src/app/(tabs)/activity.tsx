@@ -11,10 +11,11 @@ import type { ActivityDay, ActivityItem, LogStep } from '@/mock/activity';
 import { useAppStore } from '@/store/app-store';
 import { fontFamily, fontSize, fontWeight, spacing } from '@/theme/theme';
 
-// Console palette: the bliss field at night. Same brand blue and green
-// as the other tabs, blended dark; text sits straight on the gradient.
+// Console palette: aurora night. Deep navy base under the command
+// azure's halo and the home lime's aurora; text sits straight on the
+// gradient. bg must equal NightField's top stop (SafeAreaView backfill).
 const CONSOLE = {
-  bg: '#141F33',
+  bg: '#0D1B36',
   text: 'rgba(255,255,255,0.9)',
   dim: 'rgba(255,255,255,0.48)',
   faint: 'rgba(255,255,255,0.32)',
@@ -24,7 +25,7 @@ const CONSOLE = {
   wait: '#F0B25F',
 };
 
-// Night gradient background shared with the home board — see
+// Aurora night background, Logs-only — see
 // src/components/ui/night-field.tsx.
 
 const GROUPS: { key: ActivityDay; label: string }[] = [
@@ -289,7 +290,7 @@ export default function ActivityScreen() {
                   paddingVertical: 5,
                   paddingHorizontal: 12,
                   backgroundColor:
-                    filter === chip.key ? '#2E7CD6' : 'rgba(255,255,255,0.08)',
+                    filter === chip.key ? '#4285F4' : 'rgba(255,255,255,0.08)',
                 }}>
                 <Text
                   style={{

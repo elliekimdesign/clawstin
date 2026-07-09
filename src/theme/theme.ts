@@ -63,7 +63,7 @@ export type ChatTheme = {
   mesh: { base: string; g1: string; g2: string; g3: string; g4: string };
 };
 
-export const chatThemes: Record<'darkGreen' | 'skyBlue' | 'skyBlueOs' | 'mintOs' | 'butterOs' | 'blueCloudOs', ChatTheme> = {
+export const chatThemes: Record<'darkGreen' | 'skyBlue' | 'skyBlueOs' | 'mintOs' | 'butterOs' | 'blueCloudOs' | 'mistOs', ChatTheme> = {
   /** The original moody slate-teal look — preserved as a picker option. */
   darkGreen: {
     base: '#38454A',
@@ -149,25 +149,43 @@ export const chatThemes: Record<'darkGreen' | 'skyBlue' | 'skyBlueOs' | 'mintOs'
   },
   /** Open blue sky with wispy clouds up top, drawn by CloudBg. */
   blueCloudOs: {
-    base: '#5D89BE',
+    base: '#6B93DD',
     text: '#F3F8FC',
     textSecondary: 'rgba(243,248,252,0.72)',
     textTertiary: 'rgba(243,248,252,0.55)',
     glassBg: 'rgba(255,255,255,0.12)',
     glassBorder: 'rgba(255,255,255,0.32)',
     surface: 'rgba(255,255,255,0.10)',
-    solidSurface: '#38587E',
+    solidSurface: '#38609F',
     divider: 'rgba(255,255,255,0.14)',
-    onLight: '#2C4665',
+    onLight: '#2E4F88',
     success: '#5FD9A4',
     background: 'clouds',
     // fallback mesh corners approximating the sky's tones
-    mesh: { base: '#5D89BE', g1: '#4F7CB4', g2: '#6E97C6', g3: '#7FA6CF', g4: '#8FB2D6' },
+    mesh: { base: '#6B93DD', g1: '#3565C4', g2: '#4479DC', g3: '#6E9BEF', g4: '#85ACF4' },
+  },
+  /** Pale misty sky: near-white haze, blue-gray cloud shadows, dark ink.
+   * The one LIGHT chat colorway; "onLight" here means text on the dark
+   * ink/azure surfaces (buttons, the selected crew capsule). */
+  mistOs: {
+    base: '#E7EEFA',
+    text: '#243650',
+    textSecondary: 'rgba(36,54,80,0.72)',
+    textTertiary: 'rgba(36,54,80,0.5)',
+    glassBg: 'rgba(255,255,255,0.5)',
+    glassBorder: 'rgba(255,255,255,0.75)',
+    surface: 'rgba(255,255,255,0.45)',
+    solidSurface: '#FFFFFF',
+    divider: 'rgba(36,54,80,0.12)',
+    onLight: '#F6F9FE',
+    success: '#1F8A5D',
+    background: 'clouds',
+    mesh: { base: '#E7EEFA', g1: '#CBDCF5', g2: '#DAE7F9', g3: '#F2F7FE', g4: '#E2EDFB' },
   },
 } as const;
 
 /** The active chat colorway. Swap here (or via a future user setting). */
-export const darkChat = chatThemes.blueCloudOs;
+export const darkChat = chatThemes.mistOs;
 
 /** The crew's signature light blue: chart bars, agent marks, composer
  * send/mic circles. One blue on every surface. */

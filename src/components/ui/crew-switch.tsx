@@ -276,9 +276,9 @@ export function CrewSwitch({
           style={{
             height: PILL_H,
             borderRadius: 999,
-            // the track behind the capsule wears the colorway's deep ink
-            // (translucent over glass) instead of anonymous gray
-            backgroundColor: GLASS_AVAILABLE ? 'rgba(44,70,101,0.55)' : darkChat.onLight,
+            // the track behind the capsule wears the command azure's
+            // deep ink (translucent over glass) instead of dull slate
+            backgroundColor: GLASS_AVAILABLE ? 'rgba(255,255,255,0.55)' : darkChat.solidSurface,
             borderWidth: BORDER,
             // brighter neutral white: at low opacity the edge picked up a
             // pale-green cast from the teal gradient behind it
@@ -300,10 +300,9 @@ export function CrewSwitch({
                   width: CENTER_W,
                   height: PILL_H - 2 * RING,
                   borderRadius: 999,
-                  // the colorway's solid surface: a quiet supporting blue
-                  // from our own palette instead of the plain gray glass.
-                  // A green hairline = manually pinned.
-                  backgroundColor: darkChat.solidSurface,
+                  // the command bar's azure: selection = the action
+                  // color. A green hairline = manually pinned.
+                  backgroundColor: '#4285F4',
                   borderWidth: manual && selected !== null ? 1 : 0,
                   borderColor: 'rgba(95,217,164,0.65)',
                   shadowColor: '#1B1F3B',
@@ -358,7 +357,7 @@ export function CrewSwitch({
                   style={{
                     fontSize: fontSize.small,
                     fontFamily: fontFamily.semibold,
-                    color: darkChat.text,
+                    color: darkChat.onLight,
                     includeFontPadding: false,
                   }}>
                   {selected === null
@@ -367,7 +366,7 @@ export function CrewSwitch({
                 </Text>
                 {/* pinned manually: the ✕ says "tap to release to auto" */}
                 {manual && selected !== null ? (
-                  <Ionicons name="close" size={13} color={darkChat.success} />
+                  <Ionicons name="close" size={13} color={darkChat.onLight} />
                 ) : null}
               </View>
             )}
@@ -395,8 +394,8 @@ export function CrewSwitch({
                       top: RING - BORDER,
                       height: PILL_H - 2 * RING,
                       borderRadius: 999,
-                      // same supporting blue as the collapsed capsule
-                      backgroundColor: darkChat.solidSurface,
+                      // same command azure as the collapsed capsule
+                      backgroundColor: '#4285F4',
                       shadowColor: '#1B1F3B',
                       shadowOpacity: 0.08,
                       shadowRadius: 4,
@@ -424,7 +423,7 @@ export function CrewSwitch({
                         style={{
                           fontSize: fontSize.small,
                           fontFamily: c.key === selected ? fontFamily.semibold : fontFamily.medium,
-                          color: c.key === selected ? darkChat.text : darkChat.textSecondary,
+                          color: c.key === selected ? darkChat.onLight : darkChat.textSecondary,
                           includeFontPadding: false,
                           textAlignVertical: 'center',
                         }}>
@@ -527,7 +526,7 @@ function ReelLabel({
           style={{
             fontSize: fontSize.small,
             fontFamily: active ? fontFamily.semibold : fontFamily.medium,
-            color: active ? darkChat.text : darkChat.textSecondary,
+            color: active ? darkChat.onLight : darkChat.textSecondary,
             includeFontPadding: false,
             textAlignVertical: 'center',
           }}>

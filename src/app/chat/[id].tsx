@@ -16,6 +16,7 @@ import Animated, { FadeIn, FadeInDown, FadeOut, FadeOutUp } from 'react-native-r
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ApprovalCard } from '@/components/ui/approval-card';
+import { AuroraRim } from '@/components/ui/aurora-rim';
 import { CrewSwitch } from '@/components/ui/crew-switch';
 import { GlassIconButton } from '@/components/ui/glass-icon-button';
 import { AquaBg } from '@/components/ui/aqua-bg';
@@ -59,6 +60,8 @@ export default function ChatThreadScreen() {
   } = useAppStore();
   const [draft, setDraft] = useState('');
   const [attachOpen, setAttachOpen] = useState(false);
+  // measured composer pill, so the aurora rim can trace it exactly
+  const [composerSize, setComposerSize] = useState<{ w: number; h: number } | null>(null);
   const [calOpen, setCalOpen] = useState(false);
   const [crewExpanded, setCrewExpanded] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
@@ -116,7 +119,7 @@ export default function ChatThreadScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: darkChat.base }} edges={['top', 'bottom']}>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       {/* Background art follows the active chat colorway (see chatThemes) */}
       {darkChat.background === 'aqua' ? (
         <AquaBg />
@@ -149,9 +152,10 @@ export default function ChatThreadScreen() {
             style={{ width: 48, alignItems: 'flex-start' }}>
             <GlassIconButton
               icon="chevron-back"
-              onPress={() => router.back()}
+              // deep-linked chats have no history: fall back to Home
+              onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
               onDark
-              tint="rgba(44,70,101,0.55)"
+              tint="rgba(255,255,255,0.55)"
               iconColor={darkChat.text}
               iconSize={22}
               hitSlop={10}
@@ -184,20 +188,20 @@ export default function ChatThreadScreen() {
                     width: 44,
                     height: 44,
                     borderRadius: 999,
-                    backgroundColor: prReveal ? '#0E1626' : 'rgba(44,70,101,0.55)',
+                    backgroundColor: prReveal ? '#4285F4' : 'rgba(255,255,255,0.55)',
                     borderWidth: 1,
                     borderColor: 'rgba(255,255,255,0.5)',
                   }}>
                   <Ionicons
                     name="calendar-clear-outline"
                     size={15}
-                    color="rgba(255,255,255,0.65)"
+                    color={prReveal ? 'rgba(255,255,255,0.75)' : 'rgba(36,54,80,0.6)'}
                     style={{ position: 'absolute', top: 9, left: 9 }}
                   />
                   <Ionicons
                     name="logo-github"
                     size={19}
-                    color={darkChat.text}
+                    color={prReveal ? '#FFFFFF' : darkChat.text}
                     style={{ position: 'absolute', bottom: 7, right: 7 }}
                   />
                 </View>
@@ -209,7 +213,7 @@ export default function ChatThreadScreen() {
                 icon={thread?.tool === 'contacts' ? 'people-outline' : 'logo-github'}
                 onPress={() => {}}
                 onDark
-                tint="rgba(44,70,101,0.55)"
+                tint="rgba(255,255,255,0.55)"
                 iconColor={darkChat.text}
                 iconSize={20}
               />
@@ -228,8 +232,8 @@ export default function ChatThreadScreen() {
                 onDark
                 // console navy while the calendar console is up: the color
                 // says the button and the floating console are one system
-                tint={calOpen || stripTarget != null ? '#0E1626' : 'rgba(44,70,101,0.55)'}
-                iconColor={darkChat.text}
+                tint={calOpen || stripTarget != null ? '#4285F4' : 'rgba(255,255,255,0.55)'}
+                iconColor={calOpen || stripTarget != null ? '#FFFFFF' : darkChat.text}
                 iconSize={20}
               />
             )}
@@ -474,41 +478,55 @@ export default function ChatThreadScreen() {
         ) : null}
 
 
-        {/* Input: one island-glass pill (same material family as the crew bar) */}
+        {/* Input: the home command bar's design transplanted — azure
+            fill, aurora rim, blue glow. Only the voice circle is its
+            own element and stays as before. */}
         <View
+          style={{
+            marginHorizontal: spacing.lg,
+            marginBottom: spacing.sm,
+            marginTop: spacing.xs,
+            shadowColor: '#C9DC7A',
+            shadowOpacity: 0.22,
+            shadowRadius: 12,
+            shadowOffset: { width: 0, height: 3 },
+            elevation: 10,
+          }}>
+        <View
+          onLayout={(e) =>
+            setComposerSize({
+              w: e.nativeEvent.layout.width,
+              h: e.nativeEvent.layout.height,
+            })
+          }
           style={{
             flexDirection: 'row',
             alignItems: 'center',
             gap: spacing.sm,
-            marginHorizontal: spacing.lg,
-            marginBottom: spacing.sm,
-            marginTop: spacing.xs,
             paddingLeft: spacing.md,
             paddingRight: 4,
             paddingVertical: 4,
             borderRadius: 999,
-            backgroundColor: darkChat.glassBg,
-            borderWidth: 1,
-            borderColor: darkChat.glassBorder,
+            backgroundColor: '#0B2113',
           }}>
             <Pressable
               onPress={() => setAttachOpen((v) => !v)}
               hitSlop={8}
               style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}>
-              <Ionicons name="add" size={24} color={darkChat.text} />
+              <Ionicons name="add" size={24} color="rgba(230,240,220,0.9)" />
             </Pressable>
             <TextInput
               value={draft}
               onChangeText={setDraft}
               onFocus={() => setAttachOpen(false)}
               placeholder="Assign a task to your crew"
-              placeholderTextColor={darkChat.textTertiary}
+              placeholderTextColor="rgba(230,240,220,0.5)"
               style={{
                 flex: 1,
                 paddingVertical: spacing.md,
                 fontSize: 15,
                 fontFamily: fontFamily.regular,
-                color: darkChat.text,
+                color: 'rgba(230,240,220,0.95)',
               }}
               returnKeyType="send"
               onSubmitEditing={onSend}
@@ -530,6 +548,8 @@ export default function ChatThreadScreen() {
                 color={darkChat.onLight}
               />
             </Pressable>
+        </View>
+        {composerSize ? <AuroraRim w={composerSize.w} h={composerSize.h} /> : null}
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>

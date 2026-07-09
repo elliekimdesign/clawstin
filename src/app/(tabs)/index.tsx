@@ -128,7 +128,7 @@ function AcidGlassFill({
         // the list: the dashboard cards' mid pastel laid perfectly
         // flat — one plain plane, paler, no gradient, no sheen
         <Svg style={StyleSheet.absoluteFill} pointerEvents="none" preserveAspectRatio="none">
-          <Rect x="0" y="0" width="100%" height="100%" fill="#E4EFA2" fillOpacity={0.62} />
+          <Rect x="0" y="0" width="100%" height="100%" fill="#EAEDD6" fillOpacity={0.68} />
         </Svg>
       ) : (
       <Svg style={StyleSheet.absoluteFill} pointerEvents="none" preserveAspectRatio="none">
@@ -139,9 +139,9 @@ function AcidGlassFill({
               2026-07-08 pm pop pass: one micro step brighter + more
               lime (fullback: #E6EDB8 / #DBE5A2 / #CEDA8C) */}
           <SvgGradient id="acidveil" x1="0" y1="0" x2="0" y2="1">
-            <Stop offset="0%" stopColor="#EDF5BA" stopOpacity={veil[0]} />
-            <Stop offset="55%" stopColor="#E4EFA2" stopOpacity={veil[1]} />
-            <Stop offset="100%" stopColor="#D8E78E" stopOpacity={veil[2]} />
+            <Stop offset="0%" stopColor="#F1F7C9" stopOpacity={veil[0]} />
+            <Stop offset="55%" stopColor="#EAF3B7" stopOpacity={veil[1]} />
+            <Stop offset="100%" stopColor="#E1ECA6" stopOpacity={veil[2]} />
           </SvgGradient>
           {/* whisper of internal light: the bubble's curvature, not an edge */}
           <SvgGradient id="acidsheen" x1="0" y1="0" x2="0.85" y2="0.9">
@@ -850,14 +850,13 @@ export default function HomeScreen() {
                 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                   {/* the square face mark, tiny: dark olive + lime, the
-                      same pair as the hero's arrow orb */}
+                      original mascot pairing */}
                   <View
                     style={{
                       width: 22,
                       height: 22,
                       borderRadius: 7,
-                      // softened olive; the wordmark uses the same ink
-                      backgroundColor: 'rgba(20,34,25,0.85)',
+                      backgroundColor: '#0B1A10',
                       alignItems: 'center',
                       justifyContent: 'center',
                     }}>
@@ -878,9 +877,10 @@ export default function HomeScreen() {
                       }}
                     />
                   </View>
+                  {/* wordmark: flat, the face mark's own olive ink */}
                   <Text
                     style={{
-                      color: 'rgba(20,34,25,0.85)',
+                      color: '#0B1A10',
                       fontSize: 20,
                       letterSpacing: -0.3,
                       fontFamily: fontFamily.bold,
@@ -902,7 +902,7 @@ export default function HomeScreen() {
                     borderRadius: 999,
                     // dashboard pastel: the pill pops as a solid chip
                     // of the same cloth as the cards (edgeless)
-                    backgroundColor: '#E3EAB0',
+                    backgroundColor: '#EAF3B7',
                     opacity: pressed ? 0.6 : 1,
                   })}>
                   <Text
@@ -918,9 +918,9 @@ export default function HomeScreen() {
 
               {/* just the greeting, floating on the sky — the tab counts
                   already carry the numbers */}
-              {/* gradient wordmark moment: army green dissolving into
-                  pale khaki, the Apple "Built for AI" treatment gone
-                  quiet; SVG text so the fill can be a gradient */}
+              {/* greeting: the army fade again — deep green on the
+                  left dissolving to pale khaki; SVG text so the fill
+                  can be a gradient */}
               <Svg width="100%" height={30} style={{ marginTop: 10 }}>
                 <Defs>
                   <SvgGradient id="greetgrad" x1="0" y1="0" x2="1" y2="0">
@@ -1433,7 +1433,7 @@ export default function HomeScreen() {
                       hitSlop={8}
                       onPress={() => undoAction(u)}
                       style={({ pressed }) => ({
-                        backgroundColor: 'rgba(22,36,27,0.08)',
+                        backgroundColor: 'rgba(10,40,20,0.09)',
                         borderRadius: 999,
                         paddingHorizontal: 16,
                         paddingVertical: 9,
@@ -1443,7 +1443,7 @@ export default function HomeScreen() {
                         style={{
                           fontSize: 13,
                           fontWeight: fontWeight.semibold,
-                          color: 'rgba(22,36,27,0.75)',
+                          color: '#0A2814',
                         }}>
                         Undo
                       </Text>
@@ -1709,7 +1709,7 @@ export default function HomeScreen() {
                   height: 52,
                   borderRadius: 999,
                   overflow: 'hidden',
-                  backgroundColor: '#0A2814',
+                  backgroundColor: '#0B2113',
                   opacity: pressed ? 0.85 : 1,
                 })}>
                 <View
@@ -1743,7 +1743,7 @@ export default function HomeScreen() {
                       style={{
                         fontSize: 11,
                         fontWeight: fontWeight.semibold,
-                        color: 'rgba(222,255,79,0.8)',
+                        color: '#DEFF4F',
                       }}>
                       /
                     </Text>
@@ -1757,6 +1757,8 @@ export default function HomeScreen() {
                   height={askBarSize.h}
                   style={{ position: 'absolute', top: 0, left: 0 }}>
                   <Defs>
+                    {/* P3-ring neon, worn quietly: full spectrum sweep,
+                        soft pastel stops so it reads as a glow, not a toy */}
                     <SvgGradient id="askrim" x1="0" y1="0" x2="1" y2="0">
                       <Stop offset="0" stopColor="#E3EFA9" />
                       <Stop offset="0.5" stopColor="#A9C57C" />
@@ -1817,7 +1819,7 @@ export default function HomeScreen() {
                             paddingHorizontal: 14,
                             paddingVertical: 8,
                             borderRadius: 999,
-                            backgroundColor: 'rgba(10,40,20,0.85)',
+                            backgroundColor: 'rgba(11,33,19,0.9)',
                             opacity: pressed ? 0.7 : 1,
                           })}>
                           <Text style={{ fontSize: 13, color: 'rgba(230,240,220,0.85)' }}>
@@ -1844,7 +1846,7 @@ export default function HomeScreen() {
                         }
                         style={{
                           borderRadius: 26,
-                          backgroundColor: '#0A2814',
+                          backgroundColor: '#0B2113',
                           padding: 14,
                           flexDirection: 'row',
                           alignItems: 'flex-end',
@@ -1961,7 +1963,7 @@ export default function HomeScreen() {
                   borderRadius: 24,
                   // the home header mark, hero size: soft olive square,
                   // electric lime face
-                  backgroundColor: 'rgba(20,34,25,0.85)',
+                  backgroundColor: '#081D35',
                   alignItems: 'center',
                   justifyContent: 'center',
                   shadowColor: '#16241B',
@@ -1972,8 +1974,8 @@ export default function HomeScreen() {
                 }}>
                 {/* Eyes: bright lime; mouth stays quiet gray-green */}
                 <View style={{ flexDirection: 'row', gap: 15, marginBottom: 11 }}>
-                  <View style={{ width: 10, height: 10, borderRadius: 999, backgroundColor: '#DEFF4F' }} />
-                  <View style={{ width: 10, height: 10, borderRadius: 999, backgroundColor: '#DEFF4F' }} />
+                  <View style={{ width: 10, height: 10, borderRadius: 999, backgroundColor: '#8FBFF2' }} />
+                  <View style={{ width: 10, height: 10, borderRadius: 999, backgroundColor: '#8FBFF2' }} />
                 </View>
                 {/* Mouth */}
                 <View
@@ -1981,7 +1983,7 @@ export default function HomeScreen() {
                     width: 27,
                     height: 5,
                     borderRadius: 3,
-                    backgroundColor: 'rgba(226,234,216,0.55)',
+                    backgroundColor: 'rgba(143,191,242,0.6)',
                   }}
                 />
               </View>
@@ -1990,7 +1992,7 @@ export default function HomeScreen() {
             {/* Headline */}
             <Text
               style={{
-                color: 'rgba(20,34,25,0.85)',
+                color: '#081D35',
                 fontSize: 35,
                 fontFamily: fontFamily.bold,
                 letterSpacing: -0.8,
@@ -2023,7 +2025,7 @@ export default function HomeScreen() {
               style={{
                 // exactly the mark's face color, so CTA and logo read
                 // as one material
-                backgroundColor: 'rgba(20,34,25,0.85)',
+                backgroundColor: '#081D35',
                 borderRadius: radius.lg,
                 paddingVertical: spacing.lg,
                 alignItems: 'center',

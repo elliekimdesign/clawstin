@@ -6,7 +6,7 @@ import { fontFamily } from '@/theme/theme';
 
 // Console palette (matches the Logs tab).
 const C = {
-  bg: '#18263F',
+  bg: '#17325C',
   text: 'rgba(255,255,255,0.9)',
   dim: 'rgba(255,255,255,0.48)',
   faint: 'rgba(255,255,255,0.32)',
