@@ -30,7 +30,9 @@ export function PromptHistorySheet({
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      {/* invisible backdrop; tap anywhere above the sheet to close */}
+      {/* dim scrim as a full-screen layer, so the corners of the
+          rounded sheet sit on dimmed board, not raw board */}
+      <View style={{ flex: 1, backgroundColor: 'rgba(22,36,27,0.16)' }}>
       <Pressable onPress={onClose} style={{ flex: 1 }} />
       <View
         style={{
@@ -103,6 +105,7 @@ export function PromptHistorySheet({
             </Pressable>
           ))}
         </ScrollView>
+      </View>
       </View>
     </Modal>
   );

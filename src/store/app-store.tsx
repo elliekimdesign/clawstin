@@ -34,6 +34,7 @@ import { CrewKey, ISLAND_CREWS, routeCrew } from '@/mock/crew-routing';
 import { PENDING_PRS } from '@/mock/github';
 import { initialInfra, InfraEndpoint } from '@/mock/infra';
 import { BackgroundTask, initialBackground } from '@/mock/background';
+import { initialSchedules, Schedule } from '@/mock/schedules';
 import { initialServices, ServiceStatus } from '@/mock/services';
 import { initialThreads, Thread } from '@/mock/threads';
 
@@ -266,6 +267,22 @@ type Store = {
     approved: boolean
   ) => void;
 
+  /** cross-tab drill-down: the Logs screen pins this as a removable chip */
+  logsFilter: { kind: 'source' | 'rule'; value: string } | null;
+  setLogsFilter: (f: { kind: 'source' | 'rule'; value: string } | null) => void;
+
+  // Schedules (time-based autonomy; lives in AUTOPILOT next to rules)
+  schedules: Schedule[];
+  /** the proposal card's test run: appends a mock result to the SAME thread */
+  runScheduleOnce: (threadId: string, messageId: string) => void;
+  /** stamps the card ✓ Scheduled and registers the schedule in AUTOPILOT */
+  confirmSchedule: (threadId: string, messageId: string) => void;
+  /** register a routine directly (e.g. accepting a pattern suggestion) */
+  addRoutine: (sch: Omit<Schedule, 'id'>) => void;
+  /** YOUR TURN quick answer: sends the choice into the dinner thread and
+   * lets the confirmation arrive there (the button press IS the answer) */
+  confirmDinner: (slot: string) => void;
+
   // Memory
   memories: Memory[];
   updateMemory: (id: string, text: string) => void;
@@ -318,6 +335,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       )
     );
   }, []);
+  const [schedules, setSchedules] = useState<Schedule[]>(initialSchedules);
+  const [logsFilter, setLogsFilter] = useState<{ kind: 'source' | 'rule'; value: string } | null>(
+    null
+  );
   const [calendarDays, setCalendarDays] = useState<CalendarDay[]>(initialCalendarDays);
   const [calendarScan, setCalendarScan] = useState<{ targetDate: number } | null>(null);
   const [crewSelected, setCrewSelected] = useState<CrewKey | null>(null);
@@ -542,6 +563,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       msg.from === 'agent' &&
       !msg.approval &&
       !(msg.schedule && !msg.schedule.booked) &&
+      !(msg.scheduleProposal && !msg.scheduleProposal.resolved) &&
       // an open question (chips) keeps the thread open too
       !msg.suggestions;
     setThreads((prev) =>
@@ -683,6 +705,58 @@ export function AppProvider({ children }: { children: ReactNode }) {
               date: prDate,
               title: 'Deep work: PR review',
               slots: ['9:00 AM'],
+            },
+          });
+        });
+        return;
+      }
+
+      // Recurring asks become a SCHEDULE PROPOSAL, not a one-off booking —
+      // matched before the calendar parser so "every day at 2pm" never
+      // reads as a single event. The reply is a structured read-back
+      // (name, cadence, scope) with a test run as the primary action.
+      const recurring =
+        /\b(every day|daily|every (morning|evening|week|weekday|weekdays|mon|tue|wed|thu|fri)|weekly|each (day|week|morning))\b/i.test(
+          userText
+        );
+      if (recurring) {
+        setTypingThreadId(threadId);
+        setCrewBusy(true);
+        const isInbox = /inbox|email|mail|digest/i.test(userText);
+        const isReview = /review|priorit/i.test(userText);
+        const name = isInbox ? 'Daily inbox digest' : isReview ? 'Weekly review' : 'Scheduled task';
+        const what = isInbox
+          ? 'Summarize new mail, flag urgent'
+          : isReview
+            ? 'Top priorities for the week'
+            : 'Run it and deliver the result here';
+        const time = userText.match(/at\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/i);
+        const clock = time
+          ? `${time[1]}:${time[2] ?? '00'} ${(time[3] ?? 'PM').toUpperCase()}`
+          : '9:00 AM';
+        const weekly =
+          /\b(weekly|every week|each week|every mon)\b/i.test(userText);
+        const cadence = weekly ? `Mon ${clock}` : `${clock} daily`;
+        runThinking(threadId, [
+          'parse & plan · recurring intent · 0.2s',
+          `execute · drafting "${name}" · 0.9s`,
+          'synthesize · cadence + scope readback · 0.3s',
+        ]);
+        runCrewSequence(['triage', 'orchestrator'], setCrewSelected, () => {
+          setTypingThreadId(null);
+          setCrewBusy(false);
+          finishThinking(threadId);
+          appendToThread(threadId, {
+            id: nextId('c'),
+            from: 'agent',
+            text: 'Here is the schedule I would set up. Want to see one run before it goes live?',
+            scheduleProposal: {
+              id: nextId('sp'),
+              name,
+              cadence,
+              what,
+              permissionKey: isInbox ? 'gmail' : 'calendar',
+              scope: 'READ',
             },
           });
         });
@@ -961,6 +1035,176 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [resolveApproval, appendToThread, runThinking, finishThinking]
   );
 
+  // The proposal card's test run: trust is calibrated BEFORE autonomy.
+  // Stamps the card (↳ test run below) and appends a mock digest result
+  // to the SAME thread — a preview of exactly what each delivery will be.
+  const addRoutine = useCallback((sch: Omit<Schedule, 'id'>) => {
+    setSchedules((prev) =>
+      prev.some((x) => x.name === sch.name) ? prev : [...prev, { ...sch, id: nextId('s') }]
+    );
+  }, []);
+
+  const confirmDinner = useCallback(
+    (slot: string) => {
+      const threadId = 't5';
+      appendToThread(threadId, {
+        id: nextId('c'),
+        from: 'user',
+        text: `${slot} PM works, book it`,
+      });
+      setTypingThreadId(threadId);
+      setCrewBusy(true);
+      runThinking(threadId, [
+        `execute · Calendar, booking ${slot} PM Friday · 0.8s`,
+        'execute · OpenTable, confirming the table · 1.1s',
+      ]);
+      runCrewSequence(['triage'], setCrewSelected, () => {
+        setTypingThreadId(null);
+        setCrewBusy(false);
+        finishThinking(threadId);
+        appendToThread(threadId, {
+          id: nextId('c'),
+          from: 'agent',
+          text: `Done. Friday dinner is booked for ${slot} PM and the invite went out.`,
+        });
+      });
+    },
+    [appendToThread, runThinking, finishThinking]
+  );
+
+  const runScheduleOnce = useCallback(
+    (threadId: string, messageId: string) => {
+      setThreads((prev) =>
+        prev.map((t) =>
+          t.id === threadId
+            ? {
+                ...t,
+                messages: t.messages.map((m) =>
+                  m.id === messageId && m.scheduleProposal
+                    ? { ...m, scheduleProposal: { ...m.scheduleProposal, testRan: true } }
+                    : m
+                ),
+              }
+            : t
+        )
+      );
+      setTypingThreadId(threadId);
+      setCrewBusy(true);
+      runThinking(threadId, [
+        'test run · Gmail, 14 new since yesterday · 1.1s',
+        'summarize · 3 need your attention · 0.8s',
+      ]);
+      runCrewSequence(['triage'], setCrewSelected, () => {
+        setTypingThreadId(null);
+        setCrewBusy(false);
+        finishThinking(threadId);
+        appendToThread(threadId, {
+          id: nextId('c'),
+          from: 'agent',
+          text: 'Test run done. Every delivery would look like this:',
+          result: {
+            items: [
+              { label: 'Figma contract renewal', detail: 'reply by Fri' },
+              { label: 'Standup moved to 10:30', detail: 'calendar' },
+              { label: '12 promos ready to archive', detail: 'gmail' },
+            ],
+          },
+        });
+      });
+    },
+    [appendToThread, runThinking, finishThinking]
+  );
+
+  // Confirming stamps the card in place (receipt model) and registers the
+  // schedule in AUTOPILOT. Its runs will accumulate in THIS thread — one
+  // home per event, the same principle as undo routing. A staged "first
+  // scheduled run" lands ~20s later to prove it live.
+  const confirmSchedule = useCallback(
+    (threadId: string, messageId: string) => {
+      const thread = threads.find((t) => t.id === threadId);
+      const proposal = thread?.messages.find((m) => m.id === messageId)?.scheduleProposal;
+      if (!proposal || proposal.resolved) return;
+      setThreads((prev) =>
+        prev.map((t) =>
+          t.id === threadId
+            ? {
+                ...t,
+                outcome: 'delivered' as const,
+                updatedAt: 'now',
+                lastPreview: `✓ Scheduled · ${proposal.cadence}`,
+                title: proposal.name,
+                messages: t.messages.map((m) =>
+                  m.id === messageId && m.scheduleProposal
+                    ? {
+                        ...m,
+                        scheduleProposal: { ...m.scheduleProposal, resolved: 'scheduled' as const },
+                      }
+                    : m
+                ),
+              }
+            : t
+        )
+      );
+      setSchedules((prev) => [
+        ...prev,
+        {
+          id: nextId('s'),
+          name: proposal.name,
+          cadence: proposal.cadence,
+          threadId,
+          permissionKey: proposal.permissionKey,
+          scope: proposal.scope,
+          runs: proposal.testRan ? 1 : 0,
+          lastRun: proposal.testRan ? { ago: 'now', ok: true } : undefined,
+        },
+      ]);
+      setActivity((prev) => [
+        {
+          id: nextId('act'),
+          time: 'now',
+          day: 'today' as const,
+          ago: 'now',
+          prompt: `Scheduled: ${proposal.name}`,
+          agentId: 'muppet',
+          threadId,
+          source: 'autopilot' as const,
+          ruleKey: proposal.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+          steps: [{ label: `cadence set · ${proposal.cadence}`, state: 'ok' as const }],
+        },
+        ...prev,
+      ]);
+      // Staged first run: the differentiator, live — the run lands in the
+      // SAME thread (not a new session) and the Done card gets its dot.
+      setTimeout(() => {
+        appendToThread(threadId, {
+          id: nextId('c'),
+          from: 'agent',
+          proactive: true,
+          caption: 'SCHEDULED RUN',
+          text: `${proposal.name} · first scheduled run`,
+          result: {
+            items: [
+              { label: '2 threads need a reply', detail: 'gmail' },
+              { label: 'All-hands prep due today', detail: 'calendar' },
+              { label: '9 promos archived', detail: 'auto' },
+            ],
+          },
+        });
+        setThreads((prev) =>
+          prev.map((t) => (t.id === threadId ? { ...t, unread: true } : t))
+        );
+        setSchedules((prev) =>
+          prev.map((sch) =>
+            sch.threadId === threadId
+              ? { ...sch, runs: sch.runs + 1, lastRun: { ago: 'now', ok: true } }
+              : sch
+          )
+        );
+      }, 20000);
+    },
+    [threads, appendToThread]
+  );
+
   // When a slot pill is tapped: really add the event and stamp the card
   // booked in place. Receipt model (mirrors resolveChatApproval): the
   // card's "✓ Booked" state IS the confirmation — no follow-up bubble.
@@ -1055,6 +1299,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
       createThread,
       sendMessage,
       resolveChatApproval,
+      schedules,
+      runScheduleOnce,
+      addRoutine,
+      confirmDinner,
+      confirmSchedule,
+      logsFilter,
+      setLogsFilter,
       memories,
       updateMemory,
       deleteMemory,
@@ -1106,6 +1357,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       createThread,
       sendMessage,
       resolveChatApproval,
+      schedules,
+      runScheduleOnce,
+      confirmSchedule,
+      logsFilter,
+      setLogsFilter,
       memories,
       updateMemory,
       deleteMemory,

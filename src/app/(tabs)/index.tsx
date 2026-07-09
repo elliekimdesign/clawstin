@@ -17,7 +17,7 @@ import {
 import { GlassView, isGlassEffectAPIAvailable } from 'expo-glass-effect';
 import { StatusBar } from 'expo-status-bar';
 import { Platform } from 'react-native';
-import Svg, { Circle, Defs, LinearGradient as SvgGradient, Path, RadialGradient, Rect, Stop, Text as SvgText } from 'react-native-svg';
+import Svg, { Defs, LinearGradient as SvgGradient, Path, RadialGradient, Rect, Stop, Text as SvgText } from 'react-native-svg';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -27,11 +27,13 @@ import Animated, {
 } from 'react-native-reanimated';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { AUTOPILOT_RULES } from '@/mock/autopilot';
 import { AuroraLine } from '@/components/ui/aurora-line';
 import { Card } from '@/components/ui/card';
 import { GlassIconButton } from '@/components/ui/glass-icon-button';
 import { BlissSwooshBg } from '@/components/ui/bliss-swoosh-bg';
 import { AcidSwooshBg } from '@/components/ui/acid-swoosh-bg';
+import { AutopilotSheet } from '@/components/ui/autopilot-sheet';
 import { PromptHistorySheet } from '@/components/ui/prompt-history-sheet';
 import { PulseMark } from '@/components/ui/pulse-mark';
 import { StatusPopover, worstServiceState } from '@/components/ui/status-popover';
@@ -196,33 +198,6 @@ const UNDOABLES = [
 // Autopilot ledger mock: what each auto-approved rule has been doing.
 // The gauge earns trust by showing receipts; "undone" is the honest
 // counter-metric (an autopilot that never gets undone is working).
-const AUTOPILOT_RULES = [
-  {
-    name: 'Contact merges',
-    runs: 47,
-    undone: 0,
-    recent: [
-      { label: 'Merged 3 dupes "Josh P."', ago: '2h', undone: false },
-      { label: 'Merged 2 dupes "Sarah L."', ago: '1d', undone: false },
-    ],
-  },
-  {
-    name: 'Newsletter archiving',
-    runs: 31,
-    undone: 1,
-    recent: [
-      { label: 'Archived 12 emails', ago: '2m', undone: false },
-      { label: 'Archived 8 emails', ago: '1d', undone: true },
-    ],
-  },
-  {
-    name: 'GitHub labeling',
-    runs: 12,
-    undone: 0,
-    recent: [{ label: 'Labeled 6 notifs', ago: '4m', undone: false }],
-  },
-];
-
 // Home section material. 'milk' = the Acid Pop recipe (blur + a strong
 // milky veil, the field whispers through). Flip to 'paper' to restore
 // solid white cards instantly.
@@ -356,42 +331,6 @@ function RunningDot({ color = GLASS.blue, size = 7 }: { color?: string; size?: n
     <Animated.View
       style={[{ width: size, height: size, borderRadius: 999, backgroundColor: color }, style]}
     />
-  );
-}
-
-/** Donut ring in the army fade: the filled arc sweeps clockwise from
- * 12 o'clock over a quiet track, same palette as the progress strips. */
-function TrustDonut({ pct, size = 34, stroke = 9 }: { pct: number; size?: number; stroke?: number }) {
-  const r = (size - stroke) / 2;
-  const c = 2 * Math.PI * r;
-  return (
-    <Svg width={size} height={size}>
-      <Defs>
-        <SvgGradient id="donutgrad" x1="0" y1="0" x2="1" y2="1">
-          <Stop offset="0" stopColor="#46583B" />
-          <Stop offset="1" stopColor="#93A181" />
-        </SvgGradient>
-      </Defs>
-      <Circle
-        cx={size / 2}
-        cy={size / 2}
-        r={r}
-        stroke="rgba(22,36,27,0.1)"
-        strokeWidth={stroke}
-        fill="none"
-      />
-      <Circle
-        cx={size / 2}
-        cy={size / 2}
-        r={r}
-        stroke="url(#donutgrad)"
-        strokeWidth={stroke}
-        strokeLinecap="round"
-        strokeDasharray={`${c * pct} ${c}`}
-        fill="none"
-        transform={`rotate(-90 ${size / 2} ${size / 2})`}
-      />
-    </Svg>
   );
 }
 
@@ -588,6 +527,9 @@ export default function HomeScreen() {
     background,
     threads,
     crew,
+    schedules,
+    addRoutine,
+    confirmDinner,
     resolveApproval,
     createThread,
     sendMessage,
@@ -675,6 +617,21 @@ export default function HomeScreen() {
   // full undoable queue instead of opening a separate sheet
   const [lastActionOpen, setLastActionOpen] = useState(false);
   const [autopilotOpen, setAutopilotOpen] = useState(false);
+  // which dinner slot was answered from the hero card (receipt stamp)
+  const [dinnerAnswered, setDinnerAnswered] = useState<string | null>(null);
+  // Accepting the pattern suggestion (YOUR TURN or the sheet) does one
+  // real thing: the habit becomes a schedule with its own thread.
+  const acceptMorningRoutine = () => {
+    setTrustHandled('allowed');
+    addRoutine({
+      name: 'Morning briefing',
+      cadence: '8 AM daily',
+      threadId: 't4',
+      permissionKey: 'gmail',
+      scope: 'READ',
+      runs: 0,
+    });
+  };
   const undoAction = (u: (typeof UNDOABLES)[number]) => {
     setLastActionOpen(false);
     sendMessage(u.threadId, u.ask);
@@ -945,10 +902,9 @@ export default function HomeScreen() {
                   LAST ACTION below undoes what went through. Every
                   approval feeds TRUST; TRUST slims YOUR TURN; undo makes
                   the added autonomy safe. ── */}
-              {nextAsk || !trustHandled ? (
+              {nextAsk ? (
                 <Pressable
-                  disabled={!trustHandled}
-                  onPress={() => nextAsk && router.push(`/chat/${nextAsk.threadId}`)}
+                  onPress={() => router.push('/chat/t5')}
                   style={({ pressed }) => ({
                     marginTop: 24,
                     borderRadius: 18,
@@ -964,7 +920,7 @@ export default function HomeScreen() {
                   {/* keyed: this card also changes height when the
                       proposal resolves */}
                   <AcidGlassFill
-                    key={trustHandled ? 'resolved' : 'proposal'}
+                    key="yourturn"
                     effect="regular"
                     bright
                   />
@@ -977,7 +933,7 @@ export default function HomeScreen() {
                       }}>
                       YOUR TURN
                     </Text>
-                    {(!trustHandled ? needsYou : needsYou - 1) > 0 ? (
+                    {needsYou - 1 > 0 ? (
                       <Pressable
                         onPress={() => {
                           setHomeTab('needsYou');
@@ -990,93 +946,101 @@ export default function HomeScreen() {
                             fontWeight: fontWeight.semibold,
                             color: AINK.text,
                           }}>
-                          {`+${!trustHandled ? needsYou : needsYou - 1} more`}
+                          {`+${needsYou - 1} more`}
                         </Text>
                       </Pressable>
                     ) : null}
                   </View>
-                  {!trustHandled ? (
-                    // a system proposal waits in the same queue as crew
-                    // asks: decisions have exactly one home
-                    <>
-                      <Text
-                        numberOfLines={1}
-                        style={{
-                          marginTop: 14,
-                          fontSize: fontSize.body,
-                          fontWeight: fontWeight.semibold,
-                          color: AINK.text,
-                        }}>
-                        Auto-approve contact merges?
-                      </Text>
-                      <View
-                        style={{
-                          marginTop: 12,
-                          flexDirection: 'row',
-                          alignItems: 'center',
-                          gap: 12,
-                        }}>
-                        {/* one button size everywhere: 36pt visual pill
-                            + hitSlop reaching the 44pt HIG touch target */}
-                        <Pressable
-                          onPress={() => setTrustHandled('allowed')}
-                          hitSlop={8}
-                          style={({ pressed }) => ({
-                            // outlined pill: border carries the weight,
-                            // the field shows through
-                            borderWidth: 2,
-                            borderColor: '#0A2814',
-                            borderRadius: 999,
-                            paddingHorizontal: 15,
-                            paddingVertical: 7,
-                            opacity: pressed ? 0.7 : 1,
-                          })}>
-                          <Text
-                            style={{
-                              fontSize: 13,
-                              fontWeight: fontWeight.semibold,
-                              color: '#0A2814',
-                            }}>
-                            Allow
-                          </Text>
-                        </Pressable>
-                        <Pressable
-                          onPress={() => setTrustHandled('kept')}
-                          hitSlop={8}
-                          style={({ pressed }) => ({
-                            paddingVertical: 9,
-                            opacity: pressed ? 0.5 : 1,
-                          })}>
-                          <Text style={{ fontSize: 13, color: AINK.dim }}>Keep asking</Text>
-                        </Pressable>
-                      </View>
-                    </>
-                  ) : (
+                  {/* ONLY blocking asks live here: work YOU started that
+                      is now waiting on an answer, so it survives you
+                      wandering off. The pills preview the choice from
+                      that conversation (max two); tapping any of them
+                      simply returns you there to answer in context. */}
+                  <Text
+                    numberOfLines={1}
+                    style={{
+                      marginTop: 14,
+                      fontSize: fontSize.body,
+                      fontWeight: fontWeight.semibold,
+                      color: AINK.text,
+                    }}>
+                    Friday dinner, 7:00 or 7:30?
+                  </Text>
+                  {dinnerAnswered ? (
                     <Text
-                      numberOfLines={1}
                       style={{
                         marginTop: 14,
-                        fontSize: fontSize.body,
-                        fontWeight: fontWeight.semibold,
-                        color: AINK.text,
+                        fontFamily: fontFamily.mono,
+                        fontSize: 12,
+                        color: AINK.dim,
                       }}>
-                      {nextAsk?.label}
+                      {`✓ Booked ${dinnerAnswered} PM`}
                     </Text>
+                  ) : (
+                  <View
+                    style={{
+                      marginTop: 12,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 12,
+                    }}>
+                    {/* one button size everywhere: 36pt visual pill
+                        + hitSlop reaching the 44pt HIG touch target */}
+                    {['7:00', '7:30'].map((slot) => (
+                      <Pressable
+                        key={slot}
+                        onPress={() => {
+                          // the tap IS the answer: it lands in the thread
+                          // first, then we arrive to watch it confirm
+                          setDinnerAnswered(slot);
+                          confirmDinner(slot);
+                          router.push('/chat/t5');
+                        }}
+                        hitSlop={8}
+                        style={({ pressed }) => ({
+                          // outlined pill: border carries the weight,
+                          // the field shows through
+                          borderWidth: 2,
+                          borderColor: '#0A2814',
+                          borderRadius: 999,
+                          paddingHorizontal: 15,
+                          paddingVertical: 7,
+                          opacity: pressed ? 0.7 : 1,
+                        })}>
+                        <Text
+                          style={{
+                            fontSize: 13,
+                            fontWeight: fontWeight.semibold,
+                            color: '#0A2814',
+                          }}>
+                          {slot}
+                        </Text>
+                      </Pressable>
+                    ))}
+                    <Pressable
+                      onPress={() => router.push('/chat/t5')}
+                      hitSlop={8}
+                      style={({ pressed }) => ({
+                        paddingVertical: 9,
+                        opacity: pressed ? 0.5 : 1,
+                      })}>
+                      <Text style={{ fontSize: 13, color: AINK.dim }}>Other</Text>
+                    </Pressable>
+                  </View>
                   )}
                 </Pressable>
               ) : null}
 
               <View style={{ flexDirection: 'row', gap: 12, marginTop: 12 }}>
-                {/* AUTOPILOT: the calibration gauge. Collapsed = how much
-                    runs alone; tap expands the card in place (full width)
-                    into the receipts, rule by rule. Proposals queue in
-                    YOUR TURN, never here. */}
+                {/* AUTOPILOT: the calibration gauge. The card is only the
+                    gauge face; tapping opens the ledger as a bottom sheet
+                    (the board never reflows). Proposals queue in YOUR
+                    TURN, never here. */}
                 <Pressable
-                  disabled={autopilotOpen}
                   onPress={() => setAutopilotOpen(true)}
                   style={({ pressed }) => ({
                     flex: 1,
-                    height: autopilotOpen ? undefined : 124,
+                    height: 124,
                     borderRadius: 18,
                     overflow: 'hidden',
                     padding: 18,
@@ -1087,156 +1051,70 @@ export default function HomeScreen() {
                     elevation: 9,
                     opacity: pressed ? 0.85 : 1,
                   })}>
-                  {/* keyed so the native glass layer remounts at the new
-                      size when the card expands/collapses */}
-                  <AcidGlassFill
-                    key={autopilotOpen ? 'open' : 'closed'}
-                    effect="regular"
-                    bright
-                  />
+                  <AcidGlassFill effect="regular" bright />
                   <View
                     style={{
                       flexDirection: 'row',
                       justifyContent: 'space-between',
                       alignItems: 'center',
                     }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                      <Text
-                        style={{
-                          fontSize: 11,
-                          fontWeight: fontWeight.semibold,
-                          color: 'rgba(22,36,27,0.55)',
-                        }}>
-                        AUTOPILOT
-                      </Text>
-                      {autopilotOpen ? (
-                        <Text style={{ fontSize: 11, color: AINK.dim }}>this week</Text>
-                      ) : null}
-                    </View>
-                    {autopilotOpen ? (
-                      <Pressable hitSlop={10} onPress={() => setAutopilotOpen(false)}>
-                        <Ionicons name="close" size={15} color={AINK.dim} />
-                      </Pressable>
-                    ) : (
-                      <Text style={{ fontSize: 11, color: AINK.dim }}>this week</Text>
-                    )}
+                    <Text
+                      style={{
+                        fontSize: 11,
+                        fontWeight: fontWeight.semibold,
+                        color: 'rgba(22,36,27,0.55)',
+                      }}>
+                      AUTOPILOT
+                    </Text>
+                    <Text style={{ fontSize: 11, color: AINK.dim }}>this week</Text>
                   </View>
-                  {autopilotOpen ? (
-                    <>
-                      {/* the gauge, unabbreviated: raw count first, then
-                          the percent it compresses into */}
+
+                    <View style={{ flex: 1, justifyContent: 'center' }}>
+                      {/* the pattern IS the insight: one line saying what
+                          kept needing you. Numbers and the fix live one
+                          tap deeper, in the sheet. */}
                       <Text
+                        numberOfLines={2}
                         style={{
-                          marginTop: 4,
-                          paddingVertical: 12,
                           fontSize: fontSize.body,
+                          lineHeight: 20,
                           fontWeight: fontWeight.semibold,
                           color: AINK.text,
                         }}>
                         {trustHandled === 'allowed'
-                          ? '19 of 24 on its own · 78%'
-                          : '17 of 24 on its own · 71%'}
+                          ? 'Morning briefing runs daily now'
+                          : 'You keep asking for inbox summaries'}
                       </Text>
-                      {AUTOPILOT_RULES.map((rule) => (
-                        <View
-                          key={rule.name}
-                          style={{
-                            paddingVertical: 12,
-                            borderTopWidth: 1,
-                            borderTopColor: AINK.divider,
-                          }}>
-                          <View
-                            style={{
-                              flexDirection: 'row',
-                              alignItems: 'center',
-                              justifyContent: 'space-between',
-                            }}>
-                            <Text
-                              style={{
-                                fontSize: fontSize.body,
-                                fontWeight: fontWeight.semibold,
-                                color: AINK.text,
-                              }}>
-                              {rule.name}
-                            </Text>
-                            <Text style={{ fontSize: 11, color: AINK.dim }}>
-                              {`${rule.runs} runs · ${rule.undone} undone`}
-                            </Text>
-                          </View>
-                          {rule.recent.map((r) => (
-                            <View
-                              key={r.label}
-                              style={{
-                                flexDirection: 'row',
-                                alignItems: 'center',
-                                marginTop: 7,
-                                paddingLeft: 10,
-                              }}>
-                              <Text
-                                numberOfLines={1}
-                                style={{ flex: 1, fontSize: 12, color: AINK.dim }}>
-                                {'↳ '}
-                                {r.label}
-                                {r.undone ? '  ✗ undone' : ''}
-                              </Text>
-                              <Text style={{ fontSize: 11, color: AINK.dim, marginLeft: 8 }}>
-                                {r.ago}
-                              </Text>
-                            </View>
-                          ))}
-                        </View>
-                      ))}
-                    </>
-                  ) : (
-                    <View
-                      style={{
-                        flex: 1,
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        gap: 12,
-                      }}>
-                      {/* the autonomy share as a filled ring, text beside */}
-                      <TrustDonut pct={trustHandled === 'allowed' ? 0.78 : 0.71} />
-                      <View>
-                        <Text
-                          style={{
-                            fontSize: fontSize.body,
-                            fontWeight: fontWeight.semibold,
-                            color: AINK.text,
-                          }}>
-                          {trustHandled === 'allowed' ? '78% on its own' : '71% on its own'}
+                      <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 5 }}>
+                        <Text style={{ fontSize: 11, color: AINK.dim }}>
+                          {/* one umbrella word: rules + schedules are both
+                              just the agent acting without you */}
+                          {`${AUTOPILOT_RULES.length + schedules.length} automations`}
                         </Text>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 5 }}>
-                          <Text style={{ fontSize: 11, color: AINK.dim }}>
-                            {trustHandled === 'allowed' ? '4 rules' : '3 rules'}
-                          </Text>
-                          <Ionicons
-                            name="chevron-forward"
-                            size={11}
-                            color={AINK.dim}
-                            style={{ marginLeft: 2 }}
-                          />
-                        </View>
+                        <Ionicons
+                          name="chevron-forward"
+                          size={11}
+                          color={AINK.dim}
+                          style={{ marginLeft: 2 }}
+                        />
                       </View>
                     </View>
-                  )}
                 </Pressable>
-                {/* RUNNING tucks away while the autopilot ledger is open;
-                    the expanded card takes the whole row */}
-                {autopilotOpen
-                  ? null
-                  : (
+                {(
                   [
                     {
                       key: 'running',
                       label: 'RUNNING',
                       title: runningTask ? runningTask.label : 'No tasks running',
-                      // "2 of 4 sites" -> 0.5; quiet fallback when the
-                      // task has no parsable progress line
+                      // "2 of 4 sites" stays words + discrete steps; a
+                      // percent would be a guess dressed as a measurement
                       progress: (() => {
                         const m = runningTask?.progress?.match(/(\d+)\s+of\s+(\d+)/);
-                        return m ? Number(m[1]) / Number(m[2]) : runningTask ? 0.4 : null;
+                        return m
+                          ? { done: Number(m[1]), total: Number(m[2]), phrase: runningTask!.progress! }
+                          : null;
                       })(),
+                      working: !!runningTask,
                       more: Math.max(runningCount - 1, 0),
                       moreColor: sysColor.running,
                       filter: 'running' as const,
@@ -1313,40 +1191,46 @@ export default function HomeScreen() {
                         {w.title}
                       </Text>
                     </View>
-                    {w.progress != null ? (
-                      // progress strip: a little thicker, lifted off the
-                      // bottom edge, quiet dark gray
-                      <View
-                        style={{
-                          position: 'absolute',
-                          left: 18,
-                          right: 18,
-                          bottom: 18,
-                          height: 6,
-                          borderRadius: 3,
-                          backgroundColor: 'rgba(22,36,27,0.1)',
-                          overflow: 'hidden',
-                        }}>
-                        {/* the greeting's army fade, reused: dark head,
-                            pale tail across the filled part */}
-                        <Svg width="100%" height={6}>
-                          <Defs>
-                            <SvgGradient id={`proggrad-${w.key}`} x1="0" y1="0" x2="1" y2="0">
-                              <Stop offset="0" stopColor="#46583B" />
-                              <Stop offset="1" stopColor="#93A181" />
-                            </SvgGradient>
-                          </Defs>
-                          <Rect
-                            x={0}
-                            y={0}
-                            width={`${Math.round(w.progress * 100)}%`}
-                            height={6}
-                            rx={3}
-                            fill={`url(#proggrad-${w.key})`}
-                          />
-                        </Svg>
-                      </View>
-                    ) : null}
+                    {/* honest progress: discrete step ticks + the raw
+                        phrase; when steps are unknowable, a breathing dot
+                        and the plain word "working" */}
+                    <View
+                      style={{
+                        position: 'absolute',
+                        left: 18,
+                        right: 18,
+                        bottom: 16,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                      }}>
+                      {w.progress ? (
+                        <>
+                          <View style={{ flexDirection: 'row', gap: 3, marginTop: 2 }}>
+                            {Array.from({ length: w.progress.total }, (_, i) => (
+                              <View
+                                key={i}
+                                style={{
+                                  width: 10,
+                                  height: 3,
+                                  borderRadius: 2,
+                                  backgroundColor:
+                                    i < w.progress!.done ? '#46583B' : 'rgba(22,36,27,0.12)',
+                                }}
+                              />
+                            ))}
+                          </View>
+                          <Text style={{ fontSize: 11, color: AINK.dim }}>
+                            {w.progress.phrase}
+                          </Text>
+                        </>
+                      ) : w.working ? (
+                        <>
+                          <RunningDot color="rgba(22,36,27,0.35)" size={5} />
+                          <Text style={{ fontSize: 11, color: AINK.dim }}>working</Text>
+                        </>
+                      ) : null}
+                    </View>
                   </Pressable>
                 ))}
               </View>
@@ -1396,7 +1280,7 @@ export default function HomeScreen() {
                           fontWeight: fontWeight.semibold,
                           color: AINK.text,
                         }}>
-                        {`+${UNDOABLES.length - 1} more undoable`}
+                        {`+${UNDOABLES.length - 1} more`}
                       </Text>
                     </Pressable>
                   ) : null}
@@ -1534,9 +1418,6 @@ export default function HomeScreen() {
                   />
                   {activeRows.map((row, idx) => {
                     const aged = row.age?.endsWith('d') ?? false;
-                    // no deadline in the tag (it reads as noise); only
-                    // soft-aged rows show their age
-                    const statusSuffix = aged ? row.age : null;
                     return (
                       <View key={row.key}>
                         {idx > 0 ? (
@@ -1558,6 +1439,25 @@ export default function HomeScreen() {
                             paddingVertical: 15,
                             opacity: pressed ? 0.5 : aged ? 0.5 : 1,
                           })}>
+                          {/* fixed marker zone: state lives on the LEFT
+                              edge (bar = your turn, pulse = running,
+                              blank = resting) so the right column can be
+                              purely time */}
+                          <View
+                            style={{ width: 12, alignItems: 'flex-start', justifyContent: 'center' }}>
+                            {row.waiting && !aged ? (
+                              <View
+                                style={{
+                                  width: 3,
+                                  height: 16,
+                                  borderRadius: 2,
+                                  backgroundColor: AINK.text,
+                                }}
+                              />
+                            ) : !row.waiting ? (
+                              <RunningDot color="rgba(22,36,27,0.35)" size={5} />
+                            ) : null}
+                          </View>
                           <Text
                             numberOfLines={1}
                             style={{
@@ -1569,38 +1469,12 @@ export default function HomeScreen() {
                               fontWeight: idx < 3 ? fontWeight.semibold : fontWeight.regular,
                             }}>
                             {row.label}
-                            {homeTab === 'all' && row.waiting && !aged ? (
-                              // your-turn mark: a small pop-lime dot with a
-                              // real space gap (inline margins are ignored),
-                              // riding just above the text center. Aged rows
-                              // are past asking, so no dot.
-                              <>
-                                {'  '}
-                                <View
-                                  style={{
-                                    width: 5,
-                                    height: 5,
-                                    borderRadius: 999,
-                                    backgroundColor: '#A3D700',
-                                    transform: [{ translateY: -9 }],
-                                  }}
-                                />
-                              </>
-                            ) : null}
                           </Text>
-                          {homeTab === 'all' ? (
-                            // right side: spinner while running, age for
-                            // soft-aged asks; states only mix in All
-                            row.waiting ? (
-                              statusSuffix ? (
-                                <Text style={{ fontSize: 11, color: AINK.dim }}>
-                                  {statusSuffix}
-                                </Text>
-                              ) : null
-                            ) : (
-                              <RunningDot color="rgba(22,36,27,0.35)" size={5} />
-                            )
-                          ) : null}
+                          {/* right column: always time, in every tab —
+                              the list reads chronological at a glance */}
+                          <Text style={{ fontSize: 11, color: AINK.dim }}>
+                            {row.age ?? row.deadline ?? 'now'}
+                          </Text>
                         </Pressable>
                       </View>
                     );
@@ -1626,6 +1500,7 @@ export default function HomeScreen() {
                           paddingVertical: 13,
                           opacity: pressed ? 0.5 : t.outcome === 'expired' ? 0.6 : 1,
                         })}>
+                        <View style={{ width: 12 }} />
                         <View style={{ flex: 1 }}>
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                             <Text
@@ -1946,6 +1821,16 @@ export default function HomeScreen() {
 
           {/* Full prompt history, slid up from the RECENT card */}
           <PromptHistorySheet visible={historyOpen} onClose={() => setHistoryOpen(false)} />
+          <AutopilotSheet
+            visible={autopilotOpen}
+            onClose={() => setAutopilotOpen(false)}
+            routine={
+              trustHandled === 'allowed' ? 'set' : trustHandled === 'kept' ? 'dismissed' : 'none'
+            }
+            onSetRoutine={acceptMorningRoutine}
+            onNotNow={() => setTrustHandled('kept')}
+            summary="Handled 17 things without you"
+          />
         </>
       ) : (
         // ──────────────────── Onboarding · Step 1 (agent mark) ────────────────────

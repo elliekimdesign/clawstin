@@ -11,9 +11,9 @@ export default function TabsLayout() {
         <NativeTabs.Trigger.Icon sf="house" />
       </NativeTabs.Trigger>
 
-      <NativeTabs.Trigger name="activity">
-        <NativeTabs.Trigger.Label>Logs</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon sf="terminal" />
+      <NativeTabs.Trigger name="chat">
+        <NativeTabs.Trigger.Label>Chat</NativeTabs.Trigger.Label>
+        <NativeTabs.Trigger.Icon sf="message" />
       </NativeTabs.Trigger>
 
       <NativeTabs.Trigger name="crew">

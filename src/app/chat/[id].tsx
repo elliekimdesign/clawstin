@@ -29,6 +29,7 @@ import { MessageBubble } from '@/components/ui/message-bubble';
 import { PipelineCard } from '@/components/ui/pipeline-card';
 import { PRConsole } from '@/components/ui/pr-console';
 import { ResultCard } from '@/components/ui/result-card';
+import { ScheduleProposalCard } from '@/components/ui/schedule-proposal-card';
 import { ScheduleCard } from '@/components/ui/schedule-card';
 import { SuggestionChips } from '@/components/ui/suggestion-chips';
 import { ThinkingConsole } from '@/components/ui/thinking-console';
@@ -37,9 +38,19 @@ import { TypingIndicator } from '@/components/ui/typing-indicator';
 import { useAppStore } from '@/store/app-store';
 import { brandBlue, darkChat, fontFamily, fontSize, radius, shadow, spacing } from '@/theme/theme';
 
-/** Full-screen conversation view for one thread (pushed over the tabs). */
-export default function ChatThreadScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+/** The conversation view for one thread. Rendered two ways: pushed over
+ * the tabs (with a back button) and inside the Chat tab's slider
+ * (showBack=false; the history drawer is the way out there). */
+export function ChatThreadView({
+  id,
+  showBack = true,
+  onShowHistory,
+}: {
+  id: string;
+  showBack?: boolean;
+  /** tab mode: the left slot becomes the history-drawer button */
+  onShowHistory?: () => void;
+}) {
   const {
     getThread,
     markThreadRead,
@@ -52,6 +63,8 @@ export default function ChatThreadScreen() {
     resolveChatApproval,
     calendarDays,
     bookScheduleSlot,
+    runScheduleOnce,
+    confirmSchedule,
     crewSelected,
     crewManual,
     crewBusy,
@@ -150,6 +163,7 @@ export default function ChatThreadScreen() {
             entering={FadeIn.duration(150)}
             exiting={FadeOut.duration(120)}
             style={{ width: 48, alignItems: 'flex-start' }}>
+            {showBack ? (
             <GlassIconButton
               icon="chevron-back"
               // deep-linked chats have no history: fall back to Home
@@ -160,6 +174,17 @@ export default function ChatThreadScreen() {
               iconSize={22}
               hitSlop={10}
             />
+            ) : onShowHistory ? (
+            <GlassIconButton
+              icon="list"
+              onPress={onShowHistory}
+              onDark
+              tint="rgba(255,255,255,0.55)"
+              iconColor={darkChat.text}
+              iconSize={20}
+              hitSlop={10}
+            />
+            ) : null}
           </Animated.View>
         ) : null}
         <View style={{ flex: 1, alignItems: 'center' }}>
@@ -374,6 +399,13 @@ export default function ChatThreadScreen() {
                     onBook={(slot) => bookScheduleSlot(thread.id, m.id, slot)}
                   />
                 ) : null}
+                {m.scheduleProposal ? (
+                  <ScheduleProposalCard
+                    proposal={m.scheduleProposal}
+                    onRunOnce={() => runScheduleOnce(thread.id, m.id)}
+                    onSchedule={() => confirmSchedule(thread.id, m.id)}
+                  />
+                ) : null}
                 {m.pipeline ? <PipelineCard pipeline={m.pipeline} /> : null}
                 {m.result ? <ResultCard result={m.result} /> : null}
                 {m.suggestions ? (
@@ -554,4 +586,10 @@ export default function ChatThreadScreen() {
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
+}
+
+/** Pushed route wrapper (deep links, Home rows, sheet rows). */
+export default function ChatThreadScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>();
+  return <ChatThreadView id={id!} />;
 }

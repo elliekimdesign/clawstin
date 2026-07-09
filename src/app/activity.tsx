@@ -162,7 +162,7 @@ function RunBlock({
  * straight onto the night gradient. The chat surfaces show the human
  * side; this shows the machine side. */
 export default function ActivityScreen() {
-  const { activity, crew } = useAppStore();
+  const { activity, crew, logsFilter, setLogsFilter } = useAppStore();
   const byId = Object.fromEntries(crew.map((m) => [m.id, m]));
   // The system log speaks in AGENT names (Orchestrator, Research…), not
   // character names — the role field's first segment is exactly that.
@@ -182,13 +182,17 @@ export default function ActivityScreen() {
       : filter === 'errors'
         ? a.status === 'failed' || (a.steps ?? []).some((st) => st.state === 'err')
         : a.agentId === filter;
+  // drill-down chip from the AUTOPILOT sheet: narrows on top of the funnel
+  const matchesDrill = (a: ActivityItem) =>
+    !logsFilter ||
+    (logsFilter.kind === 'source' ? a.source === logsFilter.value : a.ruleKey === logsFilter.value);
   const q = query.trim().toLowerCase();
   const matchesQuery = (a: ActivityItem) =>
     q.length === 0 ||
     a.prompt.toLowerCase().includes(q) ||
     agentTitle(a.agentId).toLowerCase().includes(q) ||
     (a.steps ?? []).some((st) => st.label.toLowerCase().includes(q));
-  const filtered = activity.filter((a) => matches(a) && matchesQuery(a));
+  const filtered = activity.filter((a) => matches(a) && matchesQuery(a) && matchesDrill(a));
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: CONSOLE.bg }} edges={['top']}>
@@ -206,9 +210,16 @@ export default function ActivityScreen() {
             marginTop: spacing.md,
             marginBottom: spacing.lg,
           }}>
-          <Text style={{ fontFamily: fontFamily.mono, fontSize: 12, color: CONSOLE.faint }}>
-            ~/clawstin
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <Pressable
+              onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
+              hitSlop={10}>
+              <Ionicons name="chevron-back" size={18} color={CONSOLE.dim} />
+            </Pressable>
+            <Text style={{ fontFamily: fontFamily.mono, fontSize: 12, color: CONSOLE.faint }}>
+              ~/clawstin
+            </Text>
+          </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <View
@@ -267,6 +278,31 @@ export default function ActivityScreen() {
             </Pressable>
           ) : null}
         </View>
+
+        {/* drill-down chip: how you got here stays on screen; ✕ releases
+            back to the full log */}
+        {logsFilter ? (
+          <View style={{ flexDirection: 'row', marginBottom: spacing.md }}>
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 6,
+                backgroundColor: 'rgba(255,255,255,0.08)',
+                borderRadius: 999,
+                paddingLeft: 12,
+                paddingRight: 8,
+                paddingVertical: 6,
+              }}>
+              <Text style={{ fontFamily: fontFamily.mono, fontSize: 12, color: CONSOLE.text }}>
+                {`${logsFilter.kind}: ${logsFilter.value}`}
+              </Text>
+              <Pressable onPress={() => setLogsFilter(null)} hitSlop={8}>
+                <Ionicons name="close" size={13} color={CONSOLE.dim} />
+              </Pressable>
+            </View>
+          </View>
+        ) : null}
 
         {/* grep bar: filter the stream by agent or errors only */}
         {filterOpen ? (

@@ -32,9 +32,58 @@ export type ActivityItem = {
   steps?: LogStep[];
   /** total wall time of the run, e.g. '4.2s' */
   total?: string;
+  /** ran without a prompt: an AUTOPILOT rule or schedule fired */
+  source?: 'autopilot';
+  /** which automation fired (see mock/autopilot.ts rule keys) */
+  ruleKey?: string;
 };
 
 export const initialActivity: ActivityItem[] = [
+  // Autopilot runs: no prompt asked for these; a rule or schedule fired.
+  {
+    id: 'ap-run1', time: '16:52', day: 'today', ago: '2m',
+    prompt: 'Email cleanup · rule run',
+    agentId: 'muppet', threadId: 't1', total: '2.4s',
+    source: 'autopilot', ruleKey: 'email-cleanup',
+    steps: [
+      { label: 'gmail.messages.list', ms: '350ms' },
+      { label: 'summarize 4 new emails', ms: '1.6s' },
+    ],
+  },
+  {
+    id: 'ap-run2', time: '16:52', day: 'today', ago: '2m',
+    prompt: 'Newsletter archiving · rule run',
+    agentId: 'muppet', threadId: 't1', total: '1.9s',
+    source: 'autopilot', ruleKey: 'newsletter-archiving',
+    steps: [
+      { label: 'match list.promotions x12', ms: '240ms' },
+      { label: 'archive 12 emails', ms: '1.3s' },
+    ],
+  },
+  {
+    id: 'ap-run3', time: '16:50', day: 'today', ago: '4m',
+    prompt: 'GitHub labeling · rule run',
+    agentId: 'pilot', threadId: 't4', total: '1.2s',
+    source: 'autopilot', ruleKey: 'github-labeling',
+    steps: [{ label: 'label 6 notifications', ms: '900ms' }],
+  },
+  {
+    id: 'ap-run4', time: '09:14', day: 'yesterday', ago: '1d',
+    prompt: 'Newsletter archiving · rule run',
+    agentId: 'muppet', threadId: 't1', total: '1.6s',
+    source: 'autopilot', ruleKey: 'newsletter-archiving',
+    steps: [{ label: 'archive 8 emails · undone later', ms: '1.1s' }],
+  },
+  {
+    id: 'ap-run5', time: '09:00', day: 'yesterday', ago: '1d',
+    prompt: 'Weekly review · scheduled run',
+    agentId: 'quill', threadId: 't3', total: '8.2s',
+    source: 'autopilot', ruleKey: 'weekly-review',
+    steps: [
+      { label: 'calendar.week.read', ms: '600ms' },
+      { label: 'draft top 3 priorities', ms: '6.4s' },
+    ],
+  },
   {
     id: 'a1', time: '16:40', day: 'today', ago: '2h',
     prompt: 'Plan my week and delegate the research tasks',

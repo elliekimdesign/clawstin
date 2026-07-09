@@ -1,5 +1,6 @@
 import type { Approval } from '@/components/ui/approval-card';
 import type { ScheduleSuggestion } from '@/mock/calendar';
+import type { ScheduleProposal } from '@/mock/schedules';
 
 /**
  * Universal result card: every informational answer (places, weather,
@@ -21,6 +22,9 @@ export type ChatMessage = {
   text?: string;
   approval?: Approval;
   schedule?: ScheduleSuggestion;
+  /** structured recurring-task proposal (name, cadence, scope) with a
+   * test-run-first button row; stamped in place once scheduled */
+  scheduleProposal?: ScheduleProposal;
   result?: ResultCard;
   /** multi-agent status card — shown only for replies that represent real
    * tool/data work (not every reply; simple replies stay plain text). */
