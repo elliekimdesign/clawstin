@@ -39,10 +39,13 @@ function glow(
 
 // Dreamy underlayer, matched to the Figma V Acid Pop frame.
 // [cx, cy, rx, ry, rotation, color, peak opacity]
+// 2026-07-08 pm "silverfield": glows in white + bright silver.
+// Fullback (chartreuse keeper): shimmer #E9F296 @0.6, pool #A8BF3E @0.36.
+// Older: meadow green #6FA344 @0.3-0.36, shimmer #EFF5B0 @0.5.
 const GLOWS: [number, number, number, number, number, string, number][] = [
   [100, 200, 360, 300, 0, '#FFFFFF', 0.3], // top-left light source
-  [330, 450, 200, 150, 0, '#EFF5B0', 0.5], // pale lime shimmer mid-right
-  [150, 750, 230, 170, 0, '#6FA344', 0.3], // meadow pool at the bottom
+  [330, 450, 200, 150, 0, '#EBEEE0', 0.6], // warm silver shimmer mid-right
+  [150, 750, 230, 170, 0, '#ADB3A0', 0.32], // sage-silver pool at the bottom
 ];
 
 export function AcidSwooshBg() {
@@ -55,20 +58,27 @@ export function AcidSwooshBg() {
               not electric); previous stops #F8FAE6 / #E2EABC / #B4CB93
               live at commit 3739da4 for rollback. */}
           <LinearGradient id="acidfield" x1="0" y1="0" x2="0.7" y2="1">
-            {/* 2026-07-08: near-white, barest lime cast; swoosh ribbons
-                and glows stay as the pattern. Previous butter-lime
-                stops #F7FAC6 / #EFF4A8 / #D3E28C for recall. */}
-            <Stop offset="0%" stopColor="#FEFEF9" />
-            <Stop offset="33%" stopColor="#FBFCEE" />
-            <Stop offset="74%" stopColor="#F3F6DE" />
+            {/* 2026-07-08 pm "silverfield": white melting into bright
+                silver so the lime sections carry all the color; swoosh
+                stays as a silver pattern. Fullback (chartreuse field,
+                the keeper candidate): #FEFEF7 / #FCFDEA / #F4F7D9.
+                Older: pop-pass #FDFEEC / #F8FBD8 / #ECF3BE; near-white
+                #FEFEF9 / #FBFCEE / #F3F6DE; butter-lime #F7FAC6 /
+                #EFF4A8 / #D3E28C. */}
+            {/* warmed a touch (fullback cool silver: #FFFFFF / #FAFBFB
+                / #EDF0EF) */}
+            <Stop offset="0%" stopColor="#FEFEFA" />
+            <Stop offset="33%" stopColor="#F8F9F0" />
+            <Stop offset="74%" stopColor="#EDEFE2" />
           </LinearGradient>
           {GLOWS.map((g, i) => glow(`ag${i}`, g[0], g[1], g[2], g[3], g[4], g[5], g[6]))}
 
           {/* swoosh ribbon fills: strongest in the heart, melting at the rims */}
+          {/* (fullback: chartreuse ribbon #A8BF3E; older meadow #6FA344) */}
           <LinearGradient id="acidDeepRibbon" x1="0" y1="0" x2="0.5" y2="1">
-            <Stop offset="0%" stopColor="#6FA344" stopOpacity={0.3} />
-            <Stop offset="60%" stopColor="#6FA344" stopOpacity={0.12} />
-            <Stop offset="100%" stopColor="#6FA344" stopOpacity={0} />
+            <Stop offset="0%" stopColor="#A6AC9B" stopOpacity={0.3} />
+            <Stop offset="60%" stopColor="#A6AC9B" stopOpacity={0.12} />
+            <Stop offset="100%" stopColor="#A6AC9B" stopOpacity={0} />
           </LinearGradient>
           <LinearGradient id="acidLightArc" x1="0" y1="1" x2="0" y2="0">
             <Stop offset="0%" stopColor="#FFFFFF" stopOpacity={0.05} />
