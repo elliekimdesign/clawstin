@@ -6,14 +6,15 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AUTOPILOT_RULES, isInactiveAgo } from '@/mock/autopilot';
 import { useAppStore } from '@/store/app-store';
-import { fontSize, fontWeight, spacing } from '@/theme/theme';
+import { fontFamily, fontSize, fontWeight, spacing, sysColor } from '@/theme/theme';
 
-// The home tab's olive ink, on the white sheet.
-const INK = '#16241B';
-const INK_DIM = 'rgba(22,36,27,0.55)';
-const DIVIDER = 'rgba(22,36,27,0.08)';
-const AMBER = '#B96A00';
-const AMBER_BG = 'rgba(240,178,95,0.22)';
+// aquaos sheet tokens: this sheet is the ROUTINES window opened big,
+// so it wears the same silver pane + ink + mono system voice.
+const INK = '#16181C';
+const INK_DIM = 'rgba(22,24,28,0.55)';
+const DIVIDER = 'rgba(22,24,28,0.08)';
+const AMBER = '#9A6B1F';
+const AMBER_BG = 'rgba(199,126,34,0.16)';
 
 /** app slug -> monochrome Ionicon: the left slot answers "what does it
  * touch", so Gmail-ness / GitHub-ness scans instantly. */
@@ -74,7 +75,9 @@ function SheetRow({
         </Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
           {rightClock ? <Ionicons name="time-outline" size={11} color={INK_DIM} /> : null}
-          <Text style={{ fontSize: 11, color: INK_DIM }}>{right}</Text>
+          <Text style={{ fontSize: 10, fontFamily: fontFamily.mono, color: INK_DIM }}>
+            {right}
+          </Text>
         </View>
       </View>
       {/* the exception chip lives at the end of the sub line so long
@@ -156,17 +159,17 @@ export function AutopilotSheet({
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       {/* dim scrim as a full-screen layer, so the corners of the
           rounded sheet sit on dimmed board, not raw board */}
-      <View style={{ flex: 1, backgroundColor: 'rgba(22,36,27,0.16)' }}>
+      <View style={{ flex: 1, backgroundColor: 'rgba(22,24,28,0.2)' }}>
       <Pressable onPress={onClose} style={{ flex: 1 }} />
       <View
         style={{
-          backgroundColor: '#FFFFFF',
-          borderTopLeftRadius: 26,
-          borderTopRightRadius: 26,
+          backgroundColor: '#F0F1F3',
+          borderTopLeftRadius: 16,
+          borderTopRightRadius: 16,
           maxHeight: '78%',
           paddingBottom: Math.max(insets.bottom, 12),
-          shadowColor: '#16241B',
-          shadowOpacity: 0.25,
+          shadowColor: '#16181C',
+          shadowOpacity: 0.2,
           shadowRadius: 24,
           shadowOffset: { width: 0, height: -8 },
           elevation: 16,
@@ -178,17 +181,35 @@ export function AutopilotSheet({
             width: 36,
             height: 5,
             borderRadius: 3,
-            backgroundColor: 'rgba(22,36,27,0.15)',
+            backgroundColor: 'rgba(22,24,28,0.15)',
             marginTop: 8,
           }}
         />
         {/* pinned header: the week at a glance, then the list scrolls */}
         <View style={{ paddingHorizontal: spacing.xl, paddingTop: spacing.lg }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-            <Text style={{ fontSize: 11, fontWeight: fontWeight.semibold, color: INK_DIM }}>
-              AUTOPILOT
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <View style={{ flexDirection: 'row', gap: 3.5, marginRight: 8 }}>
+              {[0, 1, 2].map((i) => (
+                <View
+                  key={i}
+                  style={{
+                    width: 4.5,
+                    height: 4.5,
+                    borderRadius: 1.2,
+                    backgroundColor: 'rgba(59,118,196,0.32)',
+                  }}
+                />
+              ))}
+            </View>
+            <Text
+              style={{
+                fontSize: 10,
+                fontFamily: fontFamily.mono,
+                letterSpacing: 1.2,
+                color: INK_DIM,
+              }}>
+              ROUTINES
             </Text>
-            <Text style={{ fontSize: 11, color: INK_DIM }}>this week</Text>
           </View>
           <Text
             style={{
@@ -218,7 +239,7 @@ export function AutopilotSheet({
                   onPress={onSetRoutine}
                   hitSlop={8}
                   style={({ pressed }) => ({
-                    backgroundColor: INK,
+                    backgroundColor: sysColor.accent,
                     borderRadius: 999,
                     paddingVertical: 6,
                     paddingHorizontal: 12,

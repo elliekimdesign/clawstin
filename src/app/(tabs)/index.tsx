@@ -5,6 +5,7 @@ import {
   Image,
   Keyboard,
   KeyboardAvoidingView,
+  LayoutAnimation,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -143,7 +144,7 @@ function AcidGlassFill({
           gradient, no sheen, matching the chat box's calm (the veiled
           glass versions live in git). */}
       <Svg style={StyleSheet.absoluteFill} pointerEvents="none" preserveAspectRatio="none">
-        <Rect x="0" y="0" width="100%" height="100%" fill={stops[1]} fillOpacity={0.85} />
+        <Rect x="0" y="0" width="100%" height="100%" fill={stops[1]} fillOpacity={0.93} />
         {/* window chrome: a slim crisp WHITE title bar + hairline sill,
             Aqua-precise (thinned 38->30 / 48->42 on Ellie's request;
             cards pull their headers out of the padding so labels sit
@@ -155,7 +156,7 @@ function AcidGlassFill({
           width="100%"
           height={1}
           fill="#16181C"
-          fillOpacity={0.1}
+          fillOpacity={0.07}
         />
       </Svg>
     </>
@@ -374,6 +375,94 @@ function ThreadRail({ first, last }: { first?: boolean; last?: boolean }) {
   );
 }
 
+/** The Clawstin mark, pixel edition v4 (2026-07-11): simplified on
+ * Ellie's direction — a ROUND pixel ring (no white fill, background
+ * shows through), big solid periwinkle eyes (no pupils/highlights,
+ * the layered colors read as noise), no paws/legs, tiny deadpan
+ * mouth at hero size only. Two colors total: ink + periwinkle. */
+const MARK_INK = '#101214';
+const MARK_EYE = MARK_INK; // monochrome: the color came out
+/** pixel circle ring on an n-grid: cells whose center falls in the
+ * ring band (computed once at module load; deterministic) */
+function pixelRing(n: number, rInner: number, rOuter: number): [number, number][] {
+  const cells: [number, number][] = [];
+  const mid = n / 2;
+  for (let y = 0; y < n; y++) {
+    for (let x = 0; x < n; x++) {
+      const d = Math.hypot(x + 0.5 - mid, y + 0.5 - mid);
+      if (d >= rInner && d <= rOuter) cells.push([x, y]);
+    }
+  }
+  return cells;
+}
+const SMALL_RING = pixelRing(12, 4.5, 5.9);
+const SMALL_EYES: [number, number][] = [
+  [3, 4], [4, 4], [3, 5], [4, 5],
+  [7, 4], [8, 4], [7, 5], [8, 5],
+];
+const HERO_RING = pixelRing(24, 10.4, 11.9);
+// thin tall slit eyes are drawn as bars 1.5 cells wide directly in
+// the component — between one and two pixels, per taste
+// her pixel bob: jagged fringe on top + hair falling down both
+// sides of the ring (an inner band hugging the curve) ending in
+// blunt bob tips at cheek level. Hero size only.
+const HERO_HAIR: [number, number][] = [
+  // bangs peeking out under the cap: one solid row + jagged teeth
+  ...[6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17].map((c) => [c, 5] as [number, number]),
+  ...[6, 8, 10, 12, 14, 16].map((c) => [c, 6] as [number, number]),
+];
+// the cap: an accent-blue dome over the crown (drawn OVER the hair so
+// the fringe peeks below it, like the reference) + a 2-pixel button
+// poking through the outline on top
+const HERO_CAP: [number, number][] = [];
+for (let y = 1; y <= 4; y++) {
+  for (let x = 0; x < 24; x++) {
+    const d = Math.hypot(x + 0.5 - 12, y + 0.5 - 12);
+    if (d <= 11.5) HERO_CAP.push([x, y]);
+  }
+}
+const HERO_CAP_BUTTON: [number, number][] = [[11, 0], [12, 0]];
+for (let y = 4; y <= 15; y++) {
+  for (let x = 0; x < 24; x++) {
+    const d = Math.hypot(x + 0.5 - 12, y + 0.5 - 12);
+    if (d >= 8.9 && d <= 10.35 && (x < 6 || x > 17)) HERO_HAIR.push([x, y]);
+  }
+}
+// blunt bob ends
+HERO_HAIR.push([3, 16], [4, 16], [19, 16], [20, 16]);
+// a long smile: raised pixel corners, flat middle (sits lower)
+const HERO_MOUTH: [number, number][] = [
+  [8, 15], [9, 16], [10, 16], [11, 16], [12, 16], [13, 16], [14, 16], [15, 15],
+];
+function ClawstinMark({ size }: { size: number }) {
+  const hero = size >= 40;
+  const grid = hero ? 24 : 12;
+  const c = size / grid;
+  // pixels overlap a hair so no shimmer lines appear between cells
+  const w = c * 1.06;
+  const px = (cells: [number, number][], fill: string) =>
+    cells.map(([x, y], i) => (
+      <Rect key={`${fill}${i}`} x={x * c} y={y * c} width={w} height={w} fill={fill} />
+    ));
+  return (
+    <Svg width={size} height={size}>
+      {px(hero ? HERO_RING : SMALL_RING, MARK_INK)}
+      {hero ? px(HERO_HAIR, MARK_INK) : null}
+      {hero ? px(HERO_CAP, '#3B76C4') : null}
+      {hero ? px(HERO_CAP_BUTTON, '#3B76C4') : null}
+      {hero ? (
+        <>
+          <Rect x={6.75 * c} y={9 * c} width={1.5 * c} height={4 * c} fill={MARK_EYE} />
+          <Rect x={15.75 * c} y={9 * c} width={1.5 * c} height={4 * c} fill={MARK_EYE} />
+        </>
+      ) : (
+        px(SMALL_EYES, MARK_EYE)
+      )}
+      {hero ? px(HERO_MOUTH, MARK_INK) : null}
+    </Svg>
+  );
+}
+
 /** Window controls: three quiet dots at the left of a section's title
  * bar. The trio is ONE control — tap to fold the window down to its
  * title bar, tap again to reopen (close/zoom were rejected: tasks must
@@ -397,10 +486,10 @@ function WindowDots({ folded, onPress }: { folded?: boolean; onPress?: () => voi
         <View
           key={i}
           style={{
-            width: 5,
-            height: 5,
-            borderRadius: 999,
-            backgroundColor: '#9FC0EC',
+            width: 4.5,
+            height: 4.5,
+            borderRadius: 1.2,
+            backgroundColor: 'rgba(59,118,196,0.32)',
             opacity: folded && i > 0 ? 0.35 : 1,
           }}
         />
@@ -697,6 +786,8 @@ export default function HomeScreen() {
     [k in 'yourTurn' | 'autopilot' | 'running' | 'lastAction']?: boolean;
   }>({});
   const toggleFold = (k: 'yourTurn' | 'autopilot' | 'running' | 'lastAction') => {
+    // seamless: the window glides shut instead of snapping
+    LayoutAnimation.configureNext(LayoutAnimation.create(220, 'easeInEaseOut', 'opacity'));
     if (k === 'lastAction') setLastActionOpen(false);
     setFolded((f) => ({ ...f, [k]: !f[k] }));
   };
@@ -793,7 +884,7 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView
-      style={{ flex: 1, backgroundColor: '#4577B8' }}
+      style={{ flex: 1, backgroundColor: '#4E83B8' }}
       edges={['top']}>
       <StatusBar style="dark" />
       {/* start field: quiet paper-blue mesh, an Apple-style wash of soft
@@ -885,34 +976,9 @@ export default function HomeScreen() {
                   marginTop: 4,
                 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  {/* the square face mark, tiny: ink + lime eyes, the
-                      one brand wink kept from the mascot */}
-                  <View
-                    style={{
-                      width: 22,
-                      height: 22,
-                      borderRadius: 7,
-                      backgroundColor: '#101214',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}>
-                    <View style={{ flexDirection: 'row', gap: 3.5, marginBottom: 3 }}>
-                      <View
-                        style={{ width: 3, height: 3, borderRadius: 999, backgroundColor: '#DEFF4F' }}
-                      />
-                      <View
-                        style={{ width: 3, height: 3, borderRadius: 999, backgroundColor: '#DEFF4F' }}
-                      />
-                    </View>
-                    <View
-                      style={{
-                        width: 8,
-                        height: 1.5,
-                        borderRadius: 1,
-                        backgroundColor: 'rgba(230,233,238,0.55)',
-                      }}
-                    />
-                  </View>
+                  {/* the split-face mark, tiny: ink + lime LED eyes,
+                      the seam shared with the hero mark */}
+                  <ClawstinMark size={22} />
                   {/* wordmark: white on the aqua desk, menu-bar style */}
                   <Text
                     style={{
@@ -949,8 +1015,9 @@ export default function HomeScreen() {
                       // window-title grammar: quiet ink, no dot — the
                       // popover carries the colored state detail
                       color: 'rgba(22,24,28,0.6)',
-                      fontSize: 11,
-                      fontWeight: fontWeight.semibold,
+                      fontSize: 10,
+                      fontFamily: fontFamily.mono,
+                      letterSpacing: 0.5,
                     }}>
                     {statusLabel.toLowerCase()}
                   </Text>
@@ -993,10 +1060,10 @@ export default function HomeScreen() {
                     paddingHorizontal: 18,
                     paddingBottom: folded.yourTurn ? 0 : 18,
                     shadowColor: '#16181C',
-                    shadowOpacity: 0.16,
-                    shadowRadius: 28,
-                    shadowOffset: { width: 0, height: 14 },
-                    elevation: 9,
+                    shadowOpacity: 0.09,
+                    shadowRadius: 16,
+                    shadowOffset: { width: 0, height: 6 },
+                    elevation: 5,
                     opacity: pressed ? 0.85 : 1,
                   })}>
                   {/* keyed: this card also changes height when the
@@ -1021,8 +1088,9 @@ export default function HomeScreen() {
                       />
                       <Text
                         style={{
-                          fontSize: 11,
-                          fontWeight: fontWeight.semibold,
+                          fontSize: 10,
+                          fontFamily: fontFamily.mono,
+                          letterSpacing: 1.2,
                           color: 'rgba(22,24,28,0.55)',
                         }}>
                         YOUR TURN
@@ -1037,8 +1105,8 @@ export default function HomeScreen() {
                         hitSlop={10}>
                         <Text
                           style={{
-                            fontSize: 11,
-                            fontWeight: fontWeight.semibold,
+                            fontSize: 10,
+                            fontFamily: fontFamily.mono,
                             color: AINK.text,
                           }}>
                           {`+${needsYou - 1} more`}
@@ -1152,10 +1220,10 @@ export default function HomeScreen() {
                     paddingHorizontal: 18,
                     paddingBottom: folded.autopilot ? 0 : 18,
                     shadowColor: '#16181C',
-                    shadowOpacity: 0.16,
-                    shadowRadius: 28,
-                    shadowOffset: { width: 0, height: 14 },
-                    elevation: 9,
+                    shadowOpacity: 0.09,
+                    shadowRadius: 16,
+                    shadowOffset: { width: 0, height: 6 },
+                    elevation: 5,
                     opacity: pressed ? 0.85 : 1,
                   })}>
                   <AcidGlassFill
@@ -1178,14 +1246,14 @@ export default function HomeScreen() {
                       />
                       <Text
                         style={{
-                          fontSize: 11,
-                          fontWeight: fontWeight.semibold,
+                          fontSize: 10,
+                          fontFamily: fontFamily.mono,
+                          letterSpacing: 1.2,
                           color: 'rgba(22,24,28,0.55)',
                         }}>
-                        AUTOPILOT
+                        ROUTINES
                       </Text>
                     </View>
-                    <Text style={{ fontSize: 11, color: AINK.dim }}>this week</Text>
                   </View>
 
                     {folded.autopilot ? null : (
@@ -1206,10 +1274,10 @@ export default function HomeScreen() {
                           : 'You keep asking for inbox summaries'}
                       </Text>
                       <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 5 }}>
-                        <Text style={{ fontSize: 11, color: AINK.dim }}>
+                        <Text style={{ fontSize: 10, fontFamily: fontFamily.mono, color: AINK.dim }}>
                           {/* one umbrella word: rules + schedules are both
                               just the agent acting without you */}
-                          {`${AUTOPILOT_RULES.length + schedules.length} automations`}
+                          {`${AUTOPILOT_RULES.length + schedules.length} routines`}
                         </Text>
                         <Ionicons
                           name="chevron-forward"
@@ -1254,10 +1322,10 @@ export default function HomeScreen() {
                       paddingHorizontal: 18,
                       paddingBottom: folded.running ? 0 : 18,
                       shadowColor: '#16181C',
-                      shadowOpacity: 0.16,
-                      shadowRadius: 28,
-                      shadowOffset: { width: 0, height: 14 },
-                      elevation: 9,
+                      shadowOpacity: 0.09,
+                      shadowRadius: 16,
+                      shadowOffset: { width: 0, height: 6 },
+                      elevation: 5,
                       opacity: pressed ? 0.85 : 1,
                     })}>
                     <AcidGlassFill
@@ -1273,8 +1341,9 @@ export default function HomeScreen() {
                       />
                       <Text
                         style={{
-                          fontSize: 11,
-                          fontWeight: fontWeight.semibold,
+                          fontSize: 10,
+                          fontFamily: fontFamily.mono,
+                          letterSpacing: 1.2,
                           color: 'rgba(22,24,28,0.55)',
                         }}>
                         {w.label}
@@ -1296,8 +1365,8 @@ export default function HomeScreen() {
                         })}>
                         <Text
                           style={{
-                            fontSize: 11,
-                            fontWeight: fontWeight.semibold,
+                            fontSize: 10,
+                            fontFamily: fontFamily.mono,
                             color: w.moreColor,
                           }}>
                           {`+${w.more} more`}
@@ -1357,14 +1426,18 @@ export default function HomeScreen() {
                               />
                             ))}
                           </View>
-                          <Text style={{ fontSize: 11, color: AINK.dim }}>
+                          <Text
+                            style={{ fontSize: 10, fontFamily: fontFamily.mono, color: AINK.dim }}>
                             {w.progress.phrase}
                           </Text>
                         </>
                       ) : w.working ? (
                         <>
                           <RunningDot color="rgba(22,24,28,0.35)" size={5} />
-                          <Text style={{ fontSize: 11, color: AINK.dim }}>working</Text>
+                          <Text
+                            style={{ fontSize: 10, fontFamily: fontFamily.mono, color: AINK.dim }}>
+                            working
+                          </Text>
                         </>
                       ) : null}
                     </View>
@@ -1386,10 +1459,10 @@ export default function HomeScreen() {
                   paddingHorizontal: 18,
                   paddingBottom: folded.lastAction ? 0 : 18,
                   shadowColor: '#16181C',
-                  shadowOpacity: 0.16,
-                  shadowRadius: 28,
-                  shadowOffset: { width: 0, height: 14 },
-                  elevation: 9,
+                  shadowOpacity: 0.09,
+                  shadowRadius: 16,
+                  shadowOffset: { width: 0, height: 6 },
+                  elevation: 5,
                 }}>
                 {/* keyed so the native glass layer remounts at the new
                     size when the card expands/collapses */}
@@ -1413,8 +1486,9 @@ export default function HomeScreen() {
                     />
                     <Text
                       style={{
-                        fontSize: 11,
-                        fontWeight: fontWeight.semibold,
+                        fontSize: 10,
+                        fontFamily: fontFamily.mono,
+                        letterSpacing: 1.2,
                         color: 'rgba(22,24,28,0.55)',
                       }}>
                       LAST ACTION
@@ -1428,8 +1502,8 @@ export default function HomeScreen() {
                     <Pressable hitSlop={10} onPress={() => setLastActionOpen(true)}>
                       <Text
                         style={{
-                          fontSize: 11,
-                          fontWeight: fontWeight.semibold,
+                          fontSize: 10,
+                          fontFamily: fontFamily.mono,
                           color: AINK.text,
                         }}>
                         {`+${UNDOABLES.length - 1} more`}
@@ -1523,10 +1597,10 @@ export default function HomeScreen() {
                     borderRadius: 16,
                                         overflow: 'hidden',
                     shadowColor: '#16181C',
-                    shadowOpacity: 0.16,
-                    shadowRadius: 28,
-                    shadowOffset: { width: 0, height: 14 },
-                    elevation: 9,
+                    shadowOpacity: 0.09,
+                    shadowRadius: 16,
+                    shadowOffset: { width: 0, height: 6 },
+                    elevation: 5,
                   }}>
                   {/* tall card: 'regular' frost avoids clear-glass edge
                       lensing showing as a dark band at the bottom;
@@ -1658,7 +1732,8 @@ export default function HomeScreen() {
                           </Text>
                           {/* right column: always time, in every tab —
                               the list reads chronological at a glance */}
-                          <Text style={{ fontSize: 11, color: AINK.dim }}>
+                          <Text
+                            style={{ fontSize: 10, fontFamily: fontFamily.mono, color: AINK.dim }}>
                             {row.age ?? row.deadline ?? 'now'}
                           </Text>
                         </Pressable>
@@ -1708,7 +1783,8 @@ export default function HomeScreen() {
                         </View>
                         <Text
                           style={{
-                            fontSize: 11,
+                            fontSize: 10,
+                            fontFamily: fontFamily.mono,
                             color: AINK.dim,
                           }}>
                           {t.outcome === 'expired' ? 'expired' : t.updatedAt}
@@ -1728,7 +1804,8 @@ export default function HomeScreen() {
                   })}>
                   <Text
                     style={{
-                      fontSize: 11,
+                      fontSize: 10,
+                      fontFamily: fontFamily.mono,
                       color: 'rgba(255,255,255,0.85)',
                     }}>
                     {'full history ›'}
@@ -1750,9 +1827,9 @@ export default function HomeScreen() {
                 bottom: 90,
                 // same shadow family as the section windows
                 shadowColor: '#16181C',
-                shadowOpacity: 0.16,
-                shadowRadius: 16,
-                shadowOffset: { width: 0, height: 8 },
+                shadowOpacity: 0.1,
+                shadowRadius: 12,
+                shadowOffset: { width: 0, height: 5 },
                 elevation: 10,
                 opacity: askOpen ? 0 : 1,
               }}>
@@ -1769,7 +1846,7 @@ export default function HomeScreen() {
                   height: 52,
                   borderRadius: 16,
                   overflow: 'hidden',
-                  backgroundColor: '#EFF1F3',
+                  backgroundColor: '#F6F8FA',
                   opacity: pressed ? 0.85 : 1,
                 })}>
                 <View
@@ -1794,7 +1871,7 @@ export default function HomeScreen() {
                       width: 22,
                       height: 22,
                       borderRadius: 6,
-                      backgroundColor: 'rgba(47,124,216,0.12)',
+                      backgroundColor: 'rgba(59,118,196,0.12)',
                       alignItems: 'center',
                       justifyContent: 'center',
                       opacity: pressed ? 0.6 : 1,
@@ -1820,9 +1897,9 @@ export default function HomeScreen() {
                     {/* quiet blue-white rim: soft pastel stops so it
                         reads as a glow, not a toy */}
                     <SvgGradient id="askrim" x1="0" y1="0" x2="1" y2="0">
-                      <Stop offset="0" stopColor="#E3F0FD" />
-                      <Stop offset="0.5" stopColor="#8FB9EF" />
-                      <Stop offset="1" stopColor="#D6E8FB" />
+                      <Stop offset="0" stopColor="#7C9FDC" />
+                      <Stop offset="0.5" stopColor="#4478C4" />
+                      <Stop offset="1" stopColor="#6D94D6" />
                     </SvgGradient>
                   </Defs>
                   {/* soft aurora bleed under the crisp rim */}
@@ -1835,7 +1912,7 @@ export default function HomeScreen() {
                     fill="none"
                     stroke="url(#askrim)"
                     strokeWidth={5}
-                    opacity={0.1}
+                    opacity={0.25}
                   />
                   <Rect
                     x={0.75}
@@ -1892,9 +1969,9 @@ export default function HomeScreen() {
                     <View
                       style={{
                         shadowColor: '#16181C',
-                        shadowOpacity: 0.16,
-                        shadowRadius: 16,
-                        shadowOffset: { width: 0, height: 8 },
+                        shadowOpacity: 0.1,
+                        shadowRadius: 12,
+                        shadowOffset: { width: 0, height: 5 },
                         elevation: 10,
                       }}>
                       <View
@@ -1906,7 +1983,7 @@ export default function HomeScreen() {
                         }
                         style={{
                           borderRadius: 16,
-                          backgroundColor: '#EFF1F3',
+                          backgroundColor: '#F6F8FA',
                           padding: 14,
                           flexDirection: 'row',
                           alignItems: 'flex-end',
@@ -1938,7 +2015,7 @@ export default function HomeScreen() {
                             width: 34,
                             height: 34,
                             borderRadius: 999,
-                            backgroundColor: '#2F7CD8',
+                            backgroundColor: '#3B76C4',
                             alignItems: 'center',
                             justifyContent: 'center',
                             opacity: !askText.trim() ? 0.4 : pressed ? 0.7 : 1,
@@ -1953,9 +2030,9 @@ export default function HomeScreen() {
                             style={{ position: 'absolute', top: 0, left: 0 }}>
                             <Defs>
                               <SvgGradient id="askpanelrim" x1="0" y1="0" x2="1" y2="0">
-                                <Stop offset="0" stopColor="#E3F0FD" />
-                                <Stop offset="0.5" stopColor="#8FB9EF" />
-                                <Stop offset="1" stopColor="#D6E8FB" />
+                                <Stop offset="0" stopColor="#7C9FDC" />
+                                <Stop offset="0.5" stopColor="#4478C4" />
+                                <Stop offset="1" stopColor="#6D94D6" />
                               </SvgGradient>
                             </Defs>
                             <Rect
@@ -1967,7 +2044,7 @@ export default function HomeScreen() {
                               fill="none"
                               stroke="url(#askpanelrim)"
                               strokeWidth={5}
-                              opacity={0.1}
+                              opacity={0.25}
                             />
                             <Rect
                               x={0.75}
@@ -2028,34 +2105,15 @@ export default function HomeScreen() {
             <PulseMark size={140}>
               <View
                 style={{
-                  width: 80.5,
-                  height: 80.5,
-                  borderRadius: 24,
-                  // the home header mark, hero size: the same ink
-                  // square as the header mascot, ice-teal face
-                  backgroundColor: '#121417',
-                  alignItems: 'center',
-                  justifyContent: 'center',
+                  // the split-face mark at hero size, lime eyes per the
+                  // eyeball-lime rule (ice-teal era retired)
                   shadowColor: '#16181C',
                   shadowOpacity: 0.22,
                   shadowRadius: 20,
                   shadowOffset: { width: 0, height: 10 },
                   elevation: 6,
                 }}>
-                {/* Eyes: ice teal; mouth stays quiet and translucent */}
-                <View style={{ flexDirection: 'row', gap: 15, marginBottom: 11 }}>
-                  <View style={{ width: 10, height: 10, borderRadius: 999, backgroundColor: '#8FE8D8' }} />
-                  <View style={{ width: 10, height: 10, borderRadius: 999, backgroundColor: '#8FE8D8' }} />
-                </View>
-                {/* Mouth */}
-                <View
-                  style={{
-                    width: 27,
-                    height: 5,
-                    borderRadius: 3,
-                    backgroundColor: 'rgba(143,232,216,0.6)',
-                  }}
-                />
+                <ClawstinMark size={80.5} />
               </View>
             </PulseMark>
 

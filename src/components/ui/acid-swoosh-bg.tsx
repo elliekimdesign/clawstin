@@ -44,8 +44,8 @@ function glow(
 // (fullback neutral-silver: #E9EBED sheen, #AEB4BA pool).
 const GLOWS: [number, number, number, number, number, string, number][] = [
   [100, 200, 360, 300, 0, '#FFFFFF', 0.28], // top-left light source
-  [330, 450, 200, 150, 0, '#8FBCEE', 0.45], // aqua shimmer mid-right
-  [150, 750, 230, 170, 0, '#2C5C9E', 0.3], // deep pool at the bottom
+  [330, 450, 200, 150, 0, '#8FC0E8', 0.35], // aqua shimmer mid-right
+  [150, 750, 230, 170, 0, '#33689C', 0.24], // deep pool at the bottom
 ];
 
 export function AcidSwooshBg() {
@@ -59,22 +59,22 @@ export function AcidSwooshBg() {
               light waves. Fullback white-tone: #FDFDFD / #F9FAFA /
               #F2F4F4. */}
           <LinearGradient id="acidfield" x1="0" y1="0" x2="0.7" y2="1">
-            <Stop offset="0%" stopColor="#5D8FD0" />
-            <Stop offset="33%" stopColor="#4577B8" />
-            <Stop offset="74%" stopColor="#3563A3" />
+            <Stop offset="0%" stopColor="#6297CE" />
+            <Stop offset="33%" stopColor="#4E83B8" />
+            <Stop offset="74%" stopColor="#4074A5" />
           </LinearGradient>
           {GLOWS.map((g, i) => glow(`ag${i}`, g[0], g[1], g[2], g[3], g[4], g[5], g[6]))}
 
           {/* swoosh ribbon fills: strongest in the heart, melting at the rims */}
           {/* (fullback: neutral-silver ribbon #B9BEC4) */}
           <LinearGradient id="acidDeepRibbon" x1="0" y1="0" x2="0.5" y2="1">
-            <Stop offset="0%" stopColor="#9EC2F0" stopOpacity={0.3} />
-            <Stop offset="60%" stopColor="#9EC2F0" stopOpacity={0.12} />
-            <Stop offset="100%" stopColor="#9EC2F0" stopOpacity={0} />
+            <Stop offset="0%" stopColor="#94C4F0" stopOpacity={0.3} />
+            <Stop offset="60%" stopColor="#94C4F0" stopOpacity={0.12} />
+            <Stop offset="100%" stopColor="#94C4F0" stopOpacity={0} />
           </LinearGradient>
           <LinearGradient id="acidLightArc" x1="0" y1="1" x2="0" y2="0">
-            <Stop offset="0%" stopColor="#FFFFFF" stopOpacity={0.08} />
-            <Stop offset="50%" stopColor="#FFFFFF" stopOpacity={0.28} />
+            <Stop offset="0%" stopColor="#FFFFFF" stopOpacity={0.06} />
+            <Stop offset="50%" stopColor="#FFFFFF" stopOpacity={0.2} />
             <Stop offset="100%" stopColor="#FFFFFF" stopOpacity={0} />
           </LinearGradient>
         </Defs>

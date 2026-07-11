@@ -59,8 +59,8 @@ function GroupLabel({ text, first }: { text: string; first?: boolean }) {
         // a clear step below the SYSTEM STATUS title: fainter AND
         // smaller, so "title vs divider" reads as two layers
         color: PANEL_FAINT,
-        fontWeight: '600',
-        fontSize: 10,
+        fontFamily: fontFamily.mono,
+        fontSize: 9,
         letterSpacing: 1.2,
         marginTop: first ? 0 : spacing.md,
         marginBottom: 2,
@@ -93,12 +93,16 @@ function ServiceRow({ s, onIssue }: { s: ServiceStatus; onIssue: () => void }) {
         </Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginLeft: 8 }}>
           {s.pingMs != null ? (
-            <Text style={{ color: PANEL_FAINT, fontSize: 11 }}>{s.pingMs}ms</Text>
+            <Text style={{ color: PANEL_FAINT, fontFamily: fontFamily.mono, fontSize: 10 }}>
+              {s.pingMs}ms
+            </Text>
           ) : null}
           <View
             style={{ width: 6, height: 6, borderRadius: 999, backgroundColor: STATE_COLOR[s.state] }}
           />
-          <Text style={{ color: PANEL_DIM, fontSize: 12 }}>{STATE_LABEL[s.state]}</Text>
+          <Text style={{ color: PANEL_DIM, fontFamily: fontFamily.mono, fontSize: 11 }}>
+            {STATE_LABEL[s.state]}
+          </Text>
         </View>
       </View>
       {/* the popover exists to answer "why is the header dot amber" —
@@ -156,9 +160,9 @@ export function StatusPopover({ services, agentsReady, onClose, onManageAccess, 
           borderRadius: 16,
           overflow: 'hidden',
           borderWidth: 1,
-          borderColor: 'rgba(22,24,28,0.14)',
+          borderColor: 'rgba(22,24,28,0.1)',
           shadowColor: '#16181C',
-          shadowOpacity: 0.35,
+          shadowOpacity: 0.22,
           shadowRadius: 28,
           shadowOffset: { width: 0, height: 10 },
           elevation: 12,
@@ -190,9 +194,9 @@ export function StatusPopover({ services, agentsReady, onClose, onManageAccess, 
           <Text
             style={{
               color: 'rgba(22,24,28,0.55)',
-              fontWeight: '600',
-              fontSize: 11,
-              letterSpacing: 1,
+              fontFamily: fontFamily.mono,
+              fontSize: 10,
+              letterSpacing: 1.2,
             }}>
             SYSTEM STATUS
           </Text>

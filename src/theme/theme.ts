@@ -200,11 +200,11 @@ export const sysColor = {
   /** the one system-energy accent: crisp aqua blue (2026-07-11 late:
    * the board went full Aqua — blue desktop, silver windows — per
    * Ellie's Mac OS X 10.2 reference; mint-teal era lives in git) */
-  accent: '#2F7CD8',
+  accent: '#3B76C4',
   /** needs you / your turn: shares the aqua accent (act here first) */
-  action: '#2F7CD8',
+  action: '#3B76C4',
   /** needs you: dot/badge form, one step lighter than the accent */
-  actionDot: '#5C9DE8',
+  actionDot: '#6795D4',
   /** in progress: crew at work (dusty blue, quieter than the accent) */
   running: '#5E87C4',
   /** done / ready: completion accents (unread dots, ready marks) */
