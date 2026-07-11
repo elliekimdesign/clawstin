@@ -15,7 +15,7 @@ import Animated, {
  * loop; a couple of static faint rings sit underneath for depth.
  */
 
-const RING_COLOR = '#FF4A32';
+const RING_COLOR = '#35D0B4';
 
 function Ring({ size, delay, duration }: { size: number; delay: number; duration: number }) {
   const p = useSharedValue(0);

@@ -191,25 +191,30 @@ export const darkChat = chatThemes.mistOs;
  * send/mic circles. One blue on every surface. */
 export const brandBlue = '#8FBFF2';
 
-/** Semantic system colors (defined 2026-07-07 for the acid home skin).
- * One meaning, one color, everywhere. */
+/** Semantic system colors (rewritten 2026-07-11 for the titanium home
+ * skin). One meaning, one color, everywhere. The board is ink on brushed
+ * silver with smoked-glass sections; the single system-energy accent is
+ * a deep aqua teal (never purple, never pink — product rule). The
+ * blue-accent paperblue set (#3B5BDB) lives in git for rollback. */
 export const sysColor = {
-  /** needs you: the brand pink, our signature action color (tag text).
-   * Darkened from #D9438F to clear WCAG 4.5:1 on the acid glass rows
-   * (measured 5.2:1 vs 3.6:1); the dot below keeps the vivid brand hue. */
-  action: '#C2185B',
-  /** needs you: dot/badge form of the action pink */
-  actionDot: '#F45FA8',
-  /** in progress: crew at work */
-  running: '#2E6FBF',
+  /** the one system-energy accent: crisp aqua blue (2026-07-11 late:
+   * the board went full Aqua — blue desktop, silver windows — per
+   * Ellie's Mac OS X 10.2 reference; mint-teal era lives in git) */
+  accent: '#2F7CD8',
+  /** needs you / your turn: shares the aqua accent (act here first) */
+  action: '#2F7CD8',
+  /** needs you: dot/badge form, one step lighter than the accent */
+  actionDot: '#5C9DE8',
+  /** in progress: crew at work (dusty blue, quieter than the accent) */
+  running: '#5E87C4',
   /** done / ready: completion accents (unread dots, ready marks) */
-  ready: '#55A32F',
+  ready: '#4E9B6E',
   /** done timestamps and quiet finished text */
-  doneDim: 'rgba(38,48,31,0.55)',
-  /** fail / deny / destructive (terminal red) */
-  fail: '#E5484D',
-  /** degraded / pending system state */
-  degraded: '#F0812F',
+  doneDim: 'rgba(22,24,28,0.5)',
+  /** fail / deny / destructive (muted terminal red) */
+  fail: '#C7504A',
+  /** degraded / pending system state (muted amber) */
+  degraded: '#C77E22',
 };
 
 export const spacing = {

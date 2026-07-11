@@ -2,11 +2,11 @@ import { StyleSheet, View } from 'react-native';
 import Svg, { Defs, LinearGradient, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
 
 /**
- * "acid_swoosh" — the field art of the V Acid Pop colorway (Figma board
- * node 30:13): pale sage light melting diagonally into acid meadow green,
- * with the same swoosh ribbons and dreamy glows as bliss_swoosh and
- * lavender_swoosh. Same geometry, only the tones differ.
- * Fixed 390x844 viewBox.
+ * "acid_swoosh" — the field art, re-inked 2026-07-11 for the titanium
+ * skin: brushed-silver metal (white light melting into cool aluminum
+ * gray) with the same swoosh ribbons and dreamy glows as bliss_swoosh
+ * and lavender_swoosh; the ribbons now read as machined light arcs on
+ * the lid. Same geometry, only the tones differ. Fixed 390x844 viewBox.
  */
 
 /** One soft glow: a rotated elliptical radial wash that fades to nothing. */
@@ -37,15 +37,15 @@ function glow(
   );
 }
 
-// Dreamy underlayer, matched to the Figma V Acid Pop frame.
+// Dreamy underlayer.
 // [cx, cy, rx, ry, rotation, color, peak opacity]
-// 2026-07-08 pm "silverfield": glows in white + bright silver.
-// Fullback (chartreuse keeper): shimmer #E9F296 @0.6, pool #A8BF3E @0.36.
-// Older: meadow green #6FA344 @0.3-0.36, shimmer #EFF5B0 @0.5.
+// 2026-07-11 "titanium": teal-cast metallic glows — the accent's own
+// hue breathed into the metal so the field reads faintly energized
+// (fullback neutral-silver: #E9EBED sheen, #AEB4BA pool).
 const GLOWS: [number, number, number, number, number, string, number][] = [
-  [100, 200, 360, 300, 0, '#FFFFFF', 0.3], // top-left light source
-  [330, 450, 200, 150, 0, '#EBEEE0', 0.6], // warm silver shimmer mid-right
-  [150, 750, 230, 170, 0, '#ADB3A0', 0.32], // sage-silver pool at the bottom
+  [100, 200, 360, 300, 0, '#FFFFFF', 0.28], // top-left light source
+  [330, 450, 200, 150, 0, '#8FBCEE', 0.45], // aqua shimmer mid-right
+  [150, 750, 230, 170, 0, '#2C5C9E', 0.3], // deep pool at the bottom
 ];
 
 export function AcidSwooshBg() {
@@ -53,36 +53,28 @@ export function AcidSwooshBg() {
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
       <Svg width="100%" height="100%" viewBox="0 0 390 844" preserveAspectRatio="xMidYMid slice">
         <Defs>
-          {/* pale sage light (top-left) melting into acid meadow green.
-              2026-07-07: brighter, milky MacBook-Air pastel lime (clean,
-              not electric); previous stops #F8FAE6 / #E2EABC / #B4CB93
-              live at commit 3739da4 for rollback. */}
+          {/* aqua desktop (2026-07-11 late, per the Mac OS X 10.2
+              reference): the deep refreshing blue the silver windows
+              float on; the swoosh ribbons below play the wallpaper's
+              light waves. Fullback white-tone: #FDFDFD / #F9FAFA /
+              #F2F4F4. */}
           <LinearGradient id="acidfield" x1="0" y1="0" x2="0.7" y2="1">
-            {/* 2026-07-08 pm "silverfield": white melting into bright
-                silver so the lime sections carry all the color; swoosh
-                stays as a silver pattern. Fullback (chartreuse field,
-                the keeper candidate): #FEFEF7 / #FCFDEA / #F4F7D9.
-                Older: pop-pass #FDFEEC / #F8FBD8 / #ECF3BE; near-white
-                #FEFEF9 / #FBFCEE / #F3F6DE; butter-lime #F7FAC6 /
-                #EFF4A8 / #D3E28C. */}
-            {/* warmed a touch (fullback cool silver: #FFFFFF / #FAFBFB
-                / #EDF0EF) */}
-            <Stop offset="0%" stopColor="#FEFEFA" />
-            <Stop offset="33%" stopColor="#F8F9F0" />
-            <Stop offset="74%" stopColor="#EDEFE2" />
+            <Stop offset="0%" stopColor="#5D8FD0" />
+            <Stop offset="33%" stopColor="#4577B8" />
+            <Stop offset="74%" stopColor="#3563A3" />
           </LinearGradient>
           {GLOWS.map((g, i) => glow(`ag${i}`, g[0], g[1], g[2], g[3], g[4], g[5], g[6]))}
 
           {/* swoosh ribbon fills: strongest in the heart, melting at the rims */}
-          {/* (fullback: chartreuse ribbon #A8BF3E; older meadow #6FA344) */}
+          {/* (fullback: neutral-silver ribbon #B9BEC4) */}
           <LinearGradient id="acidDeepRibbon" x1="0" y1="0" x2="0.5" y2="1">
-            <Stop offset="0%" stopColor="#A6AC9B" stopOpacity={0.3} />
-            <Stop offset="60%" stopColor="#A6AC9B" stopOpacity={0.12} />
-            <Stop offset="100%" stopColor="#A6AC9B" stopOpacity={0} />
+            <Stop offset="0%" stopColor="#9EC2F0" stopOpacity={0.3} />
+            <Stop offset="60%" stopColor="#9EC2F0" stopOpacity={0.12} />
+            <Stop offset="100%" stopColor="#9EC2F0" stopOpacity={0} />
           </LinearGradient>
           <LinearGradient id="acidLightArc" x1="0" y1="1" x2="0" y2="0">
-            <Stop offset="0%" stopColor="#FFFFFF" stopOpacity={0.05} />
-            <Stop offset="50%" stopColor="#FFFFFF" stopOpacity={0.16} />
+            <Stop offset="0%" stopColor="#FFFFFF" stopOpacity={0.08} />
+            <Stop offset="50%" stopColor="#FFFFFF" stopOpacity={0.28} />
             <Stop offset="100%" stopColor="#FFFFFF" stopOpacity={0} />
           </LinearGradient>
         </Defs>

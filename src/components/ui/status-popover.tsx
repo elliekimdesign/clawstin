@@ -4,21 +4,23 @@ import { Pressable, Text, View } from 'react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 
 import type { ServiceState, ServiceStatus } from '@/mock/services';
-import { colors, fontFamily, fontSize, radius, spacing } from '@/theme/theme';
+import { fontFamily, fontSize, radius, spacing, sysColor } from '@/theme/theme';
 
-// Dark-olive console tokens: the same deep green family as the mascot
-// face, the ask bar, and the Allow pill — the app's dark surface.
-const PANEL_BG = '#16241B';
-const PANEL_TEXT = 'rgba(230,240,220,0.95)';
-const PANEL_DIM = 'rgba(230,240,220,0.6)';
-const PANEL_FAINT = 'rgba(230,240,220,0.42)';
-const DIVIDER = 'rgba(255,255,255,0.08)';
+// Section-window tokens (2026-07-11): the popover is the status chip
+// UNFOLDED — same silver pane + ink text as the Home board's section
+// windows (the dark console version lives in git).
+const PANEL_BG = '#EFF1F3';
+const PANEL_TEXT = 'rgba(22,24,28,0.95)';
+const PANEL_DIM = 'rgba(22,24,28,0.6)';
+const PANEL_FAINT = 'rgba(22,24,28,0.42)';
+const DIVIDER = 'rgba(22,24,28,0.08)';
 
-// Exactly three states, 1:1 with colors — the dot alone should read.
+// Exactly three states, 1:1 with the semantic system colors — the dot
+// alone should read, and it must match the header chip's grammar.
 const STATE_COLOR: Record<ServiceState, string> = {
-  operational: colors.success,
-  degraded: colors.warning,
-  down: colors.danger,
+  operational: sysColor.ready,
+  degraded: sysColor.degraded,
+  down: sysColor.fail,
 };
 // System rows (Core, Gateway, models) speak infra: operational /
 // degraded / offline. Agents are people-like and say "ready" instead
@@ -151,26 +153,57 @@ export function StatusPopover({ services, agentsReady, onClose, onManageAccess, 
           right: spacing.lg,
           width: 300,
           backgroundColor: PANEL_BG,
-          borderRadius: 18,
-          paddingVertical: spacing.md,
-          paddingHorizontal: spacing.lg,
-          shadowColor: '#16241B',
+          borderRadius: 16,
+          overflow: 'hidden',
+          borderWidth: 1,
+          borderColor: 'rgba(22,24,28,0.14)',
+          shadowColor: '#16181C',
           shadowOpacity: 0.35,
           shadowRadius: 28,
           shadowOffset: { width: 0, height: 10 },
           elevation: 12,
         }}>
-        {/* Header: no dot up here — the summary text and the row dots
-            already carry the state */}
-        <Text style={{ color: PANEL_DIM, fontWeight: '600', fontSize: 11, letterSpacing: 1 }}>
-          SYSTEM STATUS
-        </Text>
-        <Text
+        {/* the sections' own chrome: white title bar with the window
+            dots, then the hairline sill — this popover IS the status
+            chip unfolded into a full section window */}
+        <View
           style={{
+            height: 30,
+            backgroundColor: 'rgba(255,255,255,0.9)',
+            flexDirection: 'row',
+            alignItems: 'center',
+            paddingHorizontal: spacing.lg,
+          }}>
+          <View style={{ flexDirection: 'row', gap: 3.5, marginRight: 8 }}>
+            {[0, 1, 2].map((i) => (
+              <View
+                key={i}
+                style={{
+                  width: 5,
+                  height: 5,
+                  borderRadius: 999,
+                  backgroundColor: '#9FC0EC',
+                }}
+              />
+            ))}
+          </View>
+          <Text
+            style={{
+              color: 'rgba(22,24,28,0.55)',
+              fontWeight: '600',
+              fontSize: 11,
+              letterSpacing: 1,
+            }}>
+            SYSTEM STATUS
+          </Text>
+        </View>
+        <View style={{ height: 1, backgroundColor: 'rgba(22,24,28,0.1)' }} />
+        <View style={{ paddingVertical: spacing.md, paddingHorizontal: spacing.lg }}>
+        <Text
+            style={{
             color: PANEL_TEXT,
             fontFamily: fontFamily.semibold,
             fontSize: fontSize.small,
-            marginTop: 6,
           }}>
           {summary}
         </Text>
@@ -193,7 +226,7 @@ export function StatusPopover({ services, agentsReady, onClose, onManageAccess, 
             <Text style={{ color: PANEL_TEXT, fontWeight: '600', fontSize: 13 }}>Agents</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <View
-                style={{ width: 6, height: 6, borderRadius: 999, backgroundColor: colors.success }}
+                style={{ width: 6, height: 6, borderRadius: 999, backgroundColor: sysColor.ready }}
               />
               <Text style={{ color: PANEL_DIM, fontSize: 12 }}>{agentsReady} ready</Text>
               <Ionicons name="chevron-forward" size={12} color={PANEL_FAINT} />
@@ -206,26 +239,29 @@ export function StatusPopover({ services, agentsReady, onClose, onManageAccess, 
           ))}
         </View>
 
-        {/* When something is wrong the CTA is about the problem, not admin */}
+        </View>
+        {/* When something is wrong the CTA is about the problem, not
+            admin — a white footer strip, the title bar's twin */}
         {!healthy ? (
-          <Pressable
-            onPress={onManageAccess}
-            style={({ pressed }) => ({
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 6,
-              marginTop: spacing.md,
-              paddingTop: spacing.md,
-              borderTopWidth: 1,
-              borderTopColor: DIVIDER,
-              opacity: pressed ? 0.55 : 1,
-            })}>
-            <Text style={{ color: PANEL_TEXT, fontFamily: fontFamily.semibold, fontSize: fontSize.small }}>
-              View issue
-            </Text>
-            <Ionicons name="arrow-forward" size={14} color={PANEL_TEXT} />
-          </Pressable>
+          <>
+            <View style={{ height: 1, backgroundColor: 'rgba(22,24,28,0.1)' }} />
+            <Pressable
+              onPress={onManageAccess}
+              style={({ pressed }) => ({
+                backgroundColor: 'rgba(255,255,255,0.9)',
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 6,
+                paddingVertical: spacing.md,
+                opacity: pressed ? 0.55 : 1,
+              })}>
+              <Text style={{ color: PANEL_TEXT, fontFamily: fontFamily.semibold, fontSize: fontSize.small }}>
+                View issue
+              </Text>
+              <Ionicons name="arrow-forward" size={14} color={PANEL_TEXT} />
+            </Pressable>
+          </>
         ) : null}
       </Animated.View>
     </Pressable>
