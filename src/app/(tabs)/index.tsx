@@ -35,6 +35,7 @@ import { GlassIconButton } from '@/components/ui/glass-icon-button';
 import { BlissSwooshBg } from '@/components/ui/bliss-swoosh-bg';
 import { AcidSwooshBg } from '@/components/ui/acid-swoosh-bg';
 import { AutopilotSheet } from '@/components/ui/autopilot-sheet';
+import { AcidGlassFill, WindowDots } from '@/components/ui/window-fill';
 import { PromptHistorySheet } from '@/components/ui/prompt-history-sheet';
 import { PulseMark } from '@/components/ui/pulse-mark';
 import { StatusPopover, worstServiceState } from '@/components/ui/status-popover';
@@ -90,78 +91,6 @@ const GLASS = {
 
 // expo-glass-effect is iOS-only; fall back to a translucent dark fill.
 const GLASS_AVAILABLE = Platform.OS === 'ios' && isGlassEffectAPIAvailable();
-
-/** The V Acid Pop card material: liquid-glass blur under a translucent
- * white veil (0.35 -> 0.18, the field whispers through) with a thin rim
- * light along the top edge. Fill for any rounded overflow-hidden card.
- * effect: 'clear' shows the liquid lens (small cards); 'regular' is a
- * uniform frost for tall cards where clear's edge lensing reads as a
- * dark band; 'none' = veil only. */
-function AcidGlassFill({
-  effect = 'clear',
-  dense = false,
-  bright = false,
-  tone = 'gray',
-}: {
-  effect?: 'clear' | 'regular' | 'none';
-  /** denser veil for text-heavy cards (the list): more legible, still
-   * one step lighter than the original 0.6/0.5/0.45 */
-  dense?: boolean;
-  /** one notch more white than dense: the dashboard cards, where the
-   * small labels need the extra contrast */
-  bright?: boolean;
-  /** pastel section surfaces (2026-07-11); the whole board currently
-   * wears one tone at a time (citron as of this pass) */
-  tone?: 'gray' | 'mint' | 'blue' | 'ivory' | 'citron' | 'blossom';
-}) {
-  // soap-bubble veil: flat, membrane-like — barely darker at the foot,
-  // so the surface reads as one smooth film over the blur.
-  // titanium (2026-07-11): gray panels on a white field — the veil is
-  // near-solid light gray so sections read as machined plates, one step
-  // darker than the paper behind them (fullbacks: apple-glass
-  // [0.48, 0.42, 0.38], smoked [0.72, 0.66, 0.6])
-  const TONES: Record<string, [string, string, string]> = {
-    gray: ['#F4F5F6', '#F0F1F3', '#E9EBED'],
-    mint: ['#C8E7DF', '#BFE2D8', '#B3DBCF'],
-    blue: ['#D5E7F6', '#CCE2F4', '#C0DAF1'],
-    citron: ['#F2F6CD', '#EDF3C1', '#E4EEB1'],
-    blossom: ['#FBE4E8', '#F9DCE1', '#F5D0D8'],
-    ivory: ['#F6F3ED', '#F3F0E9', '#EEEAE0'],
-  };
-  const stops = TONES[tone];
-  return (
-    <>
-      {GLASS_AVAILABLE && effect !== 'none' ? (
-        <GlassView
-          glassEffectStyle={effect}
-          colorScheme="light"
-          style={StyleSheet.absoluteFill}
-          pointerEvents="none"
-        />
-      ) : null}
-      {/* 2026-07-11 flat pass: every section — dashboard cards and the
-          chat list alike — is one flat plane of its tone color. No
-          gradient, no sheen, matching the chat box's calm (the veiled
-          glass versions live in git). */}
-      <Svg style={StyleSheet.absoluteFill} pointerEvents="none" preserveAspectRatio="none">
-        <Rect x="0" y="0" width="100%" height="100%" fill={stops[1]} fillOpacity={0.93} />
-        {/* window chrome: a slim crisp WHITE title bar + hairline sill,
-            Aqua-precise (thinned 38->30 / 48->42 on Ellie's request;
-            cards pull their headers out of the padding so labels sit
-            centered inside the slim bar) */}
-        <Rect x="0" y="0" width="100%" height={dense ? 42 : 30} fill="#FFFFFF" fillOpacity={0.85} />
-        <Rect
-          x="0"
-          y={dense ? 42 : 30}
-          width="100%"
-          height={1}
-          fill="#16181C"
-          fillOpacity={0.07}
-        />
-      </Svg>
-    </>
-  );
-}
 
 // Post-action control mock: the agent's most recent [WRITE] action and
 // its rollback window. Trust = approvals (before) + undo (after).
@@ -434,7 +363,7 @@ HERO_HAIR.push([3, 16], [4, 16], [19, 16], [20, 16]);
 const HERO_MOUTH: [number, number][] = [
   [8, 15], [9, 16], [10, 16], [11, 16], [12, 16], [13, 16], [14, 16], [15, 15],
 ];
-function ClawstinMark({ size }: { size: number }) {
+function ClawstinMark({ size, tint }: { size: number; tint?: string }) {
   // one face everywhere: the main-logo portrait renders at every size
   // (the simplified 12x12 fallback is retired; arrays kept in git)
   const hero = true;
@@ -448,19 +377,19 @@ function ClawstinMark({ size }: { size: number }) {
     ));
   return (
     <Svg width={size} height={size}>
-      {px(hero ? HERO_RING : SMALL_RING, MARK_INK)}
-      {hero ? px(HERO_HAIR, MARK_INK) : null}
-      {hero ? px(HERO_CAP, '#3B76C4') : null}
-      {hero ? px(HERO_CAP_BUTTON, '#3B76C4') : null}
+      {px(hero ? HERO_RING : SMALL_RING, tint ?? MARK_INK)}
+      {hero ? px(HERO_HAIR, tint ?? MARK_INK) : null}
+      {hero ? px(HERO_CAP, tint ?? '#3B76C4') : null}
+      {hero ? px(HERO_CAP_BUTTON, tint ?? '#3B76C4') : null}
       {hero ? (
         <>
-          <Rect x={6.75 * c} y={9 * c} width={1.5 * c} height={4 * c} fill={MARK_EYE} />
-          <Rect x={15.75 * c} y={9 * c} width={1.5 * c} height={4 * c} fill={MARK_EYE} />
+          <Rect x={6.75 * c} y={9 * c} width={1.5 * c} height={4 * c} fill={tint ?? MARK_EYE} />
+          <Rect x={15.75 * c} y={9 * c} width={1.5 * c} height={4 * c} fill={tint ?? MARK_EYE} />
         </>
       ) : (
-        px(SMALL_EYES, MARK_EYE)
+        px(SMALL_EYES, tint ?? MARK_EYE)
       )}
-      {hero ? px(HERO_MOUTH, MARK_INK) : null}
+      {hero ? px(HERO_MOUTH, tint ?? MARK_INK) : null}
     </Svg>
   );
 }
@@ -523,41 +452,6 @@ function PixelWordmark({
         />
       ))}
     </Svg>
-  );
-}
-
-/** Window controls: three quiet dots at the left of a section's title
- * bar. The trio is ONE control — tap to fold the window down to its
- * title bar, tap again to reopen (close/zoom were rejected: tasks must
- * never look deletable, and tap-to-open already exists). One muted aqua
- * color on purpose: status colors keep their monopoly on meaning.
- * Folded shows as a single lit dot; the hitSlop reaches the 44pt
- * target the 5px dots can't. */
-function WindowDots({ folded, onPress }: { folded?: boolean; onPress?: () => void }) {
-  return (
-    <Pressable
-      onPress={onPress}
-      disabled={!onPress}
-      hitSlop={{ top: 14, bottom: 14, left: 14, right: 6 }}
-      style={({ pressed }) => ({
-        flexDirection: 'row',
-        gap: 3.5,
-        marginRight: 8,
-        opacity: pressed ? 0.5 : 1,
-      })}>
-      {[0, 1, 2].map((i) => (
-        <View
-          key={i}
-          style={{
-            width: 4.5,
-            height: 4.5,
-            borderRadius: 1.2,
-            backgroundColor: 'rgba(59,118,196,0.32)',
-            opacity: folded && i > 0 ? 0.35 : 1,
-          }}
-        />
-      ))}
-    </Pressable>
   );
 }
 
@@ -843,17 +737,6 @@ export default function HomeScreen() {
   // LAST ACTION expands in place: the card grows downward into the
   // full undoable queue instead of opening a separate sheet
   const [lastActionOpen, setLastActionOpen] = useState(false);
-  // window folding: the title-bar dots collapse a window to its bar
-  // (session-only for now; nothing is ever closed or lost)
-  const [folded, setFolded] = useState<{
-    [k in 'yourTurn' | 'autopilot' | 'running' | 'lastAction']?: boolean;
-  }>({});
-  const toggleFold = (k: 'yourTurn' | 'autopilot' | 'running' | 'lastAction') => {
-    // seamless: the window glides shut instead of snapping
-    LayoutAnimation.configureNext(LayoutAnimation.create(220, 'easeInEaseOut', 'opacity'));
-    if (k === 'lastAction') setLastActionOpen(false);
-    setFolded((f) => ({ ...f, [k]: !f[k] }));
-  };
   const [autopilotOpen, setAutopilotOpen] = useState(false);
   // which dinner slot was answered from the hero card (receipt stamp)
   const [dinnerAnswered, setDinnerAnswered] = useState<string | null>(null);
@@ -1029,11 +912,25 @@ export default function HomeScreen() {
                   marginTop: 4,
                 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  {/* the split-face mark, tiny: ink + lime LED eyes,
-                      the seam shared with the hero mark */}
-                  <ClawstinMark size={22} />
-                  {/* wordmark: the serif voice (Mac OS X move), white
-                      on the aqua desk */}
+                  {/* the main logo in its true colors, on a round chip
+                      — the same chip material as the crew badges */}
+                  <View
+                    style={{
+                      width: 30,
+                      height: 30,
+                      borderRadius: 999,
+                      backgroundColor: '#F5F6F4',
+                      borderWidth: 1,
+                      borderColor: 'rgba(22,24,28,0.1)',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}>
+                    <ClawstinMark size={22} />
+                  </View>
+                  {/* wordmark: Instrument Serif — refined rule: the
+                      serif belongs to the brand LOCKUP wherever it
+                      appears (mark + wordmark travel together); other
+                      in-app text stays sans + mono */}
                   <Text
                     style={{
                       color: '#FFFFFF',
@@ -1051,7 +948,7 @@ export default function HomeScreen() {
                     so it stays readable on the pale sky */}
                 <Pressable
                   onPress={() => setStatusOpen(true)}
-                  hitSlop={8}
+                  hitSlop={12}
                   style={({ pressed }) => ({
                     flexDirection: 'row',
                     alignItems: 'center',
@@ -1069,25 +966,46 @@ export default function HomeScreen() {
                   })}>
                   <Text
                     style={{
-                      // window-title grammar: quiet ink, no dot — the
-                      // popover carries the colored state detail
-                      color: 'rgba(22,24,28,0.6)',
+                      // color carries state: the one amber application
+                      // when the system is degraded/down; quiet ink
+                      // when healthy. System words speak mono.
+                      color:
+                        worst === 'down' || worst === 'degraded'
+                          ? '#9A6B1F'
+                          : 'rgba(22,24,28,0.6)',
                       fontSize: 10,
                       fontFamily: fontFamily.mono,
-                      letterSpacing: 0.5,
+                      letterSpacing: 0.3,
                     }}>
-                    {statusLabel.toLowerCase()}
+                    {statusLabel}
                   </Text>
                   <Ionicons
                     name="chevron-down"
                     size={11}
-                    color="rgba(22,24,28,0.45)"
+                    color={
+                      worst === 'down' || worst === 'degraded'
+                        ? 'rgba(154,107,31,0.8)'
+                        : 'rgba(22,24,28,0.45)'
+                    }
                   />
                 </Pressable>
               </View>
 
               {/* just the greeting, floating on the sky — the tab counts
                   already carry the numbers */}
+
+              {/* greeting: back by request, one size down — a quiet
+                  line on the desk, not a headline */}
+              <Text
+                style={{
+                  marginTop: 10,
+                  color: '#FFFFFF',
+                  fontSize: 20,
+                  letterSpacing: -0.3,
+                  fontFamily: fontFamily.bold,
+                }}>
+                {`${hello}, ${USER_NAME}`}
+              </Text>
 
               {/* ── Control-tower dashboard: the trust cycle as a board.
                   YOUR TURN asks (pre-action), RUNNING shows delegation
@@ -1099,13 +1017,15 @@ export default function HomeScreen() {
                 <Pressable
                   onPress={() => router.push('/chat/t5')}
                   style={({ pressed }) => ({
-                    marginTop: 14,
-                    borderRadius: 16,
+                    marginTop: 16,
+                    borderRadius: 20,
                     overflow: 'hidden',
+                    borderWidth: 1,
+                    borderColor: 'rgba(255,255,255,0.55)',
                     paddingHorizontal: 18,
-                    paddingBottom: folded.yourTurn ? 0 : 18,
+                    paddingBottom: 18,
                     shadowColor: '#16181C',
-                    shadowOpacity: 0.09,
+                    shadowOpacity: 0.07,
                     shadowRadius: 16,
                     shadowOffset: { width: 0, height: 6 },
                     elevation: 5,
@@ -1114,10 +1034,11 @@ export default function HomeScreen() {
                   {/* keyed: this card also changes height when the
                       proposal resolves or the window folds */}
                   <AcidGlassFill
-                    key={`yourturn-${folded.yourTurn ? 'folded' : 'open'}`}
-                    effect="regular"
+                    key="yourturn"
+                    effect="clear"
                     bright
                     tone="gray"
+                    accentBar
                   />
                   <View
                     style={{
@@ -1127,15 +1048,12 @@ export default function HomeScreen() {
                       alignItems: 'center',
                     }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                      <WindowDots
-                        folded={folded.yourTurn}
-                        onPress={() => toggleFold('yourTurn')}
-                      />
+                      <WindowDots lit />
                       <Text
                         style={{
-                          fontSize: 10,
+                          fontSize: 11,
                           fontFamily: fontFamily.mono,
-                          letterSpacing: 1.2,
+                          letterSpacing: 0.3,
                           color: 'rgba(22,24,28,0.55)',
                         }}>
                         YOUR TURN
@@ -1147,7 +1065,7 @@ export default function HomeScreen() {
                           setHomeTab('needsYou');
                           scrollRef.current?.scrollTo({ y: approvalsY, animated: true });
                         }}
-                        hitSlop={10}>
+                        hitSlop={16}>
                         <Text
                           style={{
                             fontSize: 10,
@@ -1159,8 +1077,6 @@ export default function HomeScreen() {
                       </Pressable>
                     ) : null}
                   </View>
-                  {folded.yourTurn ? null : (
-                  <>
                   {/* ONLY blocking asks live here: work YOU started that
                       is now waiting on an answer, so it survives you
                       wandering off. The pills preview the choice from
@@ -1171,7 +1087,6 @@ export default function HomeScreen() {
                     style={{
                       marginTop: 14,
                       fontSize: fontSize.body,
-                      fontWeight: fontWeight.semibold,
                       color: AINK.text,
                     }}>
                     Friday dinner, 7:00 or 7:30?
@@ -1208,10 +1123,10 @@ export default function HomeScreen() {
                         }}
                         hitSlop={8}
                         style={({ pressed }) => ({
-                          // glossy-era answer pill: the crisp aqua blue
-                          // IS the primary action color (ink pill
-                          // version lives in git)
-                          backgroundColor: sysColor.accent,
+                          // button system (2026-07-11): PRIMARY = ink
+                          // black (same as Get started); blue is the
+                          // secondary/signal color
+                          backgroundColor: '#121417',
                           borderRadius: 999,
                           paddingHorizontal: 17,
                           paddingVertical: 9,
@@ -1238,8 +1153,6 @@ export default function HomeScreen() {
                     </Pressable>
                   </View>
                   )}
-                  </>
-                  )}
                 </Pressable>
               ) : null}
 
@@ -1247,9 +1160,7 @@ export default function HomeScreen() {
                 style={{
                   flexDirection: 'row',
                   gap: 12,
-                  marginTop: 12,
-                  // folded siblings must not stretch to the open one's height
-                  alignItems: 'flex-start',
+                  marginTop: 16,
                 }}>
                 {/* AUTOPILOT: the calibration gauge. The card is only the
                     gauge face; tapping opens the ledger as a bottom sheet
@@ -1259,24 +1170,21 @@ export default function HomeScreen() {
                   onPress={() => setAutopilotOpen(true)}
                   style={({ pressed }) => ({
                     flex: 1,
-                    height: folded.autopilot ? 30 : 124,
-                    borderRadius: 16,
+                    height: 124,
+                    borderRadius: 20,
                     overflow: 'hidden',
+                    borderWidth: 1,
+                    borderColor: 'rgba(255,255,255,0.55)',
                     paddingHorizontal: 18,
-                    paddingBottom: folded.autopilot ? 0 : 18,
+                    paddingBottom: 18,
                     shadowColor: '#16181C',
-                    shadowOpacity: 0.09,
+                    shadowOpacity: 0.07,
                     shadowRadius: 16,
                     shadowOffset: { width: 0, height: 6 },
                     elevation: 5,
                     opacity: pressed ? 0.85 : 1,
                   })}>
-                  <AcidGlassFill
-                    key={`autopilot-${folded.autopilot ? 'folded' : 'open'}`}
-                    effect="regular"
-                    bright
-                    tone="gray"
-                  />
+                  <AcidGlassFill effect="clear" bright tone="gray" />
                   <View
                     style={{
                       height: 30,
@@ -1285,15 +1193,12 @@ export default function HomeScreen() {
                       alignItems: 'center',
                     }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                      <WindowDots
-                        folded={folded.autopilot}
-                        onPress={() => toggleFold('autopilot')}
-                      />
+                      <WindowDots />
                       <Text
                         style={{
-                          fontSize: 10,
+                          fontSize: 11,
                           fontFamily: fontFamily.mono,
-                          letterSpacing: 1.2,
+                          letterSpacing: 0.3,
                           color: 'rgba(22,24,28,0.55)',
                         }}>
                         ROUTINES
@@ -1301,7 +1206,6 @@ export default function HomeScreen() {
                     </View>
                   </View>
 
-                    {folded.autopilot ? null : (
                     <View style={{ flex: 1, justifyContent: 'center' }}>
                       {/* the pattern IS the insight: one line saying what
                           kept needing you. Numbers and the fix live one
@@ -1311,7 +1215,6 @@ export default function HomeScreen() {
                         style={{
                           fontSize: fontSize.body,
                           lineHeight: 20,
-                          fontWeight: fontWeight.semibold,
                           color: AINK.text,
                         }}>
                         {trustHandled === 'allowed'
@@ -1332,7 +1235,6 @@ export default function HomeScreen() {
                         />
                       </View>
                     </View>
-                    )}
                 </Pressable>
                 {(
                   [
@@ -1361,40 +1263,34 @@ export default function HomeScreen() {
                     onPress={() => w.threadId && router.push(`/chat/${w.threadId}`)}
                     style={({ pressed }) => ({
                       flex: 1,
-                      height: folded.running ? 30 : 124,
-                      borderRadius: 16,
+                      height: 124,
+                      borderRadius: 20,
                       overflow: 'hidden',
+                      borderWidth: 1,
+                      borderColor: 'rgba(255,255,255,0.55)',
                       paddingHorizontal: 18,
-                      paddingBottom: folded.running ? 0 : 18,
+                      paddingBottom: 18,
                       shadowColor: '#16181C',
-                      shadowOpacity: 0.09,
+                      shadowOpacity: 0.07,
                       shadowRadius: 16,
                       shadowOffset: { width: 0, height: 6 },
                       elevation: 5,
                       opacity: pressed ? 0.85 : 1,
                     })}>
-                    <AcidGlassFill
-                      key={`running-${folded.running ? 'folded' : 'open'}`}
-                      effect="regular"
-                      bright
-                      tone="gray"
-                    />
+                    <AcidGlassFill effect="clear" bright tone="gray" />
                     <View style={{ height: 30, flexDirection: 'row', alignItems: 'center' }}>
-                      <WindowDots
-                        folded={folded.running}
-                        onPress={() => toggleFold('running')}
-                      />
+                      <WindowDots />
                       <Text
                         style={{
-                          fontSize: 10,
+                          fontSize: 11,
                           fontFamily: fontFamily.mono,
-                          letterSpacing: 1.2,
+                          letterSpacing: 0.3,
                           color: 'rgba(22,24,28,0.55)',
                         }}>
                         {w.label}
                       </Text>
                     </View>
-                    {w.more > 0 && !folded.running ? (
+                    {w.more > 0 ? (
                       // "+N more": the rest of the queue, one tap away
                       <Pressable
                         onPress={() => {
@@ -1421,7 +1317,6 @@ export default function HomeScreen() {
                     {/* title floats centered between the label above and
                         the progress bar; the margin is reserved even without
                         a bar so titles align across sibling cards */}
-                    {folded.running ? null : (
                     <View
                       style={{
                         flex: 1,
@@ -1433,17 +1328,14 @@ export default function HomeScreen() {
                         style={{
                           fontSize: fontSize.body,
                           lineHeight: 20,
-                          fontWeight: fontWeight.semibold,
                           color: AINK.text,
                         }}>
                         {w.title}
                       </Text>
                     </View>
-                    )}
                     {/* honest progress: discrete step ticks + the raw
                         phrase; when steps are unknowable, a breathing dot
                         and the plain word "working" */}
-                    {folded.running ? null : (
                     <View
                       style={{
                         position: 'absolute',
@@ -1486,7 +1378,6 @@ export default function HomeScreen() {
                         </>
                       ) : null}
                     </View>
-                    )}
                   </Pressable>
                 ))}
               </View>
@@ -1498,13 +1389,15 @@ export default function HomeScreen() {
                   explains itself, no caption needed. */}
               <View
                 style={{
-                  marginTop: 12,
-                  borderRadius: 16,
+                  marginTop: 16,
+                  borderRadius: 20,
                   overflow: 'hidden',
+                  borderWidth: 1,
+                  borderColor: 'rgba(255,255,255,0.55)',
                   paddingHorizontal: 18,
-                  paddingBottom: folded.lastAction ? 0 : 18,
+                  paddingBottom: 18,
                   shadowColor: '#16181C',
-                  shadowOpacity: 0.09,
+                  shadowOpacity: 0.07,
                   shadowRadius: 16,
                   shadowOffset: { width: 0, height: 6 },
                   elevation: 5,
@@ -1512,8 +1405,8 @@ export default function HomeScreen() {
                 {/* keyed so the native glass layer remounts at the new
                     size when the card expands/collapses */}
                 <AcidGlassFill
-                  key={`la-${lastActionOpen ? 'expanded' : 'collapsed'}-${folded.lastAction ? 'folded' : 'open'}`}
-                  effect="regular"
+                  key={lastActionOpen ? 'expanded' : 'collapsed'}
+                  effect="clear"
                   bright
                   tone="gray"
                 />
@@ -1525,26 +1418,23 @@ export default function HomeScreen() {
                     alignItems: 'center',
                   }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <WindowDots
-                      folded={folded.lastAction}
-                      onPress={() => toggleFold('lastAction')}
-                    />
+                    <WindowDots />
                     <Text
                       style={{
-                        fontSize: 10,
+                        fontSize: 11,
                         fontFamily: fontFamily.mono,
-                        letterSpacing: 1.2,
+                        letterSpacing: 0.3,
                         color: 'rgba(22,24,28,0.55)',
                       }}>
                       LAST ACTION
                     </Text>
                   </View>
                   {lastActionOpen ? (
-                    <Pressable hitSlop={10} onPress={() => setLastActionOpen(false)}>
+                    <Pressable hitSlop={16} onPress={() => setLastActionOpen(false)}>
                       <Ionicons name="close" size={15} color={AINK.dim} />
                     </Pressable>
                   ) : UNDOABLES.length > 1 ? (
-                    <Pressable hitSlop={10} onPress={() => setLastActionOpen(true)}>
+                    <Pressable hitSlop={16} onPress={() => setLastActionOpen(true)}>
                       <Text
                         style={{
                           fontSize: 10,
@@ -1556,9 +1446,7 @@ export default function HomeScreen() {
                     </Pressable>
                   ) : null}
                 </View>
-                {folded.lastAction
-                  ? null
-                  : (lastActionOpen ? UNDOABLES : UNDOABLES.slice(0, 1)).map((u, idx) => (
+                {(lastActionOpen ? UNDOABLES : UNDOABLES.slice(0, 1)).map((u, idx) => (
                   <View
                     key={u.label}
                     style={{
@@ -1578,7 +1466,6 @@ export default function HomeScreen() {
                       style={{
                         flex: 1,
                         fontSize: fontSize.body,
-                        fontWeight: fontWeight.semibold,
                         color: AINK.text,
                       }}>
                       {u.label}
@@ -1610,7 +1497,7 @@ export default function HomeScreen() {
                     </Pressable>
                   </View>
                 ))}
-                {lastActionOpen && !folded.lastAction ? (
+                {lastActionOpen ? (
                   // conversation is the fallback for everything older
                   <Pressable
                     onPress={() => {
@@ -1638,11 +1525,13 @@ export default function HomeScreen() {
                 <View
                   onLayout={(e) => setApprovalsY(e.nativeEvent.layout.y)}
                   style={{
-                    marginTop: 12,
-                    borderRadius: 16,
-                                        overflow: 'hidden',
+                    marginTop: 16,
+                    borderRadius: 20,
+                    overflow: 'hidden',
+                    borderWidth: 1,
+                    borderColor: 'rgba(255,255,255,0.55)',
                     shadowColor: '#16181C',
-                    shadowOpacity: 0.09,
+                    shadowOpacity: 0.07,
                     shadowRadius: 16,
                     shadowOffset: { width: 0, height: 6 },
                     elevation: 5,
@@ -1656,7 +1545,7 @@ export default function HomeScreen() {
                       and a hard edge shows near the bottom rows */}
                   <AcidGlassFill
                     key={`list-${homeTab}-${activeRows.length}-${visibleDone.length}`}
-                    effect="regular"
+                    effect="clear"
                     dense
                     tone="gray"
                   />
@@ -1683,18 +1572,19 @@ export default function HomeScreen() {
                       <Pressable
                         key={key}
                         onPress={() => setHomeTab(key)}
-                        hitSlop={8}
+                        hitSlop={12}
                         style={({ pressed }) => ({
                           justifyContent: 'center',
                           opacity: pressed ? 0.6 : 1,
                         })}>
                         <Text
                           style={{
-                            fontSize: 12,
-                            fontFamily: homeTab === key ? fontFamily.bold : fontFamily.semibold,
+                            fontSize: 11,
+                            fontFamily: fontFamily.monoMedium,
+                            letterSpacing: 0.3,
                             color: homeTab === key ? '#16181C' : 'rgba(22,24,28,0.5)',
                           }}>
-                          {`${label} ${count}`}
+                          {`${label.toUpperCase()} ${count}`}
                         </Text>
                         {/* the indicator IS the sill: a straight segment
                             of the title bar's own bottom line lights up
@@ -1842,8 +1732,10 @@ export default function HomeScreen() {
               {visibleDone.length > 0 ? (
                 <Pressable
                   onPress={() => setHistoryOpen(true)}
+                  hitSlop={{ top: 14, bottom: 14, left: 10, right: 10 }}
                   style={({ pressed }) => ({
                     marginTop: 14,
+                    paddingVertical: 4,
                     alignSelf: 'flex-start' as const,
                     opacity: pressed ? 0.6 : 1,
                   })}>
@@ -1907,7 +1799,7 @@ export default function HomeScreen() {
                   {/* command entry: opens compose already holding
                       "undo " — the input is never a blank page */}
                   <Pressable
-                    hitSlop={10}
+                    hitSlop={14}
                     onPress={() => {
                       setAskText('undo ');
                       setAskOpen(true);
@@ -2060,7 +1952,7 @@ export default function HomeScreen() {
                             width: 34,
                             height: 34,
                             borderRadius: 999,
-                            backgroundColor: '#3B76C4',
+                            backgroundColor: '#121417',
                             alignItems: 'center',
                             justifyContent: 'center',
                             opacity: !askText.trim() ? 0.4 : pressed ? 0.7 : 1,
@@ -2121,6 +2013,10 @@ export default function HomeScreen() {
               onManageAccess={() => {
                 setStatusOpen(false);
                 router.push('/access?focus=issue');
+              }}
+              onOpenSettings={() => {
+                setStatusOpen(false);
+                router.push('/settings');
               }}
               topOffset={insets.top + 54}
             />

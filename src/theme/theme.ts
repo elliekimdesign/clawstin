@@ -259,9 +259,13 @@ export const fontFamily = {
   medium: 'InstrumentSans-Medium',
   semibold: 'InstrumentSans-SemiBold',
   bold: 'InstrumentSans-Bold',
-  // System monospace — used for terminal-log lines, command-line style
-  // messages, and tabular values (tokens, times, pipeline step tags).
-  mono: 'Menlo',
+  // The system voice — window-title labels, times, counts, statuses,
+  // terminal-log lines. Geist Mono (the settled winner of the
+  // 2026-07-11 font tour: Menlo, DM Mono, Space Mono, IBM Plex Mono,
+  // Space Grotesk all tried and passed over).
+  mono: 'Poppins-Medium',
+  /** the heavier cut for labels that must anchor (active tabs etc.) */
+  monoMedium: 'Poppins-SemiBold',
 } as const;
 
 /** Gentle iOS-like shadow for cards. */

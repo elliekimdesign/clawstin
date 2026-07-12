@@ -188,24 +188,11 @@ export function AutopilotSheet({
         {/* pinned header: the week at a glance, then the list scrolls */}
         <View style={{ paddingHorizontal: spacing.xl, paddingTop: spacing.lg }}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <View style={{ flexDirection: 'row', gap: 3.5, marginRight: 8 }}>
-              {[0, 1, 2].map((i) => (
-                <View
-                  key={i}
-                  style={{
-                    width: 4.5,
-                    height: 4.5,
-                    borderRadius: 1.2,
-                    backgroundColor: 'rgba(59,118,196,0.32)',
-                  }}
-                />
-              ))}
-            </View>
             <Text
               style={{
                 fontSize: 10,
                 fontFamily: fontFamily.mono,
-                letterSpacing: 1.2,
+                letterSpacing: 0.3,
                 color: INK_DIM,
               }}>
               ROUTINES
@@ -239,7 +226,8 @@ export function AutopilotSheet({
                   onPress={onSetRoutine}
                   hitSlop={8}
                   style={({ pressed }) => ({
-                    backgroundColor: sysColor.accent,
+                    // PRIMARY = ink black across the app
+                    backgroundColor: '#121417',
                     borderRadius: 999,
                     paddingVertical: 6,
                     paddingHorizontal: 12,

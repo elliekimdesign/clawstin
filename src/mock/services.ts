@@ -18,13 +18,12 @@ export type ServiceStatus = {
 // Agent state intentionally lives in the Crew tab, not here — this list is
 // the system/infra healthcheck only.
 export const initialServices: ServiceStatus[] = [
-  { id: 'core', name: 'Clawstin Core', group: 'core', state: 'operational' },
+  { id: 'core', name: 'Clawstin Core', group: 'core', state: 'operational', pingMs: 12 },
   {
     id: 'oc35',
-    name: 'Claude 3.5 Sonnet',
+    name: 'Claude Sonnet 5',
     group: 'llm',
-    state: 'degraded',
-    reason: 'elevated error rate',
+    state: 'operational',
     pingMs: 42,
   },
   {

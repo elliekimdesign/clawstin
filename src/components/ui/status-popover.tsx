@@ -27,9 +27,11 @@ const STATE_COLOR: Record<ServiceState, string> = {
 // (the Agents row below formats its own `N ready` label).
 // lowercase like every status word in the app (header `degraded`, card
 // `needs you` / `running`) — one log language everywhere.
+// Words appear only for exceptions, as TRANSLATIONS not verdicts;
+// the green dot alone says healthy.
 const STATE_LABEL: Record<ServiceState, string> = {
-  operational: 'operational',
-  degraded: 'degraded',
+  operational: '',
+  degraded: 'slow',
   down: 'offline',
 };
 
@@ -48,38 +50,31 @@ type Props = {
   agentsReady: number;
   onClose: () => void;
   onManageAccess: () => void;
+  /** the popover is a summary with doors; this is the door to system settings */
+  onOpenSettings: () => void;
   /** distance from the top of the containing SafeAreaView to the panel */
   topOffset: number;
 };
 
-function GroupLabel({ text, first }: { text: string; first?: boolean }) {
-  return (
-    <Text
-      style={{
-        // a clear step below the SYSTEM STATUS title: fainter AND
-        // smaller, so "title vs divider" reads as two layers
-        color: PANEL_FAINT,
-        fontFamily: fontFamily.mono,
-        fontSize: 9,
-        letterSpacing: 1.2,
-        marginTop: first ? 0 : spacing.md,
-        marginBottom: 2,
-        paddingTop: first ? 0 : spacing.md,
-        borderTopWidth: first ? 0 : 1,
-        borderTopColor: DIVIDER,
-      }}>
-      {text}
-    </Text>
-  );
-}
-
-function ServiceRow({ s, onIssue }: { s: ServiceStatus; onIssue: () => void }) {
+function ServiceRow({
+  s,
+  onIssue,
+  onOpen,
+}: {
+  s: ServiceStatus;
+  onIssue: () => void;
+  /** healthy rows are doors too: they open their settings home */
+  onOpen: () => void;
+}) {
   const broken = s.state !== 'operational';
+  // the user's world: the core service IS the connection to the server.
+  // Sentence case throughout — model names are proper nouns, so the
+  // lowercase terminal grammar read as a mistake next to them.
+  const displayName = s.id === 'core' ? 'Connection' : s.name;
   return (
     <Pressable
-      disabled={!broken}
-      onPress={onIssue}
-      style={({ pressed }) => ({ paddingVertical: 7, opacity: pressed ? 0.55 : 1 })}>
+      onPress={broken ? onIssue : onOpen}
+      style={({ pressed }) => ({ paddingVertical: 10, opacity: pressed ? 0.55 : 1 })}>
       <View
         style={{
           flexDirection: 'row',
@@ -87,30 +82,34 @@ function ServiceRow({ s, onIssue }: { s: ServiceStatus; onIssue: () => void }) {
           justifyContent: 'space-between',
         }}>
         <Text
-          style={{ color: PANEL_TEXT, fontWeight: '600', fontSize: 13, flexShrink: 1 }}
+          style={{ color: PANEL_TEXT, fontFamily: fontFamily.mono, fontSize: 13, flexShrink: 1 }}
           numberOfLines={1}>
-          {s.name}
+          {displayName}
         </Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginLeft: 8 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginLeft: 8 }}>
           {s.pingMs != null ? (
-            <Text style={{ color: PANEL_FAINT, fontFamily: fontFamily.mono, fontSize: 10 }}>
-              {s.pingMs}ms
+            <Text style={{ color: PANEL_DIM, fontFamily: fontFamily.mono, fontSize: 12 }}>
+              {`${s.pingMs}ms`}
+            </Text>
+          ) : null}
+          {broken ? (
+            <Text
+              style={{ color: STATE_COLOR[s.state], fontFamily: fontFamily.mono, fontSize: 12 }}>
+              {STATE_LABEL[s.state]}
             </Text>
           ) : null}
           <View
-            style={{ width: 6, height: 6, borderRadius: 999, backgroundColor: STATE_COLOR[s.state] }}
+            style={{ width: 7, height: 7, borderRadius: 999, backgroundColor: STATE_COLOR[s.state] }}
           />
-          <Text style={{ color: PANEL_DIM, fontFamily: fontFamily.mono, fontSize: 11 }}>
-            {STATE_LABEL[s.state]}
-          </Text>
+          <Ionicons name="chevron-forward" size={12} color={PANEL_FAINT} />
         </View>
       </View>
-      {/* the popover exists to answer "why is the header dot amber" —
-          non-operational rows carry their cause */}
-      {s.state !== 'operational' && s.reason ? (
+      {/* exceptions carry their cause; healthy rows say nothing */}
+      {broken && s.reason ? (
         <Text
           style={{
             color: STATE_COLOR[s.state],
+            fontFamily: fontFamily.mono,
             fontSize: 11,
             marginTop: 3,
           }}>
@@ -127,15 +126,23 @@ function ServiceRow({ s, onIssue }: { s: ServiceStatus; onIssue: () => void }) {
  * unhealthy rows, and a conditional "View issue →" deep-link when something
  * is wrong. Tapping the scrim dismisses it.
  */
-export function StatusPopover({ services, agentsReady, onClose, onManageAccess, topOffset }: Props) {
+export function StatusPopover({
+  services,
+  agentsReady,
+  onClose,
+  onManageAccess,
+  onOpenSettings,
+  topOffset,
+}: Props) {
   const worst = worstServiceState(services);
   const healthy = worst === 'operational';
+  // the headline speaks human: what it MEANS for you, not a verdict
   const summary =
     worst === 'down'
-      ? 'Service disruption'
+      ? 'Some services are unreachable'
       : worst === 'degraded'
-        ? 'Partial degradation'
-        : 'All systems operational';
+        ? 'Responses may be slower than usual'
+        : "Everything's running";
 
   const core = services.filter((s) => s.group === 'core');
   const llm = services.filter((s) => s.group === 'llm');
@@ -178,45 +185,39 @@ export function StatusPopover({ services, agentsReady, onClose, onManageAccess, 
             alignItems: 'center',
             paddingHorizontal: spacing.lg,
           }}>
-          <View style={{ flexDirection: 'row', gap: 3.5, marginRight: 8 }}>
-            {[0, 1, 2].map((i) => (
-              <View
-                key={i}
-                style={{
-                  width: 5,
-                  height: 5,
-                  borderRadius: 999,
-                  backgroundColor: '#9FC0EC',
-                }}
-              />
-            ))}
-          </View>
           <Text
             style={{
               color: 'rgba(22,24,28,0.55)',
               fontFamily: fontFamily.mono,
               fontSize: 10,
-              letterSpacing: 1.2,
+              letterSpacing: 0.3,
             }}>
             SYSTEM STATUS
           </Text>
         </View>
         <View style={{ height: 1, backgroundColor: 'rgba(22,24,28,0.1)' }} />
         <View style={{ paddingVertical: spacing.md, paddingHorizontal: spacing.lg }}>
-        <Text
+        {/* the summary is a CONCLUSION, not a title: the "Online" pill
+            already declared health, so this line sits small and quiet
+            next to its dot — the detail rows are the stars here */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, paddingVertical: 2 }}>
+          <View
+            style={{ width: 7, height: 7, borderRadius: 999, backgroundColor: STATE_COLOR[worst] }}
+          />
+          <Text
             style={{
-            color: PANEL_TEXT,
-            fontFamily: fontFamily.semibold,
-            fontSize: fontSize.small,
-          }}>
-          {summary}
-        </Text>
+              color: healthy ? PANEL_DIM : STATE_COLOR[worst],
+              fontFamily: fontFamily.mono,
+              fontSize: 11,
+            }}>
+            {summary}
+          </Text>
+        </View>
 
         {/* SYSTEM: core services + one agents summary (details = Crew tab) */}
-        <View style={{ marginTop: spacing.md }}>
-          <GroupLabel text="SYSTEM" first />
+        <View style={{ marginTop: spacing.sm }}>
           {core.map((s) => (
-            <ServiceRow key={s.id} s={s} onIssue={onManageAccess} />
+            <ServiceRow key={s.id} s={s} onIssue={onManageAccess} onOpen={onOpenSettings} />
           ))}
           <Pressable
             onPress={openCrew}
@@ -224,31 +225,35 @@ export function StatusPopover({ services, agentsReady, onClose, onManageAccess, 
               flexDirection: 'row',
               alignItems: 'center',
               justifyContent: 'space-between',
-              paddingVertical: 7,
+              paddingVertical: 9,
               opacity: pressed ? 0.55 : 1,
             })}>
-            <Text style={{ color: PANEL_TEXT, fontWeight: '600', fontSize: 13 }}>Agents</Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Text style={{ color: PANEL_TEXT, fontFamily: fontFamily.mono, fontSize: 13 }}>
+              Crew
+            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Text style={{ color: PANEL_DIM, fontFamily: fontFamily.mono, fontSize: 12 }}>
+                {`${agentsReady} ready`}
+              </Text>
               <View
-                style={{ width: 6, height: 6, borderRadius: 999, backgroundColor: sysColor.ready }}
+                style={{ width: 7, height: 7, borderRadius: 999, backgroundColor: sysColor.ready }}
               />
-              <Text style={{ color: PANEL_DIM, fontSize: 12 }}>{agentsReady} ready</Text>
               <Ionicons name="chevron-forward" size={12} color={PANEL_FAINT} />
             </View>
           </Pressable>
 
-          <GroupLabel text="MODELS" />
           {llm.map((s) => (
-            <ServiceRow key={s.id} s={s} onIssue={onManageAccess} />
+            <ServiceRow key={s.id} s={s} onIssue={onManageAccess} onOpen={onOpenSettings} />
           ))}
         </View>
 
         </View>
-        {/* When something is wrong the CTA is about the problem, not
-            admin — a white footer strip, the title bar's twin */}
+        {/* White footer strip, the title bar's twin. When something is
+            wrong the loud row is about the problem; the settings door
+            is always there — status is where you come to act. */}
+        <View style={{ height: 1, backgroundColor: 'rgba(22,24,28,0.1)' }} />
         {!healthy ? (
           <>
-            <View style={{ height: 1, backgroundColor: 'rgba(22,24,28,0.1)' }} />
             <Pressable
               onPress={onManageAccess}
               style={({ pressed }) => ({
@@ -265,8 +270,25 @@ export function StatusPopover({ services, agentsReady, onClose, onManageAccess, 
               </Text>
               <Ionicons name="arrow-forward" size={14} color={PANEL_TEXT} />
             </Pressable>
+            <View style={{ height: 1, backgroundColor: DIVIDER }} />
           </>
         ) : null}
+        <Pressable
+          onPress={onOpenSettings}
+          style={({ pressed }) => ({
+            backgroundColor: 'rgba(255,255,255,0.9)',
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            paddingHorizontal: spacing.lg,
+            paddingVertical: spacing.md,
+            opacity: pressed ? 0.55 : 1,
+          })}>
+          <Text style={{ color: PANEL_DIM, fontFamily: fontFamily.medium, fontSize: fontSize.small }}>
+            System settings
+          </Text>
+          <Ionicons name="chevron-forward" size={13} color={PANEL_FAINT} />
+        </Pressable>
       </Animated.View>
     </Pressable>
   );

@@ -24,9 +24,9 @@ export type CrewMember = {
 export const initialCrew: CrewMember[] = [
   {
     id: 'muppet',
-    name: 'Frog',
+    name: 'Beanie',
     icon: 'rocket-outline',
-    role: 'Orchestrator · coordinates the crew',
+    role: 'Orchestrator · routes work across the crew',
     skills: [
       { label: 'Delegate tasks', on: true },
       { label: 'Prioritize', on: true },
@@ -40,9 +40,9 @@ export const initialCrew: CrewMember[] = [
   },
   {
     id: 'scout',
-    name: 'Beaker',
+    name: 'Specs',
     icon: 'search-outline',
-    role: 'Research · digs up the facts',
+    role: 'Research · reads and digests anything',
     skills: [
       { label: 'Web research', on: true },
       { label: 'Fact-check', on: true },
@@ -56,7 +56,7 @@ export const initialCrew: CrewMember[] = [
   },
   {
     id: 'quill',
-    name: 'Miss Piggy',
+    name: 'Wink',
     icon: 'create-outline',
     role: 'Scribe · turns noise into notes',
     skills: [
@@ -72,7 +72,7 @@ export const initialCrew: CrewMember[] = [
   },
   {
     id: 'pilot',
-    name: 'Gonzo',
+    name: 'Crop',
     icon: 'calendar-clear-outline',
     role: 'Operator · guards your calendar',
     skills: [

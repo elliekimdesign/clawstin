@@ -39,11 +39,11 @@ function closeLine(item: ActivityItem): { text: string; color: string } {
     return { text: 'failed', color: CONSOLE.err };
   }
   if (item.status === 'needs_approval') {
-    return { text: 'paused · waiting for approval', color: CONSOLE.wait };
+    return { text: 'paused, waiting for approval', color: CONSOLE.wait };
   }
   const n = item.steps?.length ?? 0;
   return {
-    text: `done · ${n} steps${item.total ? ` · ${item.total}` : ''}`,
+    text: `done, ${n} steps${item.total ? ` in ${item.total}` : ''}`,
     color: CONSOLE.dim,
   };
 }
@@ -126,7 +126,7 @@ function RunBlock({
                 style={{ flex: 1, fontFamily: fontFamily.mono, fontSize: 12, color }}
                 numberOfLines={1}>
                 {step.label}
-                {step.ms ? ` · ${step.ms}` : ''}
+                {step.ms ? `  ${step.ms}` : ''}
               </Text>
               <Text style={{ fontFamily: fontFamily.mono, fontSize: 12, color: glyphColor }}>
                 {glyph}
