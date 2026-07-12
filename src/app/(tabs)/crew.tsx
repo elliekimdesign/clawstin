@@ -2,11 +2,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useState } from 'react';
+import { GlassView, isGlassEffectAPIAvailable } from 'expo-glass-effect';
 import {
   Alert,
   LayoutAnimation,
+  Platform,
   Pressable,
   ScrollView,
+  StyleSheet,
   Text,
   useWindowDimensions,
   View,
@@ -19,12 +22,34 @@ import { CREW_ACCENT, CrewPixel } from '@/components/ui/crew-pixel';
 import type { ActivityItem } from '@/mock/activity';
 import type { CrewMember } from '@/mock/crew';
 import { useAppStore } from '@/store/app-store';
-import { brandBlue, fontFamily, fontSize, fontWeight, radius, spacing, sysColor } from '@/theme/theme';
+import { brandBlue, fontFamily, fontSize, radius, spacing, sysColor } from '@/theme/theme';
 
 // daylight tones: the Crew tab shares the acidglass home field, and the
 // cards go WHITE — characters as transparent cutouts on paper. Dark
 // olive ink on light surface.
 const CARD = '#F5F6F4'; // off-white: softens the ink-on-white contrast
+
+// the app's shared glass recipe (ask bar, section windows): liquid lens
+// under a translucent white veil, white hairline on the container
+const GLASS_AVAILABLE = Platform.OS === 'ios' && isGlassEffectAPIAvailable();
+function CardGlass() {
+  return (
+    <>
+      {GLASS_AVAILABLE ? (
+        <GlassView
+          glassEffectStyle="clear"
+          colorScheme="light"
+          style={StyleSheet.absoluteFill}
+          pointerEvents="none"
+        />
+      ) : null}
+      <View
+        pointerEvents="none"
+        style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(255,255,255,0.62)' }]}
+      />
+    </>
+  );
+}
 const INK = '#16181C';
 const INK_DIM = 'rgba(22,24,28,0.6)';
 const INK_SOFT = 'rgba(22,24,28,0.06)';
@@ -66,7 +91,8 @@ function CrewBadge({ member, width }: { member: CrewMember; width: number }) {
         style={({ pressed }) => ({
           borderRadius: 20,
           overflow: 'hidden',
-          backgroundColor: CARD,
+          borderWidth: 1,
+          borderColor: 'rgba(255,255,255,0.55)',
           alignItems: 'center',
           paddingTop: 38,
           shadowColor: '#26301F',
@@ -76,6 +102,7 @@ function CrewBadge({ member, width }: { member: CrewMember; width: number }) {
           elevation: 5,
           opacity: pressed ? 0.9 : 1,
         })}>
+        <CardGlass />
         <Text
           style={{
             fontSize: 17,
@@ -145,7 +172,9 @@ function ContributionCard({ crew }: { crew: CrewMember[] }) {
     <View
       style={{
         borderRadius: 20,
-        backgroundColor: CARD,
+        overflow: 'hidden',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.55)',
         shadowColor: '#26301F',
         shadowOpacity: 0.14,
         shadowRadius: 16,
@@ -155,6 +184,7 @@ function ContributionCard({ crew }: { crew: CrewMember[] }) {
         paddingBottom: 14,
         paddingHorizontal: 20,
       }}>
+      <CardGlass />
       <View
         style={{
           flexDirection: 'row',
@@ -165,7 +195,7 @@ function ContributionCard({ crew }: { crew: CrewMember[] }) {
           style={{
             color: INK_DIM,
             fontSize: 11,
-            fontWeight: fontWeight.semibold,
+            fontFamily: fontFamily.semibold,
             letterSpacing: 1,
           }}>
           ACTION RUNS
@@ -192,7 +222,7 @@ function ContributionCard({ crew }: { crew: CrewMember[] }) {
                 style={{
                   color: brandBlue,
                   fontSize: 11,
-                  fontWeight: fontWeight.semibold,
+                  fontFamily: fontFamily.semibold,
                   marginBottom: 4,
                 }}>
                 {m.tasksDone}
@@ -258,7 +288,7 @@ function StatTile({ label, value }: { label: string; value: string }) {
         style={{
           color: INK_DIM,
           fontSize: 9,
-          fontWeight: fontWeight.semibold,
+          fontFamily: fontFamily.semibold,
           letterSpacing: 0.8,
         }}>
         {label}
@@ -267,7 +297,7 @@ function StatTile({ label, value }: { label: string; value: string }) {
         style={{
           color: INK,
           fontSize: 17,
-          fontWeight: fontWeight.semibold,
+          fontFamily: fontFamily.semibold,
           marginTop: 2,
         }}>
         {value}
@@ -286,7 +316,9 @@ function PerfSection({ member, recent }: { member: CrewMember; recent: ActivityI
       onPress={() => router.push(`/crew/history/${member.id}`)}
       style={({ pressed }) => ({
         borderRadius: 20,
-        backgroundColor: CARD,
+        overflow: 'hidden',
+        borderWidth: 1,
+        borderColor: 'rgba(255,255,255,0.55)',
         shadowColor: '#26301F',
         shadowOpacity: 0.14,
         shadowRadius: 16,
@@ -295,6 +327,7 @@ function PerfSection({ member, recent }: { member: CrewMember; recent: ActivityI
         padding: 14,
         opacity: pressed ? 0.9 : 1,
       })}>
+      <CardGlass />
       {/* header in the badge grammar: chip, name over accent
           underline, mono role — same anatomy as the roster cards */}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
@@ -355,7 +388,7 @@ function PerfSection({ member, recent }: { member: CrewMember; recent: ActivityI
           style={{
             color: INK_DIM,
             fontSize: 9,
-            fontWeight: fontWeight.semibold,
+            fontFamily: fontFamily.semibold,
             letterSpacing: 0.8,
             marginBottom: 10,
           }}>
@@ -402,12 +435,13 @@ function ModeToggle({
     <View
       style={{
         flexDirection: 'row',
-        backgroundColor: 'rgba(22,24,28,0.06)',
+        overflow: 'hidden',
         borderWidth: 1,
-        borderColor: 'rgba(22,24,28,0.15)',
+        borderColor: 'rgba(255,255,255,0.55)',
         borderRadius: radius.pill,
         padding: 3,
       }}>
+      <CardGlass />
       {(['info', 'perf'] as const).map((m) => (
         <Pressable
           key={m}
@@ -426,7 +460,7 @@ function ModeToggle({
             style={{
               color: mode === m ? INK : INK_DIM,
               fontSize: 12,
-              fontWeight: fontWeight.semibold,
+              fontFamily: fontFamily.semibold,
             }}>
             {m === 'info' ? 'Info' : 'Perf'}
           </Text>
@@ -507,7 +541,7 @@ export default function CrewScreen() {
                 style={{
                   color: 'rgba(255,255,255,0.85)',
                   fontSize: 13,
-                  fontWeight: fontWeight.semibold,
+                  fontFamily: fontFamily.semibold,
                 }}>
                 Add crew
               </Text>
@@ -545,7 +579,7 @@ export default function CrewScreen() {
             opacity: pressed ? 0.6 : 1,
           })}>
           <Ionicons name="add" size={18} color={INK} />
-          <Text style={{ color: INK, fontSize: fontSize.body, fontWeight: fontWeight.semibold }}>
+          <Text style={{ color: INK, fontSize: fontSize.body, fontFamily: fontFamily.semibold }}>
             Add crew
           </Text>
         </Pressable>

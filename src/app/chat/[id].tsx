@@ -1,13 +1,16 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
+import { GlassView, isGlassEffectAPIAvailable } from 'expo-glass-effect';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useRef, useState } from 'react';
 import {
   Alert,
+  LayoutAnimation,
   KeyboardAvoidingView,
   Platform,
   Pressable,
   ScrollView,
+  StyleSheet,
   Text,
   TextInput,
   View,
@@ -16,12 +19,14 @@ import Animated, { FadeIn, FadeInDown, FadeOut, FadeOutUp } from 'react-native-r
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ApprovalCard } from '@/components/ui/approval-card';
-import { AuroraRim } from '@/components/ui/aurora-rim';
+import { CrewDots } from '@/components/ui/crew-dots';
+import { NewChatSeed, type SeedPhase } from '@/components/ui/new-chat-seed';
+import { CREW_DEEP } from '@/components/ui/crew-pixel';
 import { CrewSwitch } from '@/components/ui/crew-switch';
-import { GlassIconButton } from '@/components/ui/glass-icon-button';
 import { AquaBg } from '@/components/ui/aqua-bg';
 import { ButterBg } from '@/components/ui/butter-bg';
 import { CloudBg } from '@/components/ui/cloud-bg';
+import { DeskRetroBg } from '@/components/ui/desk-retro-bg';
 import { MeshBg } from '@/components/ui/mesh-bg';
 import { MintBg } from '@/components/ui/mint-bg';
 import { MonthOverlay } from '@/components/ui/month-overlay';
@@ -33,10 +38,15 @@ import { ScheduleProposalCard } from '@/components/ui/schedule-proposal-card';
 import { ScheduleCard } from '@/components/ui/schedule-card';
 import { SuggestionChips } from '@/components/ui/suggestion-chips';
 import { ThinkingConsole } from '@/components/ui/thinking-console';
+import { ToolSwitch } from '@/components/ui/tool-switch';
 import { WeekStrip } from '@/components/ui/week-strip';
 import { TypingIndicator } from '@/components/ui/typing-indicator';
+import { routeCrew, type CrewKey } from '@/mock/crew-routing';
+import { UNDOABLES } from '@/mock/undoables';
 import { useAppStore } from '@/store/app-store';
-import { brandBlue, darkChat, fontFamily, fontSize, radius, shadow, spacing } from '@/theme/theme';
+import { brandBlue, darkChat, fontFamily, fontSize, radius, shadow, spacing , sysColor } from '@/theme/theme';
+
+const GLASS_AVAILABLE = Platform.OS === 'ios' && isGlassEffectAPIAvailable();
 
 /** The conversation view for one thread. Rendered two ways: pushed over
  * the tabs (with a back button) and inside the Chat tab's slider
@@ -45,14 +55,22 @@ export function ChatThreadView({
   id,
   showBack = true,
   onShowHistory,
+  composeNew = false,
+  initialDraft,
 }: {
   id: string;
   showBack?: boolean;
   /** tab mode: the left slot becomes the history-drawer button */
   onShowHistory?: () => void;
+  /** Home ask bar entry (2026-07-12): the screen IS the new chat. It
+   * starts unbound (empty thread, keyboard up); the first send creates
+   * the thread in place, so the routing pill fills with no screen jump. */
+  composeNew?: boolean;
+  initialDraft?: string;
 }) {
   const {
     getThread,
+    createThread,
     markThreadRead,
     typingThreadId,
     thinking,
@@ -71,27 +89,45 @@ export function ChatThreadView({
     selectCrew,
     focusCrew,
   } = useAppStore();
-  const [draft, setDraft] = useState('');
+  const [draft, setDraft] = useState(initialDraft ?? '');
+  // compose-new binds to a real thread on the first send
+  const [boundId, setBoundId] = useState<string | null>(null);
   const [attachOpen, setAttachOpen] = useState(false);
-  // measured composer pill, so the aurora rim can trace it exactly
-  const [composerSize, setComposerSize] = useState<{ w: number; h: number } | null>(null);
   const [calOpen, setCalOpen] = useState(false);
+  // header tool context: user-pinned override wins over the thread's own
+  const [toolPinned, setToolPinned] = useState<string | null>(null);
+  // calendar rail (2026-07-12): with the week strip on screen, the
+  // calendar tap shrinks the strip left and drops a vertical rail of
+  // calendar actions in the freed column — staggered, one by one
+  const [calRail, setCalRail] = useState(false);
+  const toggleCalRail = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.create(220, 'easeInEaseOut', 'opacity'));
+    setCalRail((v) => !v);
+  };
   const [crewExpanded, setCrewExpanded] = useState(false);
+  // tool row open: the center crew pill steps aside (mirror of the
+  // crew pill hiding the side buttons)
+  const [toolExpanded, setToolExpanded] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
 
-  const thread = getThread(id);
+  const effId = boundId ?? id;
+  const thread = composeNew && !boundId ? undefined : getThread(effId);
 
   // Opening the thread picks up the delivery: the Done shelf's unread
   // dot clears, but the thread itself is never locked or archived away.
   // The pill also flips to the crew who OWNS this thread.
   const threadCrew = thread?.crew;
   useEffect(() => {
-    markThreadRead(id);
+    if (!thread) return;
+    markThreadRead(effId);
     if (threadCrew) focusCrew(threadCrew);
-  }, [id, markThreadRead, threadCrew, focusCrew]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [effId, !thread, markThreadRead, threadCrew, focusCrew]);
 
-  const isTyping = typingThreadId === id;
-  const thinkingHere = thinking?.threadId === id ? thinking : null;
+  const activeToolKey = toolPinned ?? thread?.tool ?? 'calendar';
+
+  const isTyping = typingThreadId === effId;
+  const thinkingHere = thinking?.threadId === effId ? thinking : null;
 
   // The dark week-strip console: NOT during thinking (the console narrates
   // that) — it appears with the calendar answer, right under the console.
@@ -118,10 +154,40 @@ export function ChatThreadView({
   // While the PR console owns the pinned slot, the strip stays out — the
   // schedule proposal already shows its day view down in the chat card.
   const stripTarget =
-    !stripHidden && prReveal?.threadId !== id ? pendingSchedule?.date ?? null : null;
+    !stripHidden && prReveal?.threadId !== effId ? pendingSchedule?.date ?? null : null;
 
   const onSend = () => {
-    if (!draft.trim() || !thread) return;
+    const text = draft.trim();
+    if (!text) return;
+    if (!thread) {
+      if (!composeNew) return;
+      // undo speaks to the original executor in the original thread
+      // (product rule) — everything else seeds a fresh thread HERE,
+      // so the reply lands where you typed
+      if (/undo|revert/i.test(text)) {
+        const target = UNDOABLES.find((u) => u.re.test(text));
+        if (target) {
+          sendMessage(target.threadId, text);
+          setBoundId(target.threadId);
+          setDraft('');
+          return;
+        }
+      }
+      // the seed lockup metamorphoses into the routing indicator:
+      // ripple in four colors, flood with the router's pick, lift, THEN
+      // the thread binds and the conversation starts
+      const picked = called?.key ?? routeCrew(text)?.key ?? 'orchestrator';
+      setSeedKey(picked);
+      // the routing pill flips the moment routing exists — the header,
+      // the seed gauge, and the crew dot all say the same name
+      focusCrew(picked);
+      LayoutAnimation.configureNext(LayoutAnimation.create(220, 'easeInEaseOut', 'opacity'));
+      setSeedPhase('routing');
+      setDraft('');
+      setTimeout(() => setSeedPhase('handoff'), 1100);
+      setTimeout(() => setBoundId(createThread(text)), 1850);
+      return;
+    }
     sendMessage(thread.id, draft);
     setDraft('');
   };
@@ -130,9 +196,62 @@ export function ChatThreadView({
     requestAnimationFrame(() => scrollRef.current?.scrollToEnd({ animated: true }));
   };
 
+  // Task ticks (2026-07-12): the right rail collects one small line per
+  // task in this thread — a quiet vertical index of where tasks began.
+  // The CURRENT task's tick wears the main task accent; older ones fade.
+  const taskStarts: string[] = [];
+  thread?.messages.forEach((m, i) => {
+    if (i === 0 || m.taskDivider) taskStarts.push(m.id);
+  });
+  const currentTaskStart = taskStarts[taskStarts.length - 1];
+
+  // Slash calls (2026-07-12): typing /research etc. CALLS a crew member.
+  // Once the word completes, their standby dot wakes and the token
+  // itself turns their deep signature color, small and bold.
+  const SLASH_CALLS: Record<string, { key: CrewKey; pixel: string }> = {
+    // by role...
+    research: { key: 'researcher', pixel: 'scout' },
+    scribe: { key: 'writer', pixel: 'quill' },
+    operator: { key: 'triage', pixel: 'pilot' },
+    orchestrator: { key: 'orchestrator', pixel: 'muppet' },
+    // ...or by name, like calling a teammate
+    specs: { key: 'researcher', pixel: 'scout' },
+    wink: { key: 'writer', pixel: 'quill' },
+    crop: { key: 'triage', pixel: 'pilot' },
+    beanie: { key: 'orchestrator', pixel: 'muppet' },
+  };
+  const slashToken = draft.match(/^\/(\w+)/)?.[1]?.toLowerCase();
+  const called = slashToken ? SLASH_CALLS[slashToken] ?? null : null;
+  const calledLen = called && slashToken ? slashToken.length + 1 : 0;
+
+  // New-chat seed state machine: idle -> routing (crew-color ripple) ->
+  // handoff (routed color floods, lockup lifts) -> thread binds
+  const [seedPhase, setSeedPhase] = useState<SeedPhase>('idle');
+  const [seedKey, setSeedKey] = useState<CrewKey | null>(null);
+
+  // A completed slash call flips the header routing pill LIVE; erasing
+  // the token hands the pill back (thread owner, or the New Chat badge
+  // on an unbound compose). Never fights an in-flight run.
+  useEffect(() => {
+    if (crewBusy) return;
+    if (called) {
+      focusCrew(called.key);
+      return;
+    }
+    // while the seed is routing/handing off, IT owns the pill
+    if (seedPhase !== 'idle') return;
+    if (threadCrew) {
+      focusCrew(threadCrew);
+    } else if (composeNew && !thread) {
+      focusCrew(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [called?.key, threadCrew, crewBusy, seedPhase]);
+
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: darkChat.base }} edges={['top', 'bottom']}>
-      <StatusBar style="dark" />
+      {/* blue desk: light status icons */}
+      <StatusBar style="light" />
       {/* Background art follows the active chat colorway (see chatThemes) */}
       {darkChat.background === 'aqua' ? (
         <AquaBg />
@@ -142,6 +261,8 @@ export function ChatThreadView({
         <ButterBg />
       ) : darkChat.background === 'clouds' ? (
         <CloudBg />
+      ) : darkChat.background === 'desk' ? (
+        <DeskRetroBg />
       ) : (
         <MeshBg variant="dark" />
       )}
@@ -164,102 +285,93 @@ export function ChatThreadView({
             exiting={FadeOut.duration(120)}
             style={{ width: 48, alignItems: 'flex-start' }}>
             {showBack ? (
-            <GlassIconButton
-              icon="chevron-back"
+            // the Settings screen's exact back button: solid white
+            // chip, ink chevron — one back button across the app
+            <Pressable
               // deep-linked chats have no history: fall back to Home
               onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
-              onDark
-              tint="rgba(255,255,255,0.55)"
-              iconColor={darkChat.text}
-              iconSize={22}
               hitSlop={10}
-            />
+              style={({ pressed }) => ({
+                width: 30,
+                height: 30,
+                borderRadius: 15,
+                backgroundColor: 'rgba(255,255,255,0.85)',
+                alignItems: 'center',
+                justifyContent: 'center',
+                opacity: pressed ? 0.6 : 1,
+              })}>
+              <Ionicons name="chevron-back" size={17} color="#16181C" />
+            </Pressable>
             ) : onShowHistory ? (
-            <GlassIconButton
-              icon="list"
+            <Pressable
               onPress={onShowHistory}
-              onDark
-              tint="rgba(255,255,255,0.55)"
-              iconColor={darkChat.text}
-              iconSize={20}
               hitSlop={10}
-            />
+              style={({ pressed }) => ({
+                width: 30,
+                height: 30,
+                borderRadius: 15,
+                backgroundColor: 'rgba(255,255,255,0.85)',
+                alignItems: 'center',
+                justifyContent: 'center',
+                opacity: pressed ? 0.6 : 1,
+              })}>
+              <Ionicons name="list" size={16} color="#16181C" />
+            </Pressable>
             ) : null}
           </Animated.View>
         ) : null}
         <View style={{ flex: 1, alignItems: 'center' }}>
-          <CrewSwitch
-            selected={crewSelected}
-            manual={crewManual}
-            busy={crewBusy}
-            onSelect={selectCrew}
-            onExpandChange={setCrewExpanded}
-          />
+          {toolExpanded ? null : (
+            <CrewSwitch
+              selected={crewSelected}
+              manual={crewManual}
+              busy={crewBusy}
+              onSelect={selectCrew}
+              onExpandChange={setCrewExpanded}
+            />
+          )}
         </View>
         {!crewExpanded ? (
           <Animated.View
             entering={FadeIn.duration(150)}
             exiting={FadeOut.duration(120)}
             style={{ width: 48, alignItems: 'flex-end' }}>
-            {activeTool === 'both' && !calOpen ? (
-              // Two tools in play: calendar tucked back-left, GitHub
-              // front-right — same tinted circle as the single-tool button.
+            {composeNew && !thread ? (
+              // empty new chat: the calendar means nothing yet — this
+              // slot is the HISTORY door instead, for the hand that
+              // reaches for an LLM-style history list (it lives in
+              // Activity, our receipt ledger)
               <Pressable
-                onPress={() => setCalOpen(true)}
+                onPress={() => router.navigate('/(tabs)/chat')}
                 hitSlop={8}
-                style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}>
-                <View
-                  style={{
-                    width: 44,
-                    height: 44,
-                    borderRadius: 999,
-                    backgroundColor: prReveal ? '#4285F4' : 'rgba(255,255,255,0.55)',
-                    borderWidth: 1,
-                    borderColor: 'rgba(255,255,255,0.5)',
-                  }}>
-                  <Ionicons
-                    name="calendar-clear-outline"
-                    size={15}
-                    color={prReveal ? 'rgba(255,255,255,0.75)' : 'rgba(36,54,80,0.6)'}
-                    style={{ position: 'absolute', top: 9, left: 9 }}
-                  />
-                  <Ionicons
-                    name="logo-github"
-                    size={19}
-                    color={prReveal ? '#FFFFFF' : darkChat.text}
-                    style={{ position: 'absolute', bottom: 7, right: 7 }}
-                  />
-                </View>
+                style={({ pressed }) => ({
+                  width: 40,
+                  height: 40,
+                  borderRadius: 999,
+                  backgroundColor: 'rgba(46,80,121,0.5)',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  opacity: pressed ? 0.7 : 1,
+                })}>
+                <Ionicons name="time-outline" size={19} color={darkChat.text} />
               </Pressable>
-            ) : thread?.tool === 'contacts' || thread?.tool === 'github' || activeTool === 'github' ? (
-              // Non-calendar context: the button is the TOOL BADGE for this
-              // conversation (Contacts, Devtools) — no month view here.
-              <GlassIconButton
-                icon={thread?.tool === 'contacts' ? 'people-outline' : 'logo-github'}
-                onPress={() => {}}
-                onDark
-                tint="rgba(255,255,255,0.55)"
-                iconColor={darkChat.text}
-                iconSize={20}
-              />
             ) : (
-              <GlassIconButton
-                icon={calOpen ? 'close' : 'calendar-clear-outline'}
-                onPress={() => {
+              // bound thread: the tool circle unfolds into the tool row
+              <ToolSwitch
+                tool={activeToolKey}
+                calOpen={calOpen}
+                directCalendar={stripTarget != null}
+                onExpandChange={setToolExpanded}
+                onPick={setToolPinned}
+                onCalendarTap={() => {
                   if (calOpen) {
-                    // X closes the whole calendar moment: month view AND strip
                     setCalOpen(false);
-                    setStripHidden(true);
+                  } else if (stripTarget != null) {
+                    toggleCalRail();
                   } else {
                     setCalOpen(true);
                   }
                 }}
-                onDark
-                // console navy while the calendar console is up: the color
-                // says the button and the floating console are one system
-                tint={calOpen || stripTarget != null ? '#4285F4' : 'rgba(255,255,255,0.55)'}
-                iconColor={calOpen || stripTarget != null ? '#FFFFFF' : darkChat.text}
-                iconSize={20}
               />
             )}
           </Animated.View>
@@ -279,7 +391,10 @@ export function ChatThreadView({
               entering={FadeInDown.duration(280)}
               exiting={FadeOutUp.duration(220)}
               style={{
-                marginHorizontal: spacing.lg,
+                marginLeft: spacing.lg,
+                // this console cedes the rail column too — every dark
+                // panel steps left together when the rail is out
+                marginRight: calRail ? spacing.lg + 52 : spacing.lg,
                 marginTop: spacing.sm,
                 marginBottom: spacing.xs,
                 // the expanded full-log dropdown must float OVER the chat
@@ -300,18 +415,21 @@ export function ChatThreadView({
           {!thinkingHere && thread?.consoleLog && !calOpen ? (
             <View
               style={{
-                marginHorizontal: spacing.lg,
+                marginLeft: spacing.lg,
+                // the console cedes the same column as the strip while
+                // the calendar rail is out
+                marginRight: calRail ? spacing.lg + 52 : spacing.lg,
                 marginTop: spacing.sm,
                 marginBottom: spacing.xs,
                 zIndex: 20,
               }}>
-              <ThinkingConsole threadId={id} lines={thread.consoleLog} done startCollapsed />
+              <ThinkingConsole threadId={effId} lines={thread.consoleLog} done startCollapsed />
             </View>
           ) : null}
 
           {/* PR console: the dynamic console as a GitHub micro-app —
               pulled DATA up here, the calendar ACTION down in the chat. */}
-          {prReveal?.threadId === id && !calOpen ? (
+          {prReveal?.threadId === effId && !calOpen ? (
             <Animated.View
               entering={FadeInDown.duration(280)}
               exiting={FadeOutUp.duration(220)}
@@ -336,15 +454,60 @@ export function ChatThreadView({
                 marginTop: spacing.xs,
                 marginBottom: spacing.xs,
               }}>
-              <Pressable
-                onPress={() => {
-                  setStripHidden(true);
-                  setCalOpen(true);
-                }}
-                style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}>
-                <WeekStrip targetDate={stripTarget} scanning={false} />
-              </Pressable>
+              {/* the strip cedes a button-wide column when the rail is out */}
+              <View style={{ marginRight: calRail ? 52 : 0 }}>
+                <Pressable
+                  onPress={() => setCalOpen(true)}
+                  style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}>
+                  <WeekStrip targetDate={stripTarget} scanning={false} />
+                </Pressable>
+              </View>
             </Animated.View>
+          ) : null}
+
+          {/* the calendar rail: starts right under the header, in the
+              column both the console and the strip ceded */}
+          {calRail && stripTarget != null && !calOpen ? (
+            <View
+              style={{
+                position: 'absolute',
+                top: spacing.sm,
+                right: spacing.lg,
+                gap: 10,
+                zIndex: 30,
+              }}>
+              {/* the integrated tools drop in first, then ONE mark
+                  that leads to settings, where the tool list lives */}
+              {(
+                [
+                  { icon: 'logo-github', action: 'github' },
+                  { icon: 'people-outline', action: 'contacts' },
+                  { icon: 'settings-outline', action: 'settings' },
+                ] as const
+              ).map((r, i) => (
+                <Animated.View key={r.icon} entering={FadeInDown.delay(i * 90).duration(220)}>
+                  <Pressable
+                    onPress={() => {
+                      setCalRail(false);
+                      if (r.action === 'settings') router.push('/settings');
+                      else setToolPinned(r.action);
+                    }}
+                    hitSlop={6}
+                    style={({ pressed }) => ({
+                      width: 40,
+                      height: 40,
+                      borderRadius: 999,
+                      // the calendar tab button's exact translucent navy
+                      backgroundColor: 'rgba(46,80,121,0.5)',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      opacity: pressed ? 0.7 : 1,
+                    })}>
+                    <Ionicons name={r.icon} size={17} color={darkChat.text} />
+                  </Pressable>
+                </Animated.View>
+              ))}
+            </View>
           ) : null}
           <ScrollView
             ref={scrollRef}
@@ -353,19 +516,94 @@ export function ChatThreadView({
               // right rail reserved for a future vertical element
               paddingRight: 32,
               paddingTop: spacing.lg,
-              paddingBottom: spacing.md,
+              // room to scroll past the floating command pill: the
+              // conversation flows BEHIND it, no wall
+              paddingBottom: 118,
             }}
             showsVerticalScrollIndicator={false}
             onContentSizeChange={scrollToEnd}>
+            {/* unbound new chat: quiet starter chips where the first
+                message will land; routing is automatic, so there is
+                nothing to configure up here */}
+            {composeNew && !thread ? (
+              <View
+                style={{
+                  // idle: centered invitation; once sent it snaps up to
+                  // the slot between the header and the coming console
+                  marginTop: seedPhase === 'idle' ? 96 : 4,
+                  alignItems: 'center',
+                  gap: 10,
+                }}>
+                <NewChatSeed phase={seedPhase} />
+                {(seedPhase === 'idle'
+                  ? ['Plan my day', 'Find time Friday', 'Summarize my inbox']
+                  : []
+                ).map((chip) => (
+                  <Pressable
+                    key={chip}
+                    onPress={() => setDraft(chip)}
+                    style={({ pressed }) => ({
+                      paddingHorizontal: 16,
+                      paddingVertical: 9,
+                      borderRadius: 999,
+                      backgroundColor: 'rgba(255,255,255,0.16)',
+                      borderWidth: 1,
+                      borderColor: 'rgba(255,255,255,0.3)',
+                      opacity: pressed ? 0.7 : 1,
+                    })}>
+                    <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.92)' }}>{chip}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
             {thread?.messages.map((m) => (
               <View key={m.id}>
+                {taskStarts.includes(m.id) ? (
+                  <View
+                    style={{
+                      position: 'absolute',
+                      right: -24,
+                      top: 10,
+                      width: 16,
+                      height: 2.5,
+                      borderRadius: 2,
+                      backgroundColor:
+                        m.id === currentTaskStart ? sysColor.accent : 'rgba(255,255,255,0.35)',
+                    }}
+                  />
+                ) : null}
+                {/* chop boundary: the orchestrator cut a new task here —
+                    one scroll, visibly segmented */}
+                {m.taskDivider ? (
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 10,
+                      marginVertical: spacing.lg,
+                    }}>
+                    <View style={{ flex: 1, height: 1, backgroundColor: 'rgba(255,255,255,0.22)' }} />
+                    <Text
+                      numberOfLines={1}
+                      style={{
+                        maxWidth: '60%',
+                        fontFamily: fontFamily.mono,
+                        fontSize: 10,
+                        letterSpacing: 0.3,
+                        color: 'rgba(255,255,255,0.6)',
+                      }}>
+                      {`task  ${m.taskDivider}`}
+                    </Text>
+                    <View style={{ flex: 1, height: 1, backgroundColor: 'rgba(255,255,255,0.22)' }} />
+                  </View>
+                ) : null}
                 {m.terminalLog ? (
                   <View style={{ marginBottom: spacing.sm }}>
                     {m.terminalLog.map((line, i) => (
                       <Text
                         key={i}
                         style={{
-                          fontFamily: 'Menlo',
+                          fontFamily: fontFamily.mono,
                           fontSize: 10,
                           lineHeight: 14,
                           color: darkChat.textTertiary,
@@ -375,6 +613,7 @@ export function ChatThreadView({
                     ))}
                   </View>
                 ) : null}
+                {m.taskDivider ? null : (
                 <MessageBubble
                   from={m.from}
                   text={m.text}
@@ -415,6 +654,7 @@ export function ChatThreadView({
                   />
                 ) : null}
                 </MessageBubble>
+                )}
               </View>
             ))}
             {isTyping ? <TypingIndicator /> : null}
@@ -451,6 +691,158 @@ export function ChatThreadView({
               />
             </Animated.View>
           ) : null}
+          {/* floating command dock: the conversation scrolls
+              underneath — no floor, no wall */}
+          <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0 }}>
+          {/* crew standby dots: four signature colors sleeping over the
+              command pill; the routed agent's dot wakes and pulses */}
+          <View style={{ marginBottom: 8 }}>
+            <CrewDots
+              activeKey={
+                called
+                  ? called.key
+                  : seedPhase !== 'idle'
+                    ? seedKey
+                    : crewBusy || isTyping || thinkingHere
+                      ? crewSelected
+                      : null
+              }
+              wave={draft.trim().length > 0}
+            />
+          </View>
+          {/* Command pill row: attach lives OUTSIDE the pill (system
+              gesture, iMessage grammar); inside-left is the "/" command
+              chip; the right circle talks or sends. */}
+          <View
+            style={{
+              marginHorizontal: spacing.lg,
+              marginBottom: spacing.sm,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 8,
+              shadowColor: '#16181C',
+              shadowOpacity: 0.22,
+              shadowRadius: 12,
+              shadowOffset: { width: 0, height: 3 },
+              elevation: 10,
+            }}>
+          <Pressable
+            onPress={() => setAttachOpen((v) => !v)}
+            hitSlop={10}
+            style={({ pressed }) => ({
+              width: 36,
+              height: 36,
+              borderRadius: 999,
+              backgroundColor: 'rgba(255,255,255,0.2)',
+              borderWidth: 1,
+              borderColor: 'rgba(255,255,255,0.35)',
+              alignItems: 'center',
+              justifyContent: 'center',
+              opacity: pressed ? 0.6 : 1,
+            })}>
+            <Ionicons name="add" size={20} color="rgba(255,255,255,0.92)" />
+          </Pressable>
+          <View
+            style={{
+              flex: 1,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: spacing.sm,
+              paddingLeft: 12,
+              paddingRight: 4,
+              paddingVertical: 4,
+              borderRadius: 999,
+              overflow: 'hidden',
+              // the Home ask bar's exact glass: ONE command-pill material
+              borderWidth: 1,
+              borderColor: 'rgba(255,255,255,0.55)',
+            }}>
+              {GLASS_AVAILABLE ? (
+                <GlassView
+                  glassEffectStyle="clear"
+                  colorScheme="light"
+                  style={StyleSheet.absoluteFill}
+                  pointerEvents="none"
+                />
+              ) : null}
+              <View
+                pointerEvents="none"
+                style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(255,255,255,0.62)' }]}
+              />
+              <Pressable
+                hitSlop={10}
+                onPress={() => {
+                  if (!draft.startsWith('/')) setDraft('/' + draft);
+                }}
+                style={({ pressed }) => ({
+                  width: 22,
+                  height: 22,
+                  borderRadius: 6,
+                  backgroundColor: 'rgba(59,118,196,0.12)',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  opacity: pressed ? 0.6 : 1,
+                })}>
+                <Text
+                  style={{
+                    fontSize: 11,
+                    fontFamily: fontFamily.semibold,
+                    color: sysColor.accent,
+                  }}>
+                  /
+                </Text>
+              </Pressable>
+              <TextInput
+                onChangeText={setDraft}
+                autoFocus={composeNew}
+                onFocus={() => setAttachOpen(false)}
+                placeholder="Assign a task to your crew"
+                placeholderTextColor="rgba(22,24,28,0.5)"
+                style={{
+                  flex: 1,
+                  paddingVertical: spacing.md,
+                  fontSize: 15,
+                  fontFamily: fontFamily.regular,
+                  color: '#16181C',
+                }}
+                returnKeyType="send"
+                onSubmitEditing={onSend}>
+                {called ? (
+                  <Text>
+                    <Text
+                      style={{
+                        color: CREW_DEEP[called.pixel],
+                        fontSize: 14,
+                        fontFamily: fontFamily.bold,
+                      }}>
+                      {draft.slice(0, calledLen)}
+                    </Text>
+                    {draft.slice(calledLen)}
+                  </Text>
+                ) : (
+                  draft
+                )}
+              </TextInput>
+              <Pressable
+                onPress={() => (draft.trim() ? onSend() : Alert.alert('Coming soon'))}
+                style={({ pressed }) => ({
+                  width: 38,
+                  height: 38,
+                  borderRadius: 999,
+                  backgroundColor: brandBlue,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  opacity: pressed ? 0.8 : 1,
+                })}>
+                <Ionicons
+                  name={draft.trim() ? 'arrow-up' : 'mic'}
+                  size={19}
+                  color={darkChat.onLight}
+                />
+              </Pressable>
+          </View>
+          </View>
+          </View>
         </View>
 
         {/* Attachment popover (+ button): Camera / Photos / Files */}
@@ -510,86 +902,15 @@ export function ChatThreadView({
         ) : null}
 
 
-        {/* Input: the home command bar's design transplanted — azure
-            fill, aurora rim, blue glow. Only the voice circle is its
-            own element and stays as before. */}
-        <View
-          style={{
-            marginHorizontal: spacing.lg,
-            marginBottom: spacing.sm,
-            marginTop: spacing.xs,
-            shadowColor: '#C9DC7A',
-            shadowOpacity: 0.22,
-            shadowRadius: 12,
-            shadowOffset: { width: 0, height: 3 },
-            elevation: 10,
-          }}>
-        <View
-          onLayout={(e) =>
-            setComposerSize({
-              w: e.nativeEvent.layout.width,
-              h: e.nativeEvent.layout.height,
-            })
-          }
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: spacing.sm,
-            paddingLeft: spacing.md,
-            paddingRight: 4,
-            paddingVertical: 4,
-            borderRadius: 999,
-            backgroundColor: '#0B2113',
-          }}>
-            <Pressable
-              onPress={() => setAttachOpen((v) => !v)}
-              hitSlop={8}
-              style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}>
-              <Ionicons name="add" size={24} color="rgba(230,240,220,0.9)" />
-            </Pressable>
-            <TextInput
-              value={draft}
-              onChangeText={setDraft}
-              onFocus={() => setAttachOpen(false)}
-              placeholder="Assign a task to your crew"
-              placeholderTextColor="rgba(230,240,220,0.5)"
-              style={{
-                flex: 1,
-                paddingVertical: spacing.md,
-                fontSize: 15,
-                fontFamily: fontFamily.regular,
-                color: 'rgba(230,240,220,0.95)',
-              }}
-              returnKeyType="send"
-              onSubmitEditing={onSend}
-            />
-            <Pressable
-              onPress={() => (draft.trim() ? onSend() : Alert.alert('Coming soon'))}
-              style={({ pressed }) => ({
-                width: 38,
-                height: 38,
-                borderRadius: 999,
-                backgroundColor: brandBlue,
-                alignItems: 'center',
-                justifyContent: 'center',
-                opacity: pressed ? 0.8 : 1,
-              })}>
-              <Ionicons
-                name={draft.trim() ? 'arrow-up' : 'mic'}
-                size={19}
-                color={darkChat.onLight}
-              />
-            </Pressable>
-        </View>
-        {composerSize ? <AuroraRim w={composerSize.w} h={composerSize.h} /> : null}
-        </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
 
-/** Pushed route wrapper (deep links, Home rows, sheet rows). */
+/** Pushed route wrapper (deep links, Home rows, sheet rows).
+ * /chat/new is the Home ask bar's destination: the empty-thread compose
+ * mode; ?draft prefills the composer (the slash chip sends "undo "). */
 export default function ChatThreadScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
-  return <ChatThreadView id={id!} />;
+  const { id, draft } = useLocalSearchParams<{ id: string; draft?: string }>();
+  return <ChatThreadView id={id!} composeNew={id === 'new'} initialDraft={draft} />;
 }

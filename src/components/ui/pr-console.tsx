@@ -5,7 +5,7 @@ import { fontFamily, fontSize, spacing } from '@/theme/theme';
 
 // Same deep navy as every other system surface.
 const PANEL_BG = '#0E1626';
-const MONO = 'Menlo';
+const MONO = fontFamily.mono;
 const TEXT = '#FFFFFF';
 const DIM = 'rgba(255,255,255,0.45)';
 const LABEL = 'rgba(255,255,255,0.55)';
@@ -23,7 +23,7 @@ export function PRConsole() {
     <View
       style={{
         backgroundColor: PANEL_BG,
-        borderRadius: 24,
+        borderRadius: 20,
         borderWidth: 1,
         borderColor: 'rgba(255,255,255,0.28)',
         paddingHorizontal: 16,

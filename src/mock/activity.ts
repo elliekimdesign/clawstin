@@ -42,7 +42,7 @@ export const initialActivity: ActivityItem[] = [
   // Autopilot runs: no prompt asked for these; a rule or schedule fired.
   {
     id: 'ap-run1', time: '16:52', day: 'today', ago: '2m',
-    prompt: 'Email cleanup · rule run',
+    prompt: 'Email cleanup, rule run',
     agentId: 'muppet', threadId: 't1', total: '2.4s',
     source: 'autopilot', ruleKey: 'email-cleanup',
     steps: [
@@ -52,7 +52,7 @@ export const initialActivity: ActivityItem[] = [
   },
   {
     id: 'ap-run2', time: '16:52', day: 'today', ago: '2m',
-    prompt: 'Newsletter archiving · rule run',
+    prompt: 'Newsletter archiving, rule run',
     agentId: 'muppet', threadId: 't1', total: '1.9s',
     source: 'autopilot', ruleKey: 'newsletter-archiving',
     steps: [
@@ -62,21 +62,21 @@ export const initialActivity: ActivityItem[] = [
   },
   {
     id: 'ap-run3', time: '16:50', day: 'today', ago: '4m',
-    prompt: 'GitHub labeling · rule run',
+    prompt: 'GitHub labeling, rule run',
     agentId: 'pilot', threadId: 't4', total: '1.2s',
     source: 'autopilot', ruleKey: 'github-labeling',
     steps: [{ label: 'label 6 notifications', ms: '900ms' }],
   },
   {
     id: 'ap-run4', time: '09:14', day: 'yesterday', ago: '1d',
-    prompt: 'Newsletter archiving · rule run',
+    prompt: 'Newsletter archiving, rule run',
     agentId: 'muppet', threadId: 't1', total: '1.6s',
     source: 'autopilot', ruleKey: 'newsletter-archiving',
-    steps: [{ label: 'archive 8 emails · undone later', ms: '1.1s' }],
+    steps: [{ label: 'archive 8 emails, undone later', ms: '1.1s' }],
   },
   {
     id: 'ap-run5', time: '09:00', day: 'yesterday', ago: '1d',
-    prompt: 'Weekly review · scheduled run',
+    prompt: 'Weekly review, scheduled run',
     agentId: 'quill', threadId: 't3', total: '8.2s',
     source: 'autopilot', ruleKey: 'weekly-review',
     steps: [
@@ -180,5 +180,44 @@ export const initialActivity: ActivityItem[] = [
       { label: 'contacts.dedupe 20', ms: '3.1s' },
       { label: 'apply labels x5', ms: '1.8s' },
     ],
+  },
+
+  // Coverage rows (2026-07-12): Activity is the COMPLETE history —
+  // every thread appears here, newest first, even pure conversations.
+  {
+    id: 'a11', time: '12:40', day: 'today', ago: '3h',
+    prompt: 'Dinner with Jenna 6 pm tmrw',
+    agentId: 'muppet', threadId: 't5', total: '2.1s',
+    steps: [{ label: 'calendar.freebusy fri', ms: '600ms' }],
+  },
+  {
+    id: 'a12', time: '11:15', day: 'today', ago: '4h',
+    prompt: 'Book the Saturday pottery class',
+    agentId: 'muppet', threadId: 't6', total: '3.4s',
+    steps: [{ label: 'browser.checkout attempt', ms: '2.2s' }],
+  },
+  {
+    id: 'a13', time: '09:05', day: 'today', ago: '6h',
+    prompt: 'Move standup to 10:30 AM',
+    agentId: 'muppet', threadId: 'ta1', total: '1.8s',
+    steps: [{ label: 'calendar.event.move', ms: '700ms' }],
+  },
+  {
+    id: 'a14', time: '17:40', day: 'yesterday', ago: '1d',
+    prompt: 'Merge 3 duplicate contacts',
+    agentId: 'pilot', threadId: 'ta2', total: '2.6s',
+    steps: [{ label: 'contacts.merge x3', ms: '1.9s' }],
+  },
+  {
+    id: 'a15', time: '15:12', day: 'yesterday', ago: '1d',
+    prompt: 'Decline the Friday 4pm invite',
+    agentId: 'muppet', threadId: 'ta3', total: '1.2s',
+    steps: [{ label: 'calendar.rsvp decline', ms: '500ms' }],
+  },
+  {
+    id: 'a16', time: '14:02', day: 'yesterday', ago: '1d',
+    prompt: 'Merge the passing PR',
+    agentId: 'muppet', threadId: 'ta4', total: '4.0s',
+    steps: [{ label: 'github.pr.merge 128', ms: '2.4s' }],
   },
 ];

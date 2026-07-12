@@ -1,10 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { GlassView, isGlassEffectAPIAvailable } from 'expo-glass-effect';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { ImageSourcePropType } from 'react-native';
 import {
-  Image,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -22,32 +18,38 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
+import { ClawstinMark } from '@/components/ui/clawstin-mark';
+import { CrewPixel } from '@/components/ui/crew-pixel';
 import { CREW_LIST, CrewKey } from '@/mock/crew-routing';
 import { darkChat, fontFamily, fontSize, spacing } from '@/theme/theme';
 
 const PILL_H = 40;
 const SLOT_W = 92; // per-name slot width in the underlying (collapsed) strip
 
-// Round crew avatars (same face-centered card assets as the other tabs).
-const CREW_ART: Record<CrewKey, ImageSourcePropType> = {
-  researcher: require('../../../assets/crew/beaker.jpeg'),
-  writer: require('../../../assets/crew/misspiggy.jpeg'),
-  triage: require('../../../assets/crew/gonzo.jpeg'),
-  orchestrator: require('../../../assets/crew/muppet.jpeg'),
+// Our own pixel crew (the Muppet photos are retired): route key ->
+// crew-pixel character id.
+const PIXEL_BY_ROUTE: Record<CrewKey, string> = {
+  researcher: 'scout', // Specs
+  writer: 'quill', // Wink
+  triage: 'pilot', // Crop
+  orchestrator: 'muppet', // Beanie
 };
 
-/** Small round crew face chip. */
-function CrewAvatar({ src, size = 18 }: { src: ImageSourcePropType; size?: number }) {
+/** Small round crew face chip: pixel face on the white logo-chip chrome. */
+function CrewAvatar({ crewKey, size = 18 }: { crewKey: CrewKey; size?: number }) {
   return (
     <View
       style={{
         width: size,
         height: size,
         borderRadius: 999,
-        overflow: 'hidden',
-        backgroundColor: '#FFFFFF',
+        backgroundColor: '#F5F6F4',
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(22,24,28,0.1)',
       }}>
-      <Image source={src} style={{ width: size, height: size, resizeMode: 'cover' }} />
+      <CrewPixel id={PIXEL_BY_ROUTE[crewKey]} size={size - 5} />
     </View>
   );
 }
@@ -67,10 +69,6 @@ const SLIDE_SPRING = { damping: 24, stiffness: 220, mass: 0.9 };
 const EXTEND_SPRING = { damping: 24, stiffness: 200, mass: 0.9 };
 // Cross-fade between the collapsed reel and the expanded row.
 const FADE_TIMING = { duration: 240, easing: Easing.out(Easing.cubic) };
-
-// expo-glass-effect is iOS-only and can be unavailable on some iOS 26 betas —
-// guard so the pill still renders (via the rgba fallback below) everywhere else.
-const GLASS_AVAILABLE = Platform.OS === 'ios' && isGlassEffectAPIAvailable();
 
 /**
  * Picker-wheel crew indicator: ONE fixed glass pill at top-center; the crew
@@ -224,13 +222,6 @@ export function CrewSwitch({
   }, [expanded, maxExpandedW]);
 
   const pillStyle = useAnimatedStyle(() => ({ width: pillW.value }));
-  const collapsedCenterStyle = useAnimatedStyle(() => ({
-    left: (pillW.value - 2 * BORDER) / 2 - CENTER_W / 2,
-  }));
-  const expandedHighlightStyle = useAnimatedStyle(() => ({
-    width: highlightW.value,
-    transform: [{ translateX: highlightLeft.value }],
-  }));
   const stripStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: strip.value + pillW.value / 2 - SLOT_W / 2 }],
     opacity: stripOpacity.value,
@@ -258,8 +249,6 @@ export function CrewSwitch({
     }, 2000);
   };
 
-  const GlassOrFallback = GLASS_AVAILABLE ? GlassView : View;
-
   return (
     <View style={{ height: PILL_H, alignItems: 'center' }}>
       {expanded ? (
@@ -269,20 +258,14 @@ export function CrewSwitch({
         />
       ) : null}
       <Animated.View style={[{ borderRadius: 999, overflow: 'hidden', zIndex: 2 }, pillStyle]}>
-        <GlassOrFallback
-          {...(GLASS_AVAILABLE
-            ? { glassEffectStyle: 'regular' as const, isInteractive: true, colorScheme: 'dark' as const }
-            : {})}
+        <View
           style={{
             height: PILL_H,
             borderRadius: 999,
-            // the track behind the capsule wears the command azure's
-            // deep ink (translucent over glass) instead of dull slate
-            backgroundColor: GLASS_AVAILABLE ? 'rgba(255,255,255,0.55)' : darkChat.solidSurface,
-            borderWidth: BORDER,
-            // brighter neutral white: at low opacity the edge picked up a
-            // pale-green cast from the teal gradient behind it
-            borderColor: 'rgba(255,255,255,0.5)',
+            // minimal ref (2026-07-12): ONE soft translucent pill,
+            // no border, no capsule — selection is carried by text
+            // weight and brightness alone
+            backgroundColor: 'rgba(46,80,121,0.5)',
             overflow: 'hidden',
           }}>
           {/* Collapsed layer: fixed centered capsule + picker-wheel strip.
@@ -291,29 +274,6 @@ export function CrewSwitch({
           <Animated.View
             pointerEvents={expanded ? 'none' : 'auto'}
             style={[StyleSheet.absoluteFill, collapsedLayerStyle]}>
-            <Animated.View
-              pointerEvents="none"
-              style={[
-                {
-                  position: 'absolute',
-                  top: RING - BORDER,
-                  width: CENTER_W,
-                  height: PILL_H - 2 * RING,
-                  borderRadius: 999,
-                  // the command bar's azure: selection = the action
-                  // color. A green hairline = manually pinned.
-                  backgroundColor: '#4285F4',
-                  borderWidth: manual && selected !== null ? 1 : 0,
-                  borderColor: 'rgba(95,217,164,0.65)',
-                  shadowColor: '#1B1F3B',
-                  shadowOpacity: 0.08,
-                  shadowRadius: 4,
-                  shadowOffset: { width: 0, height: 1 },
-                  elevation: 1,
-                },
-                collapsedCenterStyle,
-              ]}
-            />
             {/* Sliding row: only shown while routing is animating (the
                 name reel cycling). At rest a badge sits in the capsule:
                 the crew's round avatar + name once assigned, or the
@@ -349,15 +309,15 @@ export function CrewSwitch({
                   gap: 6,
                 }}>
                 {selected === null ? (
-                  <MiniFace size={16} />
+                  <LogoChip size={18} />
                 ) : (
-                  <CrewAvatar src={CREW_ART[selected]} size={18} />
+                  <CrewAvatar crewKey={selected} size={18} />
                 )}
                 <Text
                   style={{
                     fontSize: fontSize.small,
                     fontFamily: fontFamily.semibold,
-                    color: darkChat.onLight,
+                    color: '#FFFFFF',
                     includeFontPadding: false,
                   }}>
                   {selected === null
@@ -366,7 +326,7 @@ export function CrewSwitch({
                 </Text>
                 {/* pinned manually: the ✕ says "tap to release to auto" */}
                 {manual && selected !== null ? (
-                  <Ionicons name="close" size={13} color={darkChat.onLight} />
+                  <Ionicons name="close" size={13} color="rgba(255,255,255,0.9)" />
                 ) : null}
               </View>
             )}
@@ -383,29 +343,6 @@ export function CrewSwitch({
               contentContainerStyle={{ paddingHorizontal: RING, alignItems: 'center' }}
               style={{ height: INNER_H }}>
               <View style={{ width: expandedTotalW, height: INNER_H }}>
-                {/* Highlight capsule — position AND width glide to whichever
-                    name is selected, same "selected = capsule" language as
-                    the collapsed reel, now tracking a scrollable row. */}
-                <Animated.View
-                  pointerEvents="none"
-                  style={[
-                    {
-                      position: 'absolute',
-                      top: RING - BORDER,
-                      height: PILL_H - 2 * RING,
-                      borderRadius: 999,
-                      // same command azure as the collapsed capsule
-                      backgroundColor: '#4285F4',
-                      shadowColor: '#1B1F3B',
-                      shadowOpacity: 0.08,
-                      shadowRadius: 4,
-                      shadowOffset: { width: 0, height: 1 },
-                      elevation: 1,
-                    },
-                    expandedHighlightStyle,
-                  ]}
-                />
-
                 <View style={{ flexDirection: 'row', height: INNER_H, alignItems: 'center' }}>
                   {CREW_LIST.map((c, idx) => (
                     <Pressable
@@ -423,7 +360,7 @@ export function CrewSwitch({
                         style={{
                           fontSize: fontSize.small,
                           fontFamily: c.key === selected ? fontFamily.semibold : fontFamily.medium,
-                          color: c.key === selected ? darkChat.onLight : darkChat.textSecondary,
+                          color: c.key === selected ? '#FFFFFF' : 'rgba(255,255,255,0.55)',
                           includeFontPadding: false,
                           textAlignVertical: 'center',
                         }}>
@@ -450,43 +387,28 @@ export function CrewSwitch({
               style={{ position: 'absolute', left: 0, top: 0, width: PILL_W, height: PILL_H }}
             />
           ) : null}
-        </GlassOrFallback>
+        </View>
       </Animated.View>
     </View>
   );
 }
 
-/** The little round orange face (the app's orchestrator mark), sized for
- * the pill's New Chat badge. */
-function MiniFace({ size = 16 }: { size?: number }) {
-  const k = size / 34;
+/** The main logo on its round white chip (the Home header's own
+ * lockup, miniaturized), sized for the pill's New Chat badge. */
+function LogoChip({ size = 18 }: { size?: number }) {
   return (
     <View
       style={{
         width: size,
         height: size,
-        // the app-icon squircle, same as the home console's face
-        borderRadius: size * 0.3,
-        backgroundColor: '#E8563F',
+        borderRadius: 999,
+        backgroundColor: '#F5F6F4',
         alignItems: 'center',
         justifyContent: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(22,24,28,0.1)',
       }}>
-      <View style={{ flexDirection: 'row', gap: 6 * k, marginBottom: 4 * k }}>
-        <View
-          style={{ width: 4.5 * k, height: 4.5 * k, borderRadius: 999, backgroundColor: '#FFFFFF' }}
-        />
-        <View
-          style={{ width: 4.5 * k, height: 4.5 * k, borderRadius: 999, backgroundColor: '#FFFFFF' }}
-        />
-      </View>
-      <View
-        style={{
-          width: 11 * k,
-          height: 2.5 * k,
-          borderRadius: 2 * k,
-          backgroundColor: 'rgba(255,255,255,0.9)',
-        }}
-      />
+      <ClawstinMark size={size - 5} />
     </View>
   );
 }
@@ -526,7 +448,7 @@ function ReelLabel({
           style={{
             fontSize: fontSize.small,
             fontFamily: active ? fontFamily.semibold : fontFamily.medium,
-            color: active ? darkChat.onLight : darkChat.textSecondary,
+            color: active ? '#FFFFFF' : 'rgba(255,255,255,0.55)',
             includeFontPadding: false,
             textAlignVertical: 'center',
           }}>

@@ -6,6 +6,7 @@ import { Pressable, ScrollView, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AcidSwooshBg } from '@/components/ui/acid-swoosh-bg';
+import { ConnectionDiagram } from '@/components/ui/connection-diagram';
 import { AcidGlassFill, WindowDots } from '@/components/ui/window-fill';
 import { useAppStore } from '@/store/app-store';
 import { fontFamily, spacing, sysColor } from '@/theme/theme';
@@ -139,6 +140,9 @@ export default function SettingsScreen() {
         </View>
 
         <SettingsWindow title="CONNECTION">
+          {/* the section's soul: this phone talking to the Mac gateway */}
+          <ConnectionDiagram status={gatewayStatus} />
+          <View style={{ height: 1, backgroundColor: DIVIDER }} />
           <Row label="Gateway" right={<Mono>openclaw.local:8443</Mono>} />
           <Row label="Latency" right={<Mono>{`${core?.pingMs ?? 0}ms`}</Mono>} />
           <Row

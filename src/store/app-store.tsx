@@ -111,10 +111,10 @@ export const TOOL_ACTION_PHRASE: Record<string, string> = {
 //   retry can fix it, the agent REPLANS and proposes the new answer.
 const GITHUB_FAIL = {
   lines: [
-    'execute · github.merge chore/log-json',
-    'retry 1/3 · after 10s · 502',
-    'retry 2/3 · after 22s · 502',
-    'retry 3/3 · after 44s · 502',
+    'execute  github.merge chore/log-json',
+    'retry 1/3  after 10s  502',
+    'retry 2/3  after 22s  502',
+    'retry 3/3  after 44s  502',
   ],
   msg: {
     caption: 'TASK PAUSED',
@@ -124,9 +124,9 @@ const GITHUB_FAIL = {
 };
 const CALENDAR_CONFLICT = {
   lines: [
-    'execute · calendar.move standup 10:30',
-    'check · 10:30 taken 5m ago by Priya',
-    'replan · 11:00 open for all 5 · 0.4s',
+    'execute  calendar.move standup 10:30',
+    'check  10:30 taken 5m ago by Priya',
+    'replan  11:00 open for all 5  0.4s',
   ],
   msg: {
     caption: 'TASK PAUSED',
@@ -150,25 +150,25 @@ const EDGE_FOLLOWUPS: {
   {
     re: /(undo|revert)[\s\S]*(archiv|email|newsletter)|(archiv|email|newsletter)[\s\S]*(undo|revert)/i,
     tool: 'calendar',
-    lines: ['undo requested · archived 12 emails', 'execute · mail.unarchive 12 · 0.6s'],
+    lines: ['undo requested  archived 12 emails', 'execute  mail.unarchive 12  0.6s'],
     text: 'Undone. All 12 newsletter emails are back in your inbox. The undo window for this action is closed out.',
   },
   {
     re: /(undo|revert|release)[\s\S]*(dinner|slot|hold)|(dinner|slot|hold)[\s\S]*(undo|revert)/i,
     tool: 'calendar',
-    lines: ['undo requested · held dinner slots', 'execute · opentable.release 2 holds · 0.4s'],
+    lines: ['undo requested  held dinner slots', 'execute  opentable.release 2 holds  0.4s'],
     text: 'Released both held slots. Nothing is booked for Friday anymore; say the word if you want them back.',
   },
   {
     re: /(undo|revert)[\s\S]*(github|label|notification)|(github|label|notification)[\s\S]*(undo|revert)/i,
     tool: 'github',
-    lines: ['undo requested · labeled notifications', 'execute · github.unlabel 6 · 0.5s'],
+    lines: ['undo requested  labeled notifications', 'execute  github.unlabel 6  0.5s'],
     text: 'Removed the 6 labels. Your GitHub notifications are back exactly as they were.',
   },
   {
     re: /undo|revert/i,
     tool: 'calendar',
-    lines: ['undo requested · no target named', 'route · matching recent undoable actions'],
+    lines: ['undo requested  no target named', 'route  matching recent undoable actions'],
     text: 'Which one? These are still inside their undo window:',
     suggestions: [
       'Undo: archived 12 newsletter emails',
@@ -179,28 +179,28 @@ const EDGE_FOLLOWUPS: {
   {
     re: /keep retrying/i,
     tool: 'github',
-    lines: ['execute · retry queue armed · 0.2s', 'synthesize · merge on recovery · 0.3s'],
+    lines: ['execute  retry queue armed  0.2s', 'synthesize  merge on recovery  0.3s'],
     text: "On it. I'll keep retrying in the background and merge the moment GitHub answers.",
   },
   {
     re: /drop it/i,
     tool: 'github',
-    lines: ['execute · retry queue cleared · 0.2s'],
+    lines: ['execute  retry queue cleared  0.2s'],
     text: "Dropped. chore/log-json stays unmerged; say the word and I'll queue it again.",
   },
   {
     re: /move to 11/i,
     tool: 'calendar',
     lines: [
-      'execute · calendar.move standup 11:00 · 0.8s',
-      'synthesize · notifying 5 attendees · 0.3s',
+      'execute  calendar.move standup 11:00  0.8s',
+      'synthesize  notifying 5 attendees  0.3s',
     ],
     text: 'Done. Standup is at 11:00; all 5 attendees got the update.',
   },
   {
     re: /keep 10/i,
     tool: 'calendar',
-    lines: ['execute · move request closed · 0.2s'],
+    lines: ['execute  move request closed  0.2s'],
     text: 'Kept. Standup stays at 10:00 and I closed the move request.',
   },
 ];
@@ -212,6 +212,10 @@ type Store = {
   // Connection (MVP: local toggle — onboarding vs state board)
   connected: boolean;
   setConnected: (v: boolean) => void;
+
+  // Activity's >_ terminal takeover — global so the tab bar can go dark too
+  consoleLens: boolean;
+  setConsoleLens: (v: boolean) => void;
 
   // Activity (autonomous action log) + pending approvals (shown on Home board)
   approvals: Approval[];
@@ -239,7 +243,7 @@ type Store = {
   /** manual override; tapping the already-selected crew returns to auto */
   selectCrew: (key: CrewKey) => void;
   /** show a thread's owning crew in the pill (auto, no manual pin) */
-  focusCrew: (key: CrewKey) => void;
+  focusCrew: (key: CrewKey | null) => void;
   resolveApproval: (a: Approval, approved: boolean) => void;
 
   // Chat threads
@@ -317,6 +321,7 @@ const AppContext = createContext<Store | null>(null);
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [connected, setConnected] = useState(false);
+  const [consoleLens, setConsoleLens] = useState(false);
   const [approvals, setApprovals] = useState<Approval[]>(initialApprovals);
   const [activity, setActivity] = useState<ActivityItem[]>(initialActivity);
   const [running] = useState<RunningTask[]>([{ id: 'run1', label: 'Checking your calendar' }]);
@@ -361,7 +366,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   /** Opening a thread reflects who OWNS it: the pill shows that crew
    * (auto, not a manual pin). Used by the seeded approval ask-threads. */
-  const focusCrew = useCallback((key: CrewKey) => {
+  const focusCrew = useCallback((key: CrewKey | null) => {
+    // null = back to the unassigned "New Chat" badge
     setCrewSelected(key);
     setCrewManual(false);
   }, []);
@@ -656,9 +662,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setActiveTool('github');
         const needsReview = PENDING_PRS.filter((p) => p.status === 'review').length;
         runThinking(threadId, [
-          'parse & plan · GitHub status check · 0.2s',
-          `execute · GitHub, ${PENDING_PRS.length} pending PRs · 1.1s`,
-          'synthesize · building the list · 0.3s',
+          'parse & plan  GitHub status check  0.2s',
+          `execute  GitHub, ${PENDING_PRS.length} pending PRs  1.1s`,
+          'synthesize  building the list  0.3s',
         ]);
         runCrewSequence(['triage'], setCrewSelected, () => {
           setTypingThreadId(null);
@@ -683,10 +689,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         // Each line stays under ~46 mono chars so the trailing duration
         // never wraps to an orphan line on a phone-width console.
         runThinking(threadId, [
-          'parse & plan · Devtools + Calendar · 0.2s',
-          `execute · GitHub, ${PENDING_PRS.length} pending PRs · 1.4s`,
-          'execute · Calendar, 9-11 open tomorrow · 0.8s',
-          'synthesize · proposing a 2h block · 0.3s',
+          'parse & plan  Devtools + Calendar  0.2s',
+          `execute  GitHub, ${PENDING_PRS.length} pending PRs  1.4s`,
+          'execute  Calendar, 9-11 open tomorrow  0.8s',
+          'synthesize  proposing a 2h block  0.3s',
         ]);
         const prDate = new Date().getDate() + 1;
         const needsReview = PENDING_PRS.filter((p) => p.status === 'review').length;
@@ -738,9 +744,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
           /\b(weekly|every week|each week|every mon)\b/i.test(userText);
         const cadence = weekly ? `Mon ${clock}` : `${clock} daily`;
         runThinking(threadId, [
-          'parse & plan · recurring intent · 0.2s',
-          `execute · drafting "${name}" · 0.9s`,
-          'synthesize · cadence + scope readback · 0.3s',
+          'parse & plan  recurring intent  0.2s',
+          `execute  drafting "${name}"  0.9s`,
+          'synthesize  cadence + scope readback  0.3s',
         ]);
         runCrewSequence(['triage', 'orchestrator'], setCrewSelected, () => {
           setTypingThreadId(null);
@@ -775,14 +781,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
           threadId,
           parsed.intent === 'check'
             ? [
-                'parse & plan · schedule request · 0.2s',
-                'execute · Calendar, pulling events · 1.1s',
-                'synthesize · building the day view · 0.4s',
+                'parse & plan  schedule request  0.2s',
+                'execute  Calendar, pulling events  1.1s',
+                'synthesize  building the day view  0.4s',
               ]
             : [
-                `parse & plan · "${parsed.title}" · 0.2s`,
-                'execute · Calendar, checking conflicts · 1.2s',
-                'synthesize · lining up open slots · 0.4s',
+                `parse & plan  "${parsed.title}"  0.2s`,
+                'execute  Calendar, checking conflicts  1.2s',
+                'synthesize  lining up open slots  0.4s',
               ]
         );
         // Transition Hold: Operator holds first, then Orchestrator visibly
@@ -844,7 +850,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const pipelineLines = reply.pipeline
         ? reply.pipeline.steps.map(
             (s, i) =>
-              `${s.label.charAt(0).toLowerCase() + s.label.slice(1)} · ${STEP_DURATIONS[i % STEP_DURATIONS.length]}`
+              `${s.label.charAt(0).toLowerCase() + s.label.slice(1)}  ${STEP_DURATIONS[i % STEP_DURATIONS.length]}`
           )
         : null;
       // Manual override sticks; otherwise Operator holds first, then the
@@ -857,10 +863,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
           pipelineLines ??
             (crew
               ? [
-                  `parse & plan · routing to ${crew.name} · 0.2s`,
-                  `execute · ${crew.name} picked it up · 0.9s`,
+                  `parse & plan  routing to ${crew.name}  0.2s`,
+                  `execute  ${crew.name} picked it up  0.9s`,
                 ]
-              : ['parse & plan · handled by core · 0.2s'])
+              : ['parse & plan  handled by core  0.2s'])
         );
         const stages: CrewKey[] = crew ? ['triage', crew.key] : ['triage'];
         runCrewSequence(stages, setCrewSelected, () => {
@@ -881,7 +887,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         runThinking(
           threadId,
           pipelineLines ?? [
-            `execute · sent to ${crewSelected ? ISLAND_CREWS[crewSelected].name : 'core'} · 0.3s`,
+            `execute  sent to ${crewSelected ? ISLAND_CREWS[crewSelected].name : 'core'}  0.3s`,
           ]
         );
         setTimeout(() => {
@@ -963,6 +969,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
             : [],
       };
       setThreads((prev) => [newThread, ...prev]);
+      // Activity is the COMPLETE history: every ask lands in the ledger
+      // the moment it exists, so the feed doubles as chat history.
+      if (seeded) {
+        const now = new Date();
+        const hh = String(now.getHours()).padStart(2, '0');
+        const mm = String(now.getMinutes()).padStart(2, '0');
+        setActivity((prev) => [
+          {
+            id: nextId('a'),
+            time: `${hh}:${mm}`,
+            day: 'today',
+            ago: 'now',
+            prompt: seeded,
+            agentId: 'muppet',
+            threadId: id,
+          },
+          ...prev,
+        ]);
+      }
       if (seeded) respond(id, seeded);
       // A fresh thread opens unassigned: the pill reads "New Chat" until
       // the first message routes it to a crew (see sendMessage).
@@ -975,14 +1000,53 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [respond, permissions, gatewayStatus, runThinking, finishThinking]
   );
 
+  // Continuation cues: corrections and amendments stay in the SAME
+  // task ("아 7시 말고 7시반", "actually make it 6"). Everything else
+  // after a finished task is a NEW task the orchestrator chops off.
+  const CONTINUATION_RE =
+    /말고|아니|대신|actually|instead|rather|wait|change|make it|not |cancel|undo/i;
+
   const sendMessage = useCallback(
     (threadId: string, text: string) => {
       const trimmed = text.trim();
       if (!trimmed) return;
+      // CHOP: threads never close; when the previous task in this
+      // thread is done and the new message reads as a NEW topic, the
+      // orchestrator drops an inline boundary + births a task object
+      // (title now, ledger row now) — the scroll stays one river.
+      const t = threads.find((th) => th.id === threadId);
+      if (t?.outcome && !CONTINUATION_RE.test(trimmed)) {
+        const title = trimmed.length > 32 ? `${trimmed.slice(0, 31)}…` : trimmed;
+        appendToThread(threadId, { id: nextId('c'), from: 'agent', taskDivider: title });
+        const now = new Date();
+        const AGENT_OF: Record<string, string> = {
+          orchestrator: 'muppet',
+          researcher: 'scout',
+          writer: 'quill',
+          triage: 'pilot',
+        };
+        setActivity((prev) => [
+          {
+            id: nextId('a'),
+            time: `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`,
+            day: 'today',
+            ago: 'now',
+            prompt: trimmed,
+            agentId: t.crew ? AGENT_OF[t.crew] : 'muppet',
+            threadId,
+          },
+          ...prev,
+        ]);
+        // the thread wakes from idle: the old task stays done, the new
+        // one runs
+        setThreads((prev) =>
+          prev.map((th) => (th.id === threadId ? { ...th, outcome: undefined } : th))
+        );
+      }
       appendToThread(threadId, { id: nextId('c'), from: 'user', text: trimmed });
       respond(threadId, trimmed);
     },
-    [appendToThread, respond]
+    [appendToThread, respond, threads]
   );
 
   // When approving inside chat, also flip permission + remove the inline card,
@@ -1055,8 +1119,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setTypingThreadId(threadId);
       setCrewBusy(true);
       runThinking(threadId, [
-        `execute · Calendar, booking ${slot} PM Friday · 0.8s`,
-        'execute · OpenTable, confirming the table · 1.1s',
+        `execute  Calendar, booking ${slot} PM Friday  0.8s`,
+        'execute  OpenTable, confirming the table  1.1s',
       ]);
       runCrewSequence(['triage'], setCrewSelected, () => {
         setTypingThreadId(null);
@@ -1091,8 +1155,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setTypingThreadId(threadId);
       setCrewBusy(true);
       runThinking(threadId, [
-        'test run · Gmail, 14 new since yesterday · 1.1s',
-        'summarize · 3 need your attention · 0.8s',
+        'test run  Gmail, 14 new since yesterday  1.1s',
+        'summarize  3 need your attention  0.8s',
       ]);
       runCrewSequence(['triage'], setCrewSelected, () => {
         setTypingThreadId(null);
@@ -1131,7 +1195,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
                 ...t,
                 outcome: 'delivered' as const,
                 updatedAt: 'now',
-                lastPreview: `✓ Scheduled · ${proposal.cadence}`,
+                lastPreview: `✓ Scheduled  ${proposal.cadence}`,
                 title: proposal.name,
                 messages: t.messages.map((m) =>
                   m.id === messageId && m.scheduleProposal
@@ -1169,7 +1233,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           threadId,
           source: 'autopilot' as const,
           ruleKey: proposal.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-          steps: [{ label: `cadence set · ${proposal.cadence}`, state: 'ok' as const }],
+          steps: [{ label: `cadence set  ${proposal.cadence}`, state: 'ok' as const }],
         },
         ...prev,
       ]);
@@ -1181,7 +1245,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           from: 'agent',
           proactive: true,
           caption: 'SCHEDULED RUN',
-          text: `${proposal.name} · first scheduled run`,
+          text: `${proposal.name}  first scheduled run`,
           result: {
             items: [
               { label: '2 threads need a reply', detail: 'gmail' },
@@ -1270,6 +1334,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     () => ({
       connected,
       setConnected,
+      consoleLens,
+      setConsoleLens,
       approvals,
       activity,
       running,
@@ -1328,6 +1394,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }),
     [
       connected,
+      consoleLens,
       running,
       services,
       background,

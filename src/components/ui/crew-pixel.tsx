@@ -17,10 +17,19 @@ const INK = '#101214';
 /** each member's ONE accessory color (hat / frames / hair / blush) —
  * doubles as their accent in UI chrome (badge underlines etc.) */
 export const CREW_ACCENT: Record<string, string> = {
-  muppet: '#4E7A52', // Beanie's beanie
-  scout: '#D6453D', // Specs' frames
+  // truer, more primary green than the beanie itself so it reads on
+  // the blue desk
+  muppet: '#4BA65A', // Beanie's green (traffic-light green, dimmed a step)
+  scout: '#E8655A', // Specs' red (the mac traffic-light coral)
   quill: '#F49FB6', // Wink's blush
   pilot: '#E8C244', // Crop's hair
+};
+/** ink-strength versions for text (slash-command tokens etc.) */
+export const CREW_DEEP: Record<string, string> = {
+  muppet: '#35573A',
+  scout: '#A93229',
+  quill: '#C05B7A',
+  pilot: '#9A7A16',
 };
 const N = 24;
 

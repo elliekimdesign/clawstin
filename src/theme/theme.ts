@@ -59,11 +59,11 @@ export type ChatTheme = {
   success: string;
   /** which background component draws this theme: MeshBg corner glows or
    * one of the artworks (AquaBg, MintBg, ButterBg, CloudBg — components/ui) */
-  background: 'mesh' | 'aqua' | 'mint' | 'butter' | 'clouds';
+  background: 'mesh' | 'aqua' | 'mint' | 'butter' | 'clouds' | 'desk';
   mesh: { base: string; g1: string; g2: string; g3: string; g4: string };
 };
 
-export const chatThemes: Record<'darkGreen' | 'skyBlue' | 'skyBlueOs' | 'mintOs' | 'butterOs' | 'blueCloudOs' | 'mistOs', ChatTheme> = {
+export const chatThemes: Record<'darkGreen' | 'skyBlue' | 'skyBlueOs' | 'mintOs' | 'butterOs' | 'blueCloudOs' | 'mistOs' | 'deskOs', ChatTheme> = {
   /** The original moody slate-teal look — preserved as a picker option. */
   darkGreen: {
     base: '#38454A',
@@ -182,10 +182,29 @@ export const chatThemes: Record<'darkGreen' | 'skyBlue' | 'skyBlueOs' | 'mintOs'
     background: 'clouds',
     mesh: { base: '#E7EEFA', g1: '#CBDCF5', g2: '#DAE7F9', g3: '#F2F7FE', g4: '#E2EDFB' },
   },
+  /** The Home desk itself (2026-07-12): aquaos desk blues under a
+   * vintage-futuristic layer — machined light arcs + the three original
+   * window-button gels (DeskRetroBg). Chat and Home become one OS. */
+  deskOs: {
+    base: '#4E83B8',
+    text: '#F2F7FA',
+    textSecondary: 'rgba(242,247,250,0.72)',
+    textTertiary: 'rgba(242,247,250,0.55)',
+    glassBg: 'rgba(255,255,255,0.12)',
+    glassBorder: 'rgba(255,255,255,0.32)',
+    surface: 'rgba(255,255,255,0.10)',
+    solidSurface: '#2E5079',
+    divider: 'rgba(255,255,255,0.14)',
+    onLight: '#2E4F73',
+    success: '#5FD9A4',
+    background: 'desk',
+    // fallback mesh corners in the desk's own blues
+    mesh: { base: '#4E83B8', g1: '#33689C', g2: '#4074A5', g3: '#6297CE', g4: '#8FC0E8' },
+  },
 } as const;
 
 /** The active chat colorway. Swap here (or via a future user setting). */
-export const darkChat = chatThemes.mistOs;
+export const darkChat = chatThemes.deskOs;
 
 /** The crew's signature light blue: chart bars, agent marks, composer
  * send/mic circles. One blue on every surface. */

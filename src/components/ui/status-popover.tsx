@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 import { Pressable, Text, View } from 'react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 
+import { AcidGlassFill } from '@/components/ui/window-fill';
 import type { ServiceState, ServiceStatus } from '@/mock/services';
 import { fontFamily, fontSize, radius, spacing, sysColor } from '@/theme/theme';
 
@@ -14,6 +15,8 @@ const PANEL_TEXT = 'rgba(22,24,28,0.95)';
 const PANEL_DIM = 'rgba(22,24,28,0.6)';
 const PANEL_FAINT = 'rgba(22,24,28,0.42)';
 const DIVIDER = 'rgba(22,24,28,0.08)';
+// how far the scrim reaches ABOVE its container, to cover the status bar
+const SCRIM_REACH = 120;
 
 // Exactly three states, 1:1 with the semantic system colors — the dot
 // alone should read, and it must match the header chip's grammar.
@@ -155,32 +158,57 @@ export function StatusPopover({
   return (
     <Pressable
       onPress={onClose}
-      style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
+      // a quiet scrim: mutes the busy cards behind so the glass panel
+      // stays readable without going opaque. It over-reaches past the
+      // container's top so the status-bar strip dims too (the panel's
+      // own offset compensates below).
+      style={{
+        position: 'absolute',
+        top: -SCRIM_REACH,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundColor: 'rgba(12,14,18,0.18)',
+      }}>
       <Animated.View
         entering={FadeInUp.duration(160)}
         style={{
           position: 'absolute',
-          top: topOffset,
+          top: topOffset + SCRIM_REACH,
           right: spacing.lg,
           width: 300,
-          backgroundColor: PANEL_BG,
           borderRadius: 16,
           overflow: 'hidden',
           borderWidth: 1,
-          borderColor: 'rgba(22,24,28,0.1)',
+          // the section windows' white hairline, not an ink outline —
+          // the chip and its unfolded panel read as one family
+          borderColor: 'rgba(255,255,255,0.55)',
           shadowColor: '#16181C',
           shadowOpacity: 0.22,
           shadowRadius: 28,
           shadowOffset: { width: 0, height: 10 },
           elevation: 12,
         }}>
-        {/* the sections' own chrome: white title bar with the window
-            dots, then the hairline sill — this popover IS the status
-            chip unfolded into a full section window */}
+        {/* the sections' own material, whole: droplet tab + veil +
+            sill all come from AcidGlassFill — this popover IS the
+            status chip unfolded into a full section window */}
+        <AcidGlassFill effect="clear" tone="gray" />
+        {/* one extra veil: the popover floats over TEXT, not the desk,
+            so it needs more milk than the board windows to stay legible */}
+        <View
+          pointerEvents="none"
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(255,255,255,0.55)',
+          }}
+        />
         <View
           style={{
             height: 30,
-            backgroundColor: 'rgba(255,255,255,0.9)',
             flexDirection: 'row',
             alignItems: 'center',
             paddingHorizontal: spacing.lg,
@@ -195,7 +223,9 @@ export function StatusPopover({
             SYSTEM STATUS
           </Text>
         </View>
-        <View style={{ height: 1, backgroundColor: 'rgba(22,24,28,0.1)' }} />
+        {/* a crisp sill under the title bar: the extra veil muted the
+            fill's own hairline, so the popover draws its own */}
+        <View style={{ height: 1, backgroundColor: 'rgba(22,24,28,0.14)' }} />
         <View style={{ paddingVertical: spacing.md, paddingHorizontal: spacing.lg }}>
         {/* the summary is a CONCLUSION, not a title: the "Online" pill
             already declared health, so this line sits small and quiet
@@ -257,7 +287,7 @@ export function StatusPopover({
             <Pressable
               onPress={onManageAccess}
               style={({ pressed }) => ({
-                backgroundColor: 'rgba(255,255,255,0.9)',
+                backgroundColor: 'rgba(255,255,255,0.55)',
                 flexDirection: 'row',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -276,7 +306,7 @@ export function StatusPopover({
         <Pressable
           onPress={onOpenSettings}
           style={({ pressed }) => ({
-            backgroundColor: 'rgba(255,255,255,0.9)',
+            backgroundColor: 'rgba(255,255,255,0.55)',
             flexDirection: 'row',
             alignItems: 'center',
             justifyContent: 'space-between',

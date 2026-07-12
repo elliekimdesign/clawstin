@@ -89,9 +89,9 @@ export function WeekStrip({
     <View
       style={{
         backgroundColor: STRIP_BG,
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.28)',
-        borderRadius: 28,
+        // no hairline: over chat text the pale edge read as a stray
+        // background line — the solid navy alone carries the shape
+        borderRadius: 20,
         paddingVertical: spacing.lg,
         paddingHorizontal: spacing.xl,
       }}>

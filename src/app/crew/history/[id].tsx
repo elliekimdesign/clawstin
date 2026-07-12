@@ -1,11 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { Image, Pressable, ScrollView, Text, View } from 'react-native';
-import type { ImageSourcePropType } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BlissSwooshBg } from '@/components/ui/bliss-swoosh-bg';
+import { CrewPixel } from '@/components/ui/crew-pixel';
 import { useAppStore } from '@/store/app-store';
 import { fontSize, fontWeight, spacing } from '@/theme/theme';
 
@@ -14,13 +14,6 @@ const INK = '#1F3A57';
 const INK_DIM = 'rgba(31,58,87,0.6)';
 const INK_SOFT = 'rgba(31,58,87,0.06)';
 
-// Same face chips as the Crew tab (assets are face-centered card canvases).
-const CREW_ART: Record<string, ImageSourcePropType> = {
-  muppet: require('../../../../assets/crew/muppet.jpeg'),
-  scout: require('../../../../assets/crew/beaker.jpeg'),
-  quill: require('../../../../assets/crew/misspiggy.jpeg'),
-  pilot: require('../../../../assets/crew/gonzo.jpeg'),
-};
 
 /** Every prompt one agent has handled, newest first. Tapping a row opens
  * the real conversation it came from (the chat lands on its last line),
@@ -31,7 +24,6 @@ export default function CrewHistoryScreen() {
 
   const member = crew.find((m) => m.id === id);
   const entries = activity.filter((a) => a.agentId === id);
-  const art = id ? CREW_ART[id] : undefined;
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#8EC9F0' }} edges={['top']}>
@@ -62,16 +54,19 @@ export default function CrewHistoryScreen() {
             })}>
             <Ionicons name="chevron-back" size={18} color={INK} />
           </Pressable>
-          {art ? (
+          {id ? (
             <View
               style={{
                 width: 34,
                 height: 34,
                 borderRadius: 999,
-                overflow: 'hidden',
-                backgroundColor: '#FFFFFF',
+                backgroundColor: '#F5F6F4',
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderWidth: 1,
+                borderColor: 'rgba(22,24,28,0.1)',
               }}>
-              <Image source={art} style={{ width: 34, height: 34, resizeMode: 'cover' }} />
+              <CrewPixel id={id} size={24} />
             </View>
           ) : null}
           <View style={{ flex: 1 }}>

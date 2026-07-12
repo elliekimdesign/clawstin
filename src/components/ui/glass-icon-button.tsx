@@ -25,6 +25,9 @@ type Props = {
   /** outer positioning (e.g. absolute placement for FABs) */
   style?: StyleProp<ViewStyle>;
   hitSlop?: number;
+  /** tinted buttons draw a white hairline by default; pass false for
+   * surfaces that must match a borderless pill (the chat header) */
+  bordered?: boolean;
 };
 
 /**
@@ -42,6 +45,7 @@ export function GlassIconButton({
   tint,
   style,
   hitSlop = 8,
+  bordered = true,
 }: Props) {
   return (
     <Pressable
@@ -72,7 +76,7 @@ export function GlassIconButton({
               : onDark
                 ? darkChat.glassBg
                 : 'rgba(22,24,29,0.05)'),
-          borderWidth: tint ? 1 : GLASS_AVAILABLE ? 0 : 1,
+          borderWidth: !bordered ? 0 : tint ? 1 : GLASS_AVAILABLE ? 0 : 1,
           borderColor: tint
             ? 'rgba(255,255,255,0.5)'
             : onDark

@@ -3,14 +3,11 @@ import { router } from 'expo-router';
 import { ReactNode, useEffect, useRef, useState } from 'react';
 import {
   Image,
-  Keyboard,
-  KeyboardAvoidingView,
   LayoutAnimation,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   useWindowDimensions,
   View,
   type ViewStyle,
@@ -29,18 +26,20 @@ import Animated, {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AUTOPILOT_RULES } from '@/mock/autopilot';
+import { UNDOABLES } from '@/mock/undoables';
 import { AuroraLine } from '@/components/ui/aurora-line';
 import { Card } from '@/components/ui/card';
 import { GlassIconButton } from '@/components/ui/glass-icon-button';
 import { BlissSwooshBg } from '@/components/ui/bliss-swoosh-bg';
 import { AcidSwooshBg } from '@/components/ui/acid-swoosh-bg';
 import { AutopilotSheet } from '@/components/ui/autopilot-sheet';
+import { ClawstinMark } from '@/components/ui/clawstin-mark';
 import { AcidGlassFill, WindowDots } from '@/components/ui/window-fill';
 import { PromptHistorySheet } from '@/components/ui/prompt-history-sheet';
 import { PulseMark } from '@/components/ui/pulse-mark';
 import { StatusPopover, worstServiceState } from '@/components/ui/status-popover';
 import { TOOL_ACTION_PHRASE, useAppStore } from '@/store/app-store';
-import {
+import { brandBlue,
   colors,
   fontFamily,
   fontSize,
@@ -102,30 +101,8 @@ const LAST_ACTION = {
   threadId: 't1',
 };
 
-// Recent [WRITE] actions, newest first. Each knows its executor thread;
-// the keywords route free-form undo asks. No visible time windows: the
-// user-facing rule is "actions can be undone; if one can't, the crew
-// says so right there" (the past-undo ask will arrive as a popup later).
-const UNDOABLES = [
-  {
-    label: 'Archived 12 newsletter emails',
-    threadId: 't1',
-    ask: 'Undo this: archived 12 newsletter emails',
-    re: /archiv|email|newsletter/i,
-  },
-  {
-    label: 'Held 2 dinner slots for Friday',
-    threadId: 't5',
-    ask: 'Undo this: held 2 dinner slots',
-    re: /dinner|slot|hold/i,
-  },
-  {
-    label: 'Labeled 6 GitHub notifications',
-    threadId: 't4',
-    ask: 'Undo this: labeled 6 GitHub notifications',
-    re: /github|label|notification/i,
-  },
-];
+// UNDOABLES moved to src/mock/undoables.ts (2026-07-12) so the
+// new-chat screen can run the same undo routing.
 
 // Autopilot ledger mock: what each auto-approved rule has been doing.
 // The gauge earns trust by showing receipts; "undone" is the honest
@@ -301,96 +278,6 @@ function ThreadRail({ first, last }: { first?: boolean; last?: boolean }) {
         />
       ) : null}
     </View>
-  );
-}
-
-/** The Clawstin mark, pixel edition v4 (2026-07-11): simplified on
- * Ellie's direction — a ROUND pixel ring (no white fill, background
- * shows through), big solid periwinkle eyes (no pupils/highlights,
- * the layered colors read as noise), no paws/legs, tiny deadpan
- * mouth at hero size only. Two colors total: ink + periwinkle. */
-const MARK_INK = '#101214';
-const MARK_EYE = MARK_INK; // monochrome: the color came out
-/** pixel circle ring on an n-grid: cells whose center falls in the
- * ring band (computed once at module load; deterministic) */
-function pixelRing(n: number, rInner: number, rOuter: number): [number, number][] {
-  const cells: [number, number][] = [];
-  const mid = n / 2;
-  for (let y = 0; y < n; y++) {
-    for (let x = 0; x < n; x++) {
-      const d = Math.hypot(x + 0.5 - mid, y + 0.5 - mid);
-      if (d >= rInner && d <= rOuter) cells.push([x, y]);
-    }
-  }
-  return cells;
-}
-const SMALL_RING = pixelRing(12, 4.5, 5.9);
-const SMALL_EYES: [number, number][] = [
-  [3, 4], [4, 4], [3, 5], [4, 5],
-  [7, 4], [8, 4], [7, 5], [8, 5],
-];
-const HERO_RING = pixelRing(24, 10.4, 11.9);
-// thin tall slit eyes are drawn as bars 1.5 cells wide directly in
-// the component — between one and two pixels, per taste
-// her pixel bob: jagged fringe on top + hair falling down both
-// sides of the ring (an inner band hugging the curve) ending in
-// blunt bob tips at cheek level. Hero size only.
-const HERO_HAIR: [number, number][] = [
-  // bangs peeking out under the cap: one solid row + jagged teeth
-  ...[6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17].map((c) => [c, 5] as [number, number]),
-  ...[6, 8, 10, 12, 14, 16].map((c) => [c, 6] as [number, number]),
-];
-// the cap: an accent-blue dome over the crown (drawn OVER the hair so
-// the fringe peeks below it, like the reference) + a 2-pixel button
-// poking through the outline on top
-const HERO_CAP: [number, number][] = [];
-for (let y = 1; y <= 4; y++) {
-  for (let x = 0; x < 24; x++) {
-    const d = Math.hypot(x + 0.5 - 12, y + 0.5 - 12);
-    if (d <= 11.5) HERO_CAP.push([x, y]);
-  }
-}
-const HERO_CAP_BUTTON: [number, number][] = [[11, 0], [12, 0]];
-for (let y = 4; y <= 15; y++) {
-  for (let x = 0; x < 24; x++) {
-    const d = Math.hypot(x + 0.5 - 12, y + 0.5 - 12);
-    if (d >= 8.9 && d <= 10.35 && (x < 6 || x > 17)) HERO_HAIR.push([x, y]);
-  }
-}
-// blunt bob ends
-HERO_HAIR.push([3, 16], [4, 16], [19, 16], [20, 16]);
-// a long smile: raised pixel corners, flat middle (sits lower)
-const HERO_MOUTH: [number, number][] = [
-  [8, 15], [9, 16], [10, 16], [11, 16], [12, 16], [13, 16], [14, 16], [15, 15],
-];
-function ClawstinMark({ size, tint }: { size: number; tint?: string }) {
-  // one face everywhere: the main-logo portrait renders at every size
-  // (the simplified 12x12 fallback is retired; arrays kept in git)
-  const hero = true;
-  const grid = 24;
-  const c = size / grid;
-  // pixels overlap a hair so no shimmer lines appear between cells
-  const w = c * 1.06;
-  const px = (cells: [number, number][], fill: string) =>
-    cells.map(([x, y], i) => (
-      <Rect key={`${fill}${i}`} x={x * c} y={y * c} width={w} height={w} fill={fill} />
-    ));
-  return (
-    <Svg width={size} height={size}>
-      {px(hero ? HERO_RING : SMALL_RING, tint ?? MARK_INK)}
-      {hero ? px(HERO_HAIR, tint ?? MARK_INK) : null}
-      {hero ? px(HERO_CAP, tint ?? '#3B76C4') : null}
-      {hero ? px(HERO_CAP_BUTTON, tint ?? '#3B76C4') : null}
-      {hero ? (
-        <>
-          <Rect x={6.75 * c} y={9 * c} width={1.5 * c} height={4 * c} fill={tint ?? MARK_EYE} />
-          <Rect x={15.75 * c} y={9 * c} width={1.5 * c} height={4 * c} fill={tint ?? MARK_EYE} />
-        </>
-      ) : (
-        px(SMALL_EYES, tint ?? MARK_EYE)
-      )}
-      {hero ? px(HERO_MOUTH, tint ?? MARK_INK) : null}
-    </Svg>
   );
 }
 
@@ -678,61 +565,14 @@ export default function HomeScreen() {
   // Scroll-to-approvals (the charcoal count tile jumps here).
   const scrollRef = useRef<ScrollView>(null);
   const [approvalsY, setApprovalsY] = useState(0);
-  // measured so the ask bar's gradient rim SVG can be drawn at exact size
-  const [askBarSize, setAskBarSize] = useState<{ w: number; h: number } | null>(null);
-  // type-first compose: keyboard rises over the board; submit lands in
-  // a new chat with the message already sent
-  const [askOpen, setAskOpen] = useState(false);
-  const [askText, setAskText] = useState('');
-  const [askPanelSize, setAskPanelSize] = useState<{ w: number; h: number } | null>(null);
   // TRUST widget: calibration proposal -> autonomy summary. 'allowed'
   // promotes the pattern to auto-approve; 'kept' snoozes the proposal.
   const [trustHandled, setTrustHandled] = useState<null | 'allowed' | 'kept'>(null);
-  const askInputRef = useRef<TextInput>(null);
-  // while the keyboard is down the panel clears the floating tab bar;
-  // once it rises, KeyboardAvoidingView takes over the spacing
-  const [kbUp, setKbUp] = useState(false);
-  useEffect(() => {
-    const show = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
-      () => setKbUp(true)
-    );
-    const hide = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
-      () => setKbUp(false)
-    );
-    return () => {
-      show.remove();
-      hide.remove();
-    };
-  }, []);
-  // autoFocus alone can silently fail right after mount; nudge focus
-  // once the overlay is actually up
-  useEffect(() => {
-    if (!askOpen) return;
-    const t = setTimeout(() => askInputRef.current?.focus(), 80);
-    return () => clearTimeout(t);
-  }, [askOpen]);
-
-  const submitAsk = () => {
-    const text = askText.trim();
-    if (!text) return;
-    setAskOpen(false);
-    setAskText('');
-    // undo speaks to the original executor in the original thread. The
-    // router matches keywords against recent undoable actions; with no
-    // match, the new chat's router asks back with chips. Everything
-    // else is a normal new chat.
-    if (/undo|revert/i.test(text)) {
-      const target = UNDOABLES.find((u) => u.re.test(text));
-      if (target) {
-        sendMessage(target.threadId, text);
-        router.push(`/chat/${target.threadId}`);
-        return;
-      }
-    }
-    router.push(`/chat/${createThread(text)}`);
-  };
+  // The ask bar is a DOOR, not a form (2026-07-12): tapping it enters
+  // /chat/new full screen — the empty thread IS the compose surface,
+  // so the reply and the routing pill land where you typed.
+  const openNewChat = (draft?: string) =>
+    router.push({ pathname: '/chat/[id]', params: { id: 'new', ...(draft ? { draft } : {}) } });
 
   // LAST ACTION expands in place: the card grows downward into the
   // full undoable queue instead of opening a separate sheet
@@ -955,20 +795,34 @@ export default function HomeScreen() {
                     gap: 6,
                     paddingVertical: 6,
                     paddingHorizontal: 12,
-                    // a tiny FOLDED WINDOW, not a pill: the tray chip
-                    // wears the sections' white title-bar material; the
-                    // state lives in the dot and the text color only
-                    borderRadius: 10,
-                    backgroundColor: 'rgba(255,255,255,0.85)',
+                    // the section windows' own glass: translucent veil +
+                    // white hairline, pill like every other Home pill.
+                    // While the popover is up the chip turns solid white:
+                    // it IS that window's folded handle.
+                    borderRadius: 999,
+                    backgroundColor: statusOpen
+                      ? 'rgba(255,255,255,0.92)'
+                      : 'rgba(255,255,255,0.62)',
                     borderWidth: 1,
-                    borderColor: 'rgba(22,24,28,0.08)',
+                    borderColor: 'rgba(255,255,255,0.55)',
                     opacity: pressed ? 0.6 : 1,
                   })}>
+                  {/* the dot carries the state; words only translate */}
+                  <View
+                    style={{
+                      width: 7,
+                      height: 7,
+                      borderRadius: 999,
+                      backgroundColor:
+                        worst === 'down'
+                          ? sysColor.fail
+                          : worst === 'degraded'
+                            ? sysColor.degraded
+                            : sysColor.ready,
+                    }}
+                  />
                   <Text
                     style={{
-                      // color carries state: the one amber application
-                      // when the system is degraded/down; quiet ink
-                      // when healthy. System words speak mono.
                       color:
                         worst === 'down' || worst === 'degraded'
                           ? '#9A6B1F'
@@ -980,7 +834,7 @@ export default function HomeScreen() {
                     {statusLabel}
                   </Text>
                   <Ionicons
-                    name="chevron-down"
+                    name={statusOpen ? 'chevron-up' : 'chevron-down'}
                     size={11}
                     color={
                       worst === 'down' || worst === 'degraded'
@@ -1206,7 +1060,10 @@ export default function HomeScreen() {
                     </View>
                   </View>
 
-                    <View style={{ flex: 1, justifyContent: 'center' }}>
+                    {/* same skeleton as the RUNNING card: centered title
+                        with the footer margin reserved, footer row pinned
+                        to the same bottom line as "2 of 4 sites" */}
+                    <View style={{ flex: 1, justifyContent: 'center', marginBottom: 14 }}>
                       {/* the pattern IS the insight: one line saying what
                           kept needing you. Numbers and the fix live one
                           tap deeper, in the sheet. */}
@@ -1221,19 +1078,26 @@ export default function HomeScreen() {
                           ? 'Morning briefing runs daily now'
                           : 'You keep asking for inbox summaries'}
                       </Text>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 5 }}>
-                        <Text style={{ fontSize: 10, fontFamily: fontFamily.mono, color: AINK.dim }}>
-                          {/* one umbrella word: rules + schedules are both
-                              just the agent acting without you */}
-                          {`${AUTOPILOT_RULES.length + schedules.length} routines`}
-                        </Text>
-                        <Ionicons
-                          name="chevron-forward"
-                          size={11}
-                          color={AINK.dim}
-                          style={{ marginLeft: 2 }}
-                        />
-                      </View>
+                    </View>
+                    <View
+                      style={{
+                        position: 'absolute',
+                        left: 18,
+                        bottom: 16,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                      }}>
+                      <Text style={{ fontSize: 10, fontFamily: fontFamily.mono, color: AINK.dim }}>
+                        {/* one umbrella word: rules + schedules are both
+                            just the agent acting without you */}
+                        {`${AUTOPILOT_RULES.length + schedules.length} routines`}
+                      </Text>
+                      <Ionicons
+                        name="chevron-forward"
+                        size={11}
+                        color={AINK.dim}
+                        style={{ marginLeft: 2 }}
+                      />
                     </View>
                 </Pressable>
                 {(
@@ -1502,8 +1366,7 @@ export default function HomeScreen() {
                   <Pressable
                     onPress={() => {
                       setLastActionOpen(false);
-                      setAskText('undo ');
-                      setAskOpen(true);
+                      openNewChat('undo ');
                     }}
                     style={({ pressed }) => ({
                       paddingTop: 12,
@@ -1546,14 +1409,14 @@ export default function HomeScreen() {
                   <AcidGlassFill
                     key={`list-${homeTab}-${activeRows.length}-${visibleDone.length}`}
                     effect="clear"
-                    dense
                     tone="gray"
                   />
                   {/* filter chips: the section's own header, like a
                       chat list's filter row */}
                   <View
                     style={{
-                      height: 42,
+                      // the Settings windows' 30pt title bar, everywhere
+                      height: 30,
                       flexDirection: 'row',
                       gap: 18,
                       paddingHorizontal: 18,
@@ -1624,7 +1487,7 @@ export default function HomeScreen() {
                             alignItems: 'center',
                             gap: spacing.sm,
                             paddingHorizontal: 18,
-                            paddingVertical: 15,
+                            paddingVertical: 11,
                             opacity: pressed ? 0.5 : aged ? 0.5 : 1,
                           })}>
                           {/* state dot zone: teal dot = your turn,
@@ -1641,12 +1504,14 @@ export default function HomeScreen() {
                                 }}
                               />
                             ) : !row.waiting ? (
-                              <RunningDot color="rgba(22,24,28,0.35)" size={5} />
+                              // every state dot shares the accent dot's
+                              // 7px body; only color and motion differ
+                              <RunningDot color="rgba(22,24,28,0.35)" size={7} />
                             ) : (
                               <View
                                 style={{
-                                  width: 5,
-                                  height: 5,
+                                  width: 7,
+                                  height: 7,
                                   borderRadius: 999,
                                   backgroundColor: 'rgba(22,24,28,0.22)',
                                 }}
@@ -1693,7 +1558,7 @@ export default function HomeScreen() {
                           alignItems: 'center',
                           gap: spacing.sm,
                           paddingHorizontal: 18,
-                          paddingVertical: 13,
+                          paddingVertical: 11,
                           opacity: pressed ? 0.5 : t.outcome === 'expired' ? 0.6 : 1,
                         })}>
                         <View style={{ width: 12 }} />
@@ -1751,10 +1616,28 @@ export default function HomeScreen() {
               ) : null}
             </ScrollView>
 
+          {/* Connection status popover (over the board) */}
+            {statusOpen ? (
+              <StatusPopover
+                services={services}
+                agentsReady={crew.filter((m) => m.active).length}
+                onClose={() => setStatusOpen(false)}
+                onManageAccess={() => {
+                  setStatusOpen(false);
+                  router.push('/access?focus=issue');
+                }}
+                onOpenSettings={() => {
+                  setStatusOpen(false);
+                  router.push('/settings');
+                }}
+                topOffset={54}
+              />
+            ) : null}
+
             {/* floating ask bar: the one chat entry, pinned above the
-                tab bar. A silver window pane under a quiet aqua rim,
-                same material as the sections. The slash chip hints at
-                commands (undo, pause, status) to come. */}
+                tab bar. The section windows' own glass material with a
+                white hairline; no ring (2026-07-12). The slash chip
+                hints at commands (undo, pause, status) to come. */}
             <View
               pointerEvents="box-none"
               style={{
@@ -1768,42 +1651,51 @@ export default function HomeScreen() {
                 shadowRadius: 12,
                 shadowOffset: { width: 0, height: 5 },
                 elevation: 10,
-                opacity: askOpen ? 0 : 1,
               }}>
               <Pressable
-                onPress={() => setAskOpen(true)}
-                disabled={askOpen}
-                onLayout={(e) =>
-                  setAskBarSize({
-                    w: e.nativeEvent.layout.width,
-                    h: e.nativeEvent.layout.height,
-                  })
-                }
+                onPress={() => openNewChat()}
                 style={({ pressed }) => ({
                   height: 52,
-                  borderRadius: 16,
+                  // fully round: the ONE command-pill silhouette, shared
+                  // with the chat composer
+                  borderRadius: 999,
                   overflow: 'hidden',
-                  backgroundColor: '#F6F8FA',
+                  borderWidth: 1,
+                  borderColor: 'rgba(255,255,255,0.55)',
                   opacity: pressed ? 0.85 : 1,
                 })}>
+                {/* the section windows' own material: liquid lens
+                    under the white veil, desk breathing through */}
+                {GLASS_AVAILABLE ? (
+                  <GlassView
+                    glassEffectStyle="clear"
+                    colorScheme="light"
+                    style={StyleSheet.absoluteFill}
+                    pointerEvents="none"
+                  />
+                ) : null}
+                <View
+                  pointerEvents="none"
+                  style={[
+                    StyleSheet.absoluteFill,
+                    { backgroundColor: 'rgba(255,255,255,0.62)' },
+                  ]}
+                />
                 <View
                   style={{
                     flex: 1,
                     flexDirection: 'row',
                     alignItems: 'center',
-                    paddingHorizontal: 18,
+                    paddingLeft: 16,
+                    paddingRight: 7,
                   }}>
-                  <Text style={{ flex: 1, fontSize: fontSize.body, color: 'rgba(22,24,28,0.5)' }}>
-                    Ask anything
-                  </Text>
-                  {/* command entry: opens compose already holding
-                      "undo " — the input is never a blank page */}
+                  {/* pill anatomy, app-wide: command on the LEFT ("/"
+                      here, "+" in chat), voice circle on the RIGHT that
+                      becomes send once you type — right thumb talks,
+                      left hand commands */}
                   <Pressable
                     hitSlop={14}
-                    onPress={() => {
-                      setAskText('undo ');
-                      setAskOpen(true);
-                    }}
+                    onPress={() => openNewChat('undo ')}
                     style={({ pressed }) => ({
                       width: 22,
                       height: 22,
@@ -1811,6 +1703,7 @@ export default function HomeScreen() {
                       backgroundColor: 'rgba(59,118,196,0.12)',
                       alignItems: 'center',
                       justifyContent: 'center',
+                      marginRight: 10,
                       opacity: pressed ? 0.6 : 1,
                     })}>
                     <Text
@@ -1822,205 +1715,29 @@ export default function HomeScreen() {
                       /
                     </Text>
                   </Pressable>
+                  <Text style={{ flex: 1, fontSize: fontSize.body, color: 'rgba(22,24,28,0.55)' }}>
+                    Ask anything
+                  </Text>
+                  <Pressable
+                    hitSlop={8}
+                    onPress={() => openNewChat()}
+                    style={({ pressed }) => ({
+                      width: 38,
+                      height: 38,
+                      borderRadius: 999,
+                      backgroundColor: brandBlue,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      opacity: pressed ? 0.8 : 1,
+                    })}>
+                    <Ionicons name="mic" size={19} color="#2E4F73" />
+                  </Pressable>
                 </View>
               </Pressable>
-              {askBarSize ? (
-                <Svg
-                  pointerEvents="none"
-                  width={askBarSize.w}
-                  height={askBarSize.h}
-                  style={{ position: 'absolute', top: 0, left: 0 }}>
-                  <Defs>
-                    {/* quiet blue-white rim: soft pastel stops so it
-                        reads as a glow, not a toy */}
-                    <SvgGradient id="askrim" x1="0" y1="0" x2="1" y2="0">
-                      <Stop offset="0" stopColor="#7C9FDC" />
-                      <Stop offset="0.5" stopColor="#4478C4" />
-                      <Stop offset="1" stopColor="#6D94D6" />
-                    </SvgGradient>
-                  </Defs>
-                  {/* soft aurora bleed under the crisp rim */}
-                  <Rect
-                    x={0.75}
-                    y={0.75}
-                    width={askBarSize.w - 1.5}
-                    height={askBarSize.h - 1.5}
-                    rx={15.25}
-                    fill="none"
-                    stroke="url(#askrim)"
-                    strokeWidth={5}
-                    opacity={0.25}
-                  />
-                  <Rect
-                    x={0.75}
-                    y={0.75}
-                    width={askBarSize.w - 1.5}
-                    height={askBarSize.h - 1.5}
-                    rx={15.25}
-                    fill="none"
-                    stroke="url(#askrim)"
-                    strokeWidth={1.5}
-                  />
-                </Svg>
-              ) : null}
             </View>
 
-            {/* compose layer: board dims, keyboard rises, the console
-                expands in place. Submit seeds a new chat and jumps in. */}
-            {askOpen ? (
-              <View style={StyleSheet.absoluteFill}>
-                <Pressable
-                  onPress={() => setAskOpen(false)}
-                  style={[
-                    StyleSheet.absoluteFill,
-                    { backgroundColor: 'rgba(12,14,18,0.35)' },
-                  ]}
-                />
-                <KeyboardAvoidingView
-                  behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-                  pointerEvents="box-none"
-                  style={{ flex: 1, justifyContent: 'flex-end' }}>
-                  <View
-                    pointerEvents="box-none"
-                    style={{ padding: 16, paddingBottom: kbUp ? 16 : 104, gap: 10 }}>
-                    {/* prompt starters: prefill, stay editable */}
-                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                      {['Plan my day', 'Find time Friday', 'Summarize my inbox'].map((chip) => (
-                        <Pressable
-                          key={chip}
-                          onPress={() => setAskText(chip)}
-                          style={({ pressed }) => ({
-                            paddingHorizontal: 14,
-                            paddingVertical: 8,
-                            borderRadius: 999,
-                            backgroundColor: 'rgba(255,255,255,0.92)',
-                            opacity: pressed ? 0.7 : 1,
-                          })}>
-                          <Text style={{ fontSize: 13, color: 'rgba(22,24,28,0.8)' }}>
-                            {chip}
-                          </Text>
-                        </Pressable>
-                      ))}
-                    </View>
-                    {/* expanded console: same quiet rim, room to think */}
-                    <View
-                      style={{
-                        shadowColor: '#16181C',
-                        shadowOpacity: 0.1,
-                        shadowRadius: 12,
-                        shadowOffset: { width: 0, height: 5 },
-                        elevation: 10,
-                      }}>
-                      <View
-                        onLayout={(e) =>
-                          setAskPanelSize({
-                            w: e.nativeEvent.layout.width,
-                            h: e.nativeEvent.layout.height,
-                          })
-                        }
-                        style={{
-                          borderRadius: 16,
-                          backgroundColor: '#F6F8FA',
-                          padding: 14,
-                          flexDirection: 'row',
-                          alignItems: 'flex-end',
-                          gap: 10,
-                        }}>
-                        <TextInput
-                          ref={askInputRef}
-                          autoFocus
-                          multiline
-                          value={askText}
-                          onChangeText={setAskText}
-                          placeholder="Ask anything"
-                          placeholderTextColor="rgba(22,24,28,0.45)"
-                          style={{
-                            flex: 1,
-                            minHeight: 72,
-                            maxHeight: 120,
-                            fontSize: fontSize.body,
-                            lineHeight: 21,
-                            color: '#16181C',
-                            paddingTop: 4,
-                          }}
-                        />
-                        <Pressable
-                          onPress={submitAsk}
-                          disabled={!askText.trim()}
-                          hitSlop={8}
-                          style={({ pressed }) => ({
-                            width: 34,
-                            height: 34,
-                            borderRadius: 999,
-                            backgroundColor: '#121417',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            opacity: !askText.trim() ? 0.4 : pressed ? 0.7 : 1,
-                          })}>
-                          <Ionicons name="arrow-up" size={18} color="#FFFFFF" />
-                        </Pressable>
-                        {askPanelSize ? (
-                          <Svg
-                            pointerEvents="none"
-                            width={askPanelSize.w}
-                            height={askPanelSize.h}
-                            style={{ position: 'absolute', top: 0, left: 0 }}>
-                            <Defs>
-                              <SvgGradient id="askpanelrim" x1="0" y1="0" x2="1" y2="0">
-                                <Stop offset="0" stopColor="#7C9FDC" />
-                                <Stop offset="0.5" stopColor="#4478C4" />
-                                <Stop offset="1" stopColor="#6D94D6" />
-                              </SvgGradient>
-                            </Defs>
-                            <Rect
-                              x={0.75}
-                              y={0.75}
-                              width={askPanelSize.w - 1.5}
-                              height={askPanelSize.h - 1.5}
-                              rx={15.25}
-                              fill="none"
-                              stroke="url(#askpanelrim)"
-                              strokeWidth={5}
-                              opacity={0.25}
-                            />
-                            <Rect
-                              x={0.75}
-                              y={0.75}
-                              width={askPanelSize.w - 1.5}
-                              height={askPanelSize.h - 1.5}
-                              rx={15.25}
-                              fill="none"
-                              stroke="url(#askpanelrim)"
-                              strokeWidth={1.5}
-                            />
-                          </Svg>
-                        ) : null}
-                      </View>
-                    </View>
-                  </View>
-                </KeyboardAvoidingView>
-              </View>
-            ) : null}
 
           </View>
-
-          {/* Connection status popover (over the board) */}
-          {statusOpen ? (
-            <StatusPopover
-              services={services}
-              agentsReady={crew.filter((m) => m.active).length}
-              onClose={() => setStatusOpen(false)}
-              onManageAccess={() => {
-                setStatusOpen(false);
-                router.push('/access?focus=issue');
-              }}
-              onOpenSettings={() => {
-                setStatusOpen(false);
-                router.push('/settings');
-              }}
-              topOffset={insets.top + 54}
-            />
-          ) : null}
 
           {/* Full prompt history, slid up from the RECENT card */}
           <PromptHistorySheet visible={historyOpen} onClose={() => setHistoryOpen(false)} />

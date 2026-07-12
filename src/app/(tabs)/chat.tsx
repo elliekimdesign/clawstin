@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   LayoutAnimation,
   Pressable,
@@ -39,13 +39,15 @@ const GROUPS = [
 ] as const;
 
 export default function ActivityScreen() {
-  const { activity, threads, crew } = useAppStore();
+  const { activity, threads, crew, consoleLens, setConsoleLens } = useAppStore();
   const [query, setQuery] = useState('');
-  // >_ lens: same rows, machine rendering
-  const [consoleLens, setConsoleLens] = useState(false);
 
   const getThread = (id: string) => threads.find((t) => t.id === id);
   const agentName = (id: string) => crew.find((c) => c.id === id)?.name ?? id;
+  /** console rows speak in ROLES (research, scribe...), not nicknames —
+   * the machine logs the function, the humans keep the names */
+  const roleName = (id: string) =>
+    crew.find((c) => c.id === id)?.role.split(' · ')[0].toLowerCase() ?? id;
   /** the row's ANCHOR is the task title, not the agent's utterance —
    * titles differentiate rows where result sentences all sound alike */
   const title = (a: (typeof activity)[number]) => getThread(a.threadId)?.title ?? a.prompt;
@@ -69,8 +71,18 @@ export default function ActivityScreen() {
 
   const flipLens = () => {
     LayoutAnimation.configureNext(LayoutAnimation.create(180, 'easeInEaseOut', 'opacity'));
-    setConsoleLens((v) => !v);
+    setConsoleLens(!consoleLens);
   };
+
+  // In the terminal takeover the search field stays mounted but tucks
+  // above the fold — pull down to reveal it, like iOS list search.
+  const scrollRef = useRef<ScrollView>(null);
+  const SEARCH_ZONE = 58; // marginTop 14 + field height 44
+  useEffect(() => {
+    requestAnimationFrame(() => {
+      scrollRef.current?.scrollTo({ y: consoleLens ? SEARCH_ZONE : 0, animated: false });
+    });
+  }, [consoleLens]);
 
   /** state dot: color carries state, same semantics as the Home list */
   const dotColor = (a: (typeof activity)[number]) => {
@@ -91,21 +103,26 @@ export default function ActivityScreen() {
   const AGENT_BLUE = '#8FBFF2';
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#4E83B8' }} edges={['top']}>
+    <SafeAreaView
+      style={{ flex: 1, backgroundColor: consoleLens ? '#0D1B36' : '#4E83B8' }}
+      edges={['top']}>
       <StatusBar style="light" />
       <AcidSwooshBg />
-      <ScrollView
-        contentContainerStyle={{ padding: 16, paddingBottom: 140 }}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled">
-        {/* header: screen title + the >_ lens toggle */}
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            marginTop: 4,
-          }}>
+      {/* >_ takeover (2026-07-12): the lens is not a dark card on the
+          desk, it IS the screen — the night plane swallows the desk */}
+      {consoleLens ? (
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: '#0D1B36' }]} />
+      ) : null}
+      {/* header FIXED above the scroll: the >_ button never moves, and
+          pulling the list down reveals only the search underneath */}
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          paddingHorizontal: 16,
+          paddingTop: 4,
+        }}>
           <Text
             style={{
               color: '#FFFFFF',
@@ -122,9 +139,9 @@ export default function ActivityScreen() {
               paddingVertical: 6,
               paddingHorizontal: 12,
               borderRadius: 10,
-              backgroundColor: consoleLens ? '#121417' : 'rgba(255,255,255,0.85)',
+              backgroundColor: consoleLens ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.85)',
               borderWidth: 1,
-              borderColor: consoleLens ? '#121417' : 'rgba(22,24,28,0.08)',
+              borderColor: consoleLens ? 'rgba(255,255,255,0.92)' : 'rgba(22,24,28,0.08)',
               opacity: pressed ? 0.7 : 1,
             })}>
             <Text
@@ -132,14 +149,21 @@ export default function ActivityScreen() {
                 fontSize: 11,
                 fontFamily: fontFamily.mono,
                 letterSpacing: 0.3,
-                color: consoleLens ? '#F5F7F6' : DIM,
+                color: consoleLens ? '#16181C' : DIM,
               }}>
               {'>_'}
             </Text>
           </Pressable>
-        </View>
+      </View>
 
-        {/* search: the human asks, so the input speaks sans */}
+      <ScrollView
+        ref={scrollRef}
+        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 140 }}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled">
+        {/* search: the human asks, so the input speaks sans. In the
+            terminal takeover it tucks above the fold (pull to reveal)
+            and wears the night palette. */}
         <View
           style={{
             marginTop: 14,
@@ -149,39 +173,44 @@ export default function ActivityScreen() {
             height: 44,
             paddingHorizontal: 14,
             borderRadius: 16,
-            backgroundColor: '#F6F8FA',
+            backgroundColor: consoleLens ? 'rgba(255,255,255,0.08)' : '#F6F8FA',
             borderWidth: 1,
-            borderColor: 'rgba(255,255,255,0.55)',
+            borderColor: consoleLens ? 'rgba(255,255,255,0.14)' : 'rgba(255,255,255,0.55)',
           }}>
-          <Ionicons name="search" size={14} color={FAINT} />
+          <Ionicons name="search" size={14} color={consoleLens ? rowFaint : FAINT} />
           <TextInput
             value={query}
             onChangeText={setQuery}
             placeholder="Search activity"
-            placeholderTextColor={FAINT}
-            style={{ flex: 1, fontSize: fontSize.body, color: INK }}
+            placeholderTextColor={consoleLens ? rowFaint : FAINT}
+            style={{ flex: 1, fontSize: fontSize.body, color: consoleLens ? rowInk : INK }}
           />
           {query.length > 0 ? (
             <Pressable onPress={() => setQuery('')} hitSlop={12}>
-              <Ionicons name="close-circle" size={15} color={FAINT} />
+              <Ionicons name="close-circle" size={15} color={consoleLens ? rowFaint : FAINT} />
             </Pressable>
           ) : null}
         </View>
 
-        {/* the feed window */}
+        {/* the feed window: a card on the desk, edge-to-edge in the
+            terminal takeover */}
         <View
-          style={{
-            marginTop: 16,
-            borderRadius: 20,
-            overflow: 'hidden',
-            borderWidth: 1,
-            borderColor: 'rgba(255,255,255,0.55)',
-            shadowColor: '#16181C',
-            shadowOpacity: 0.07,
-            shadowRadius: 16,
-            shadowOffset: { width: 0, height: 6 },
-            elevation: 5,
-          }}>
+          style={
+            consoleLens
+              ? { marginTop: 8, marginHorizontal: -16 }
+              : {
+                  marginTop: 16,
+                  borderRadius: 20,
+                  overflow: 'hidden',
+                  borderWidth: 1,
+                  borderColor: 'rgba(255,255,255,0.55)',
+                  shadowColor: '#16181C',
+                  shadowOpacity: 0.07,
+                  shadowRadius: 16,
+                  shadowOffset: { width: 0, height: 6 },
+                  elevation: 5,
+                }
+          }>
           {consoleLens ? (
             // raw lens: dark terminal plane (the Logs screen's night)
             <View style={[StyleSheet.absoluteFill, { backgroundColor: '#0D1B36' }]} />
@@ -210,7 +239,8 @@ export default function ActivityScreen() {
               </Text>
             </View>
             <Text style={{ fontSize: 10, fontFamily: fontFamily.mono, color: rowFaint }}>
-              {`${rows.length} runs`}
+              {/* today's pulse, not a lifetime vanity total */}
+              {`${rows.filter((a) => a.day === 'today').length} today`}
             </Text>
           </View>
 
@@ -279,7 +309,7 @@ export default function ActivityScreen() {
                                 color: rowDim,
                               }}>
                               <Text style={{ color: AGENT_BLUE }}>
-                                {agentName(a.agentId).toLowerCase()}
+                                {roleName(a.agentId)}
                               </Text>
                               {`  ${a.prompt}`}
                             </Text>

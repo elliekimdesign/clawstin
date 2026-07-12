@@ -3,7 +3,7 @@ import { Pressable, Text, View } from 'react-native';
 import type { CalendarEvent, ScheduleSuggestion } from '@/mock/calendar';
 import { darkChat, fontFamily, fontSize, radius, spacing } from '@/theme/theme';
 
-const MONO = 'Menlo';
+const MONO = fontFamily.mono;
 
 /** Sort key: all-day items first, then by clock time. */
 function timeKey(e: CalendarEvent): number {
@@ -100,7 +100,7 @@ export function ScheduleCard({
         <Text
           style={{
             marginTop: spacing.md,
-            color: darkChat.success,
+            color: 'rgba(255,255,255,0.9)',
             fontSize: fontSize.small,
             fontFamily: fontFamily.semibold,
           }}>

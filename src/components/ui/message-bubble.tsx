@@ -46,18 +46,43 @@ export function MessageBubble({ from, text, proactive, caption, children }: Prop
       // the previous answer chunk's rail
       <View style={{ marginTop: spacing.md, marginBottom: spacing.lg }}>
         {text ? (
-          <Text
-            style={{
-              // MY input reads apart from the agent's white: classic
-              // terminal-prompt green (the colorway's success tone)
-              color: darkChat.success,
-              fontSize: 14,
-              lineHeight: 20,
-              fontFamily: fontFamily.mono,
-            }}>
-            {'> '}
-            {text}
-          </Text>
+          // highlighter, not a card: the background hugs ONLY the
+          // glyphs. INK, the console's own dark — nothing else on the
+          // blue desk is this dark, so my command cuts through, and it
+          // rhymes with the terminal console above (command = console)
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <Text
+              style={{
+                color: 'rgba(255,255,255,0.85)',
+                fontSize: 14,
+                lineHeight: 22,
+                fontFamily: fontFamily.mono,
+                marginRight: 8,
+              }}>
+              {'>'}
+            </Text>
+            {/* a soft chip, not a hard block: the console navy at half
+                strength with round corners melts into the desk while
+                still reading as MY line */}
+            <View
+              style={{
+                flexShrink: 1,
+                backgroundColor: 'rgba(13,27,54,0.45)',
+                borderRadius: 10,
+                paddingHorizontal: 10,
+                paddingVertical: 5,
+              }}>
+              <Text
+                style={{
+                  color: '#FFFFFF',
+                  fontSize: 14,
+                  lineHeight: 20,
+                  fontFamily: fontFamily.mono,
+                }}>
+                {text}
+              </Text>
+            </View>
+          </View>
         ) : null}
         {children ? <View style={{ marginTop: text ? spacing.md : 0 }}>{children}</View> : null}
       </View>

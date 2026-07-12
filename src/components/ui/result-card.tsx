@@ -3,7 +3,7 @@ import { Linking, Pressable, Text, View } from 'react-native';
 import type { ResultCard as ResultCardData } from '@/mock/chat';
 import { darkChat, fontFamily, fontSize, radius, spacing } from '@/theme/theme';
 
-const MONO = 'Menlo';
+const MONO = fontFamily.mono;
 
 /**
  * Universal result card — the one shape for every informational answer

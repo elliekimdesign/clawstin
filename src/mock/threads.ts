@@ -28,7 +28,7 @@ export type Thread = {
    * (calendar opens the month view; others are just the badge) */
   tool?: 'calendar' | 'contacts' | 'github';
   /** the background run that produced this thread's ask — shown as a
-   * COLLAPSED thinking console ("✓ done · N steps") at the top */
+   * COLLAPSED thinking console ("✓ done  N steps") at the top */
   consoleLog?: string[];
   messages: ChatMessage[];
 };
@@ -231,9 +231,9 @@ export const initialThreads: Thread[] = [
     crew: 'orchestrator',
     tool: 'calendar',
     consoleLog: [
-      'watch · calendar sync, 14 events · 0.8s',
-      'execute · standup vs focus block clash · 0.3s',
-      'synthesize · proposing 10:30 AM · 0.2s',
+      'watch  calendar sync, 14 events  0.8s',
+      'execute  standup vs focus block clash  0.3s',
+      'synthesize  proposing 10:30 AM  0.2s',
     ],
     messages: [
       {
@@ -264,9 +264,9 @@ export const initialThreads: Thread[] = [
     crew: 'triage',
     tool: 'contacts',
     consoleLog: [
-      'watch · contacts sync, 214 cards · 2.1s',
-      'execute · 3 cards match "Josh P." · 0.4s',
-      'synthesize · proposing a merge · 0.2s',
+      'watch  contacts sync, 214 cards  2.1s',
+      'execute  3 cards match "Josh P."  0.4s',
+      'synthesize  proposing a merge  0.2s',
     ],
     messages: [
       {
@@ -297,9 +297,9 @@ export const initialThreads: Thread[] = [
     crew: 'orchestrator',
     tool: 'calendar',
     consoleLog: [
-      'watch · new invite from Dana · 0.6s',
-      'execute · clash with focus block 3-5 PM · 0.3s',
-      'synthesize · proposing a decline · 0.2s',
+      'watch  new invite from Dana  0.6s',
+      'execute  clash with focus block 3-5 PM  0.3s',
+      'synthesize  proposing a decline  0.2s',
     ],
     messages: [
       {
@@ -333,9 +333,9 @@ export const initialThreads: Thread[] = [
     crew: 'orchestrator',
     tool: 'github',
     consoleLog: [
-      'watch · CI on 3 open PRs · 4.2s',
-      'execute · chore/log-json checks green · 0.5s',
-      'synthesize · proposing the merge · 0.2s',
+      'watch  CI on 3 open PRs  4.2s',
+      'execute  chore/log-json checks green  0.5s',
+      'synthesize  proposing the merge  0.2s',
     ],
     messages: [
       {

@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable, Text, View } from 'react-native';
-import { colors, darkChat, fontFamily, fontSize, fontWeight, radius, spacing } from '@/theme/theme';
+import { brandBlue, colors, darkChat, fontFamily, fontSize, fontWeight, radius, spacing } from '@/theme/theme';
 
 /** Risk tier — drives how much friction the approval needs. */
 export type RiskLevel = 'read' | 'write' | 'exec';
@@ -68,7 +68,7 @@ type Props = {
 export function ApprovalCard({ approval, onApprove, onDeny, compact, onDark }: Props) {
   const risk = approval.risk ?? 'read';
   const scope = approval.permissionKey
-    ? `${SCOPE_NAME[approval.permissionKey] ?? approval.permissionKey} · ${risk.toUpperCase()}`
+    ? `${SCOPE_NAME[approval.permissionKey] ?? approval.permissionKey}  ${risk.toUpperCase()}`
     : null;
 
   // Palette flips as one unit so the card stays coherent on either background.
@@ -80,7 +80,9 @@ export function ApprovalCard({ approval, onApprove, onDeny, compact, onDark }: P
         text: darkChat.text,
         secondary: darkChat.textSecondary,
         tertiary: darkChat.textTertiary,
-        ok: darkChat.success,
+        // approval stamps speak OUR light blue (the crew's signature),
+        // not the generic mint
+        ok: brandBlue,
         btnBg: darkChat.text,
         btnText: darkChat.onLight,
       }

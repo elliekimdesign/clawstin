@@ -41,6 +41,10 @@ export type ChatMessage = {
   proactive?: boolean;
   /** overrides the caption text (e.g. "TASK PAUSED" on failure updates) */
   caption?: string;
+  /** CHOP (2026-07-12): the orchestrator cut a new task out of this
+   * thread — renders as an inline boundary chip, never a new screen.
+   * Value = the new task's title. */
+  taskDivider?: string;
 };
 
 export const initialMessages: ChatMessage[] = [
