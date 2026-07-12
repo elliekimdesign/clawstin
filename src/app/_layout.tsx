@@ -32,6 +32,8 @@ export default function RootLayout() {
     'InstrumentSans-Medium': require('../../assets/fonts/InstrumentSans-Medium.ttf'),
     'InstrumentSans-SemiBold': require('../../assets/fonts/InstrumentSans-SemiBold.ttf'),
     'InstrumentSans-Bold': require('../../assets/fonts/InstrumentSans-Bold.ttf'),
+    // the companion display serif: the wordmark's voice
+    'InstrumentSerif-Regular': require('../../assets/fonts/InstrumentSerif-Regular.ttf'),
   });
 
   if (!fontsLoaded) return null;

@@ -435,8 +435,10 @@ const HERO_MOUTH: [number, number][] = [
   [8, 15], [9, 16], [10, 16], [11, 16], [12, 16], [13, 16], [14, 16], [15, 15],
 ];
 function ClawstinMark({ size }: { size: number }) {
-  const hero = size >= 40;
-  const grid = hero ? 24 : 12;
+  // one face everywhere: the main-logo portrait renders at every size
+  // (the simplified 12x12 fallback is retired; arrays kept in git)
+  const hero = true;
+  const grid = 24;
   const c = size / grid;
   // pixels overlap a hair so no shimmer lines appear between cells
   const w = c * 1.06;
@@ -459,6 +461,67 @@ function ClawstinMark({ size }: { size: number }) {
         px(SMALL_EYES, MARK_EYE)
       )}
       {hero ? px(HERO_MOUTH, MARK_INK) : null}
+    </Svg>
+  );
+}
+
+/** Pixel wordmark: "Clawstin" hand-drawn on a 7-row pixel grid, the
+ * same language as the mascot (no font dependency). The i's dot is the
+ * cap-blue pixel. Rows use '#' for ink cells; '@' marks the blue dot. */
+const WORD_GLYPHS: string[][] = [
+  // C
+  ['.###', '#...', '#...', '#...', '#...', '#...', '.###'],
+  // l
+  ['#', '#', '#', '#', '#', '#', '#'],
+  // a
+  ['....', '....', '.###', '...#', '.###', '#..#', '.###'],
+  // w
+  ['.....', '.....', '#...#', '#...#', '#.#.#', '#.#.#', '.#.#.'],
+  // s
+  ['....', '....', '.###', '#...', '.##.', '...#', '###.'],
+  // t
+  ['.#..', '.#..', '####', '.#..', '.#..', '.#..', '..##'],
+  // i (blue pixel dot, gap, stem)
+  ['@', '.', '#', '#', '#', '#', '#'],
+  // n
+  ['....', '....', '###.', '#..#', '#..#', '#..#', '#..#'],
+];
+function PixelWordmark({
+  cell,
+  color = '#121417',
+  dotColor = '#3B76C4',
+}: {
+  cell: number;
+  color?: string;
+  dotColor?: string;
+}) {
+  let xOff = 0;
+  const rects: { x: number; y: number; blue: boolean }[] = [];
+  for (const glyph of WORD_GLYPHS) {
+    const width = Math.max(...glyph.map((r) => r.length));
+    glyph.forEach((row, y) => {
+      for (let x = 0; x < row.length; x++) {
+        if (row[x] === '#' || row[x] === '@') {
+          rects.push({ x: xOff + x, y, blue: row[x] === '@' });
+        }
+      }
+    });
+    xOff += width + 1; // one-cell letter gap
+  }
+  const w = (xOff - 1) * cell;
+  const overlap = cell * 1.06;
+  return (
+    <Svg width={w} height={7 * cell}>
+      {rects.map((r, i) => (
+        <Rect
+          key={i}
+          x={r.x * cell}
+          y={r.y * cell}
+          width={overlap}
+          height={overlap}
+          fill={r.blue ? dotColor : color}
+        />
+      ))}
     </Svg>
   );
 }
@@ -914,17 +977,8 @@ export default function HomeScreen() {
                 <Stop offset="60%" stopColor="#FFFFFF" stopOpacity={0.28} />
                 <Stop offset="100%" stopColor="#FFFFFF" stopOpacity={0} />
               </RadialGradient>
-              <RadialGradient
-                id="onlime"
-                gradientUnits="userSpaceOnUse"
-                cx="50"
-                cy="150"
-                rx="230"
-                ry="210">
-                <Stop offset="0%" stopColor="#C0F0E4" stopOpacity={0.3} />
-                <Stop offset="60%" stopColor="#C0F0E4" stopOpacity={0.1} />
-                <Stop offset="100%" stopColor="#C0F0E4" stopOpacity={0} />
-              </RadialGradient>
+              {/* (the old top-left mint glow was removed — it read as a
+                  green cast against the blue world) */}
               <RadialGradient
                 id="onmeadow"
                 gradientUnits="userSpaceOnUse"
@@ -949,7 +1003,6 @@ export default function HomeScreen() {
               </RadialGradient>
             </Defs>
             <Rect x="0" y="0" width="390" height="844" fill="url(#onbase)" />
-            <Rect x="0" y="0" width="390" height="844" fill="url(#onlime)" />
             <Rect x="0" y="0" width="390" height="844" fill="url(#onsky)" />
             <Rect x="0" y="0" width="390" height="844" fill="url(#onmeadow)" />
             <Rect x="0" y="0" width="390" height="844" fill="url(#onwarm)" />
@@ -979,13 +1032,17 @@ export default function HomeScreen() {
                   {/* the split-face mark, tiny: ink + lime LED eyes,
                       the seam shared with the hero mark */}
                   <ClawstinMark size={22} />
-                  {/* wordmark: white on the aqua desk, menu-bar style */}
+                  {/* wordmark: the serif voice (Mac OS X move), white
+                      on the aqua desk */}
                   <Text
                     style={{
                       color: '#FFFFFF',
-                      fontSize: 20,
-                      letterSpacing: -0.3,
-                      fontFamily: fontFamily.bold,
+                      fontSize: 23,
+                      letterSpacing: 0,
+                      fontFamily: 'InstrumentSerif-Regular',
+                      textShadowColor: '#FFFFFF',
+                      textShadowRadius: 0.9,
+                      textShadowOffset: { width: 0, height: 0 },
                     }}>
                     Clawstin
                   </Text>
@@ -1031,18 +1088,6 @@ export default function HomeScreen() {
 
               {/* just the greeting, floating on the sky — the tab counts
                   already carry the numbers */}
-              {/* greeting: solid white on the aqua desk */}
-              <Svg width="100%" height={30} style={{ marginTop: 10 }}>
-                <SvgText
-                  x={0}
-                  y={23}
-                  fontSize={24}
-                  fontFamily={fontFamily.bold}
-                  letterSpacing={-0.5}
-                  fill="#FFFFFF">
-                  {`${hello}, ${USER_NAME}`}
-                </SvgText>
-              </Svg>
 
               {/* ── Control-tower dashboard: the trust cycle as a board.
                   YOUR TURN asks (pre-action), RUNNING shows delegation
@@ -1054,7 +1099,7 @@ export default function HomeScreen() {
                 <Pressable
                   onPress={() => router.push('/chat/t5')}
                   style={({ pressed }) => ({
-                    marginTop: 24,
+                    marginTop: 14,
                     borderRadius: 16,
                     overflow: 'hidden',
                     paddingHorizontal: 18,
@@ -2117,26 +2162,34 @@ export default function HomeScreen() {
               </View>
             </PulseMark>
 
-            {/* Headline */}
+            {/* Headline: Instrument Serif — the sans family's own
+                display serif, vintage voice from the same foundry */}
             <Text
               style={{
                 color: '#121417',
-                fontSize: 35,
-                fontFamily: fontFamily.bold,
-                letterSpacing: -0.8,
-                lineHeight: 41,
+                fontFamily: 'InstrumentSerif-Regular',
+                fontSize: 42,
+                letterSpacing: 0,
+                lineHeight: 48,
                 textAlign: 'center',
-                marginTop: spacing.sm,
+                marginTop: -8,
+                // the serif ships one weight; a same-color micro
+                // shadow thickens the strokes a touch
+                textShadowColor: '#121417',
+                textShadowRadius: 0.9,
+                textShadowOffset: { width: 0, height: 0 },
               }}>
               Clawstin
             </Text>
 
-            {/* Subtitle */}
+            {/* Subtitle: same serif voice as the wordmark, one size
+                down and quiet */}
             <Text
               style={{
                 color: 'rgba(22,24,28,0.6)',
-                fontSize: fontSize.bodyLg,
-                lineHeight: 23,
+                fontFamily: 'InstrumentSerif-Regular',
+                fontSize: 20,
+                lineHeight: 26,
                 textAlign: 'center',
                 marginTop: spacing.sm,
               }}>
@@ -2145,7 +2198,10 @@ export default function HomeScreen() {
           </View>
           <View style={{ flex: 1 }} />
 
-          {/* CTA → connect */}
+          {/* CTA → connect: borderless simple button, but the surface
+              carries a G4-panel light sweep — a curved band of light
+              across the right end, the same swoosh grammar as the
+              board's field art. */}
           <Pressable
             onPress={() => setConnected(true)}
             style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}>
@@ -2157,7 +2213,26 @@ export default function HomeScreen() {
                 borderRadius: radius.lg,
                 paddingVertical: spacing.lg,
                 alignItems: 'center',
+                overflow: 'hidden',
               }}>
+              <Svg
+                style={StyleSheet.absoluteFill}
+                viewBox="0 0 100 100"
+                preserveAspectRatio="none"
+                pointerEvents="none">
+                {/* the sweep, first-version style: two soft desk-blue
+                    bands; black owns ~70% of the button */}
+                <Path
+                  d="M 100 0 L 100 100 L 70 100 C 80 68, 86 32, 82 0 Z"
+                  fill="#4E83B8"
+                  fillOpacity={0.55}
+                />
+                <Path
+                  d="M 100 0 L 100 100 L 84 100 C 91 66, 94 30, 91 0 Z"
+                  fill="#6297CE"
+                  fillOpacity={0.75}
+                />
+              </Svg>
               <Text
                 style={{
                   color: '#F5F8FC',
