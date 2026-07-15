@@ -5,7 +5,7 @@ import { useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { AcidSwooshBg } from '@/components/ui/acid-swoosh-bg';
+import { ColorPanelsBg } from '@/components/ui/color-panels-bg';
 import { ConnectionDiagram } from '@/components/ui/connection-diagram';
 import { AcidGlassFill, WindowDots } from '@/components/ui/window-fill';
 import { useAppStore } from '@/store/app-store';
@@ -25,8 +25,9 @@ function SettingsWindow({ title, children }: { title: string; children: ReactNod
   return (
     <View
       style={{
-        marginTop: 16,
-        borderRadius: 20,
+        // square + the board's airy 28pt rhythm (2026-07-14 pass)
+        marginTop: 28,
+        borderRadius: 0,
         overflow: 'hidden',
         borderWidth: 1,
         borderColor: 'rgba(255,255,255,0.55)',
@@ -105,7 +106,7 @@ export default function SettingsScreen() {
   return (
     <SafeAreaView edges={['top']} style={{ flex: 1, backgroundColor: DESK }}>
       <StatusBar style="light" />
-      <AcidSwooshBg />
+      <ColorPanelsBg />
       <ScrollView
         contentContainerStyle={{
           paddingHorizontal: spacing.lg,

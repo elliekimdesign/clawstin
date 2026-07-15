@@ -270,14 +270,16 @@ export const fontWeight = {
 } as const;
 
 /**
- * Brand font (Instrument Sans). Custom fonts don't respond to fontWeight in RN,
- * so pick weight by family. Loaded in src/app/_layout.tsx via expo-font.
+ * Body voice (2026-07-14): Helvetica Neue, app-wide — the winner of the
+ * five-font tour (Space Grotesk, Inter, Manrope, Plus Jakarta tried and
+ * passed over). Ships with iOS, so nothing to load. It has no 600 cut;
+ * semibold maps to Bold so emphasis stays visible next to Medium.
  */
 export const fontFamily = {
-  regular: 'InstrumentSans-Regular',
-  medium: 'InstrumentSans-Medium',
-  semibold: 'InstrumentSans-SemiBold',
-  bold: 'InstrumentSans-Bold',
+  regular: 'HelveticaNeue',
+  medium: 'HelveticaNeue-Medium',
+  semibold: 'HelveticaNeue-Bold',
+  bold: 'HelveticaNeue-Bold',
   // The system voice — window-title labels, times, counts, statuses,
   // terminal-log lines. Geist Mono (the settled winner of the
   // 2026-07-11 font tour: Menlo, DM Mono, Space Mono, IBM Plex Mono,

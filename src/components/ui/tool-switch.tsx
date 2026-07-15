@@ -59,7 +59,9 @@ export function ToolSwitch({
   useEffect(() => clearClose, []);
   const scheduleClose = () => {
     clearClose();
-    closeTimer.current = setTimeout(() => setOpen(false), 2500);
+    // MUST go through flip(): closing with bare setOpen left the header
+    // stuck on toolExpanded=true — the crew pill never came back
+    closeTimer.current = setTimeout(() => flip(false), 2500);
   };
   const flip = (v: boolean) => {
     LayoutAnimation.configureNext(LayoutAnimation.create(200, 'easeInEaseOut', 'opacity'));
@@ -106,12 +108,14 @@ export function ToolSwitch({
       />
       <View
         style={{
-          height: 40,
+          // unfolded, the row owns the header line ("한 라인을 다
+          // 차지해도 돼") — taller pill, bigger targets, bigger glyphs
+          height: 48,
           borderRadius: 999,
           backgroundColor: PILL_NAVY,
           flexDirection: 'row',
           alignItems: 'center',
-          paddingHorizontal: 6,
+          paddingHorizontal: 7,
           gap: 2,
         }}>
         {TOOL_DEFS.map((t) => (
@@ -129,8 +133,8 @@ export function ToolSwitch({
             }}
             hitSlop={4}
             style={({ pressed }) => ({
-              width: 32,
-              height: 32,
+              width: 38,
+              height: 38,
               borderRadius: 999,
               alignItems: 'center',
               justifyContent: 'center',
@@ -140,9 +144,9 @@ export function ToolSwitch({
             })}>
             <Ionicons
               name={t.icon}
-              size={17}
+              size={22}
               // asleep tools are shadows: visible as POSSIBLE, not active
-              color={t.connected ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.28)'}
+              color={t.connected ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.32)'}
             />
           </Pressable>
         ))}

@@ -1,7 +1,7 @@
 import { StyleSheet, View } from 'react-native';
 import Svg, { Defs, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
 
-import { AcidSwooshBg } from './acid-swoosh-bg';
+import { ColorPanelsBg } from './color-panels-bg';
 
 /**
  * "desk_retro" (2026-07-12) — the chat background: the Home tab's own
@@ -15,7 +15,7 @@ import { AcidSwooshBg } from './acid-swoosh-bg';
 export function DeskRetroBg() {
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
-      <AcidSwooshBg />
+      <ColorPanelsBg />
       <Svg
         width="100%"
         height="100%"

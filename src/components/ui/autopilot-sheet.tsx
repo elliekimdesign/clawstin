@@ -8,6 +8,8 @@ import { AUTOPILOT_RULES, isInactiveAgo } from '@/mock/autopilot';
 import { useAppStore } from '@/store/app-store';
 import { fontFamily, fontSize, fontWeight, spacing, sysColor } from '@/theme/theme';
 
+import { WindowDots } from './window-fill';
+
 // aquaos sheet tokens: this sheet is the ROUTINES window opened big,
 // so it wears the same silver pane + ink + mono system voice.
 const INK = '#16181C';
@@ -94,17 +96,17 @@ function SheetRow({
           {sub}
         </Text>
         {undone ? (
-          <View
+          // quiet meta text, no badge — the amber pill read as a
+          // foreign voice on this sheet ("이 마크 너무 뜬금없어")
+          <Text
             style={{
-              backgroundColor: AMBER_BG,
-              borderRadius: 999,
-              paddingHorizontal: 8,
-              paddingVertical: 2,
+              fontSize: 10,
+              fontFamily: fontFamily.mono,
+              letterSpacing: 0.3,
+              color: INK_DIM,
             }}>
-            <Text style={{ fontSize: 10, fontWeight: fontWeight.semibold, color: AMBER }}>
-              {undone === 1 ? 'You undid 1' : `You undid ${undone}`}
-            </Text>
-          </View>
+            {undone === 1 ? 'undid 1' : `undid ${undone}`}
+          </Text>
         ) : null}
       </View>
     </Pressable>
@@ -163,9 +165,17 @@ export function AutopilotSheet({
       <Pressable onPress={onClose} style={{ flex: 1 }} />
       <View
         style={{
-          backgroundColor: '#F0F1F3',
+          // pale BLUE, not gray — the sheet floats over the blue desk
+          // and should belong to it (deepened a step; the first #E6EFF8
+          // was too shy to register as a change)
+          backgroundColor: '#DCE9F6',
+          // rounded per the user's call — the sheet is a transient
+          // overlay, not a board window; round marks it as liftable
           borderTopLeftRadius: 16,
           borderTopRightRadius: 16,
+          overflow: 'hidden',
+          borderTopWidth: 1,
+          borderTopColor: 'rgba(255,255,255,0.55)',
           maxHeight: '78%',
           paddingBottom: Math.max(insets.bottom, 12),
           shadowColor: '#16181C',
@@ -174,33 +184,34 @@ export function AutopilotSheet({
           shadowOffset: { width: 0, height: -8 },
           elevation: 16,
         }}>
-        {/* grabber */}
+        {/* no grabber — it doubled up oddly above the title strip
+            ("띠 위에 또 저게 있으니까 이상해"); the strip IS the handle */}
+        {/* title bar: the section-window grammar — fold dots + mono
+            label on the slightly darker strip, full bleed */}
         <View
           style={{
-            alignSelf: 'center',
-            width: 36,
-            height: 5,
-            borderRadius: 3,
-            backgroundColor: 'rgba(22,24,28,0.15)',
-            marginTop: 8,
-          }}
-        />
-        {/* pinned header: the week at a glance, then the list scrolls */}
-        <View style={{ paddingHorizontal: spacing.xl, paddingTop: spacing.lg }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Text
-              style={{
-                fontSize: 10,
-                fontFamily: fontFamily.mono,
-                letterSpacing: 0.3,
-                color: INK_DIM,
-              }}>
-              ROUTINES
-            </Text>
-          </View>
+            height: 34,
+            flexDirection: 'row',
+            alignItems: 'center',
+            paddingHorizontal: 18,
+            backgroundColor: 'rgba(84,110,140,0.14)',
+          }}>
+          <WindowDots />
           <Text
             style={{
-              marginTop: 8,
+              fontSize: 11,
+              fontFamily: fontFamily.mono,
+              letterSpacing: 0.3,
+              color: INK_DIM,
+            }}>
+            ROUTINES
+          </Text>
+        </View>
+        {/* pinned header: the week at a glance, then the list scrolls */}
+        <View style={{ paddingHorizontal: spacing.xl, paddingTop: spacing.md }}>
+          <Text
+            style={{
+              marginTop: 2,
               fontSize: fontSize.body,
               fontWeight: fontWeight.semibold,
               color: INK,
@@ -226,15 +237,16 @@ export function AutopilotSheet({
                   onPress={onSetRoutine}
                   hitSlop={8}
                   style={({ pressed }) => ({
-                    // PRIMARY = ink black across the app
-                    backgroundColor: '#121417',
+                    // PRIMARY = the flat title-strip blue (button
+                    // system v3, same as the board's answer capsules)
+                    backgroundColor: '#9FB6CD',
                     borderRadius: 999,
                     paddingVertical: 6,
                     paddingHorizontal: 12,
                     opacity: pressed ? 0.85 : 1,
                   })}>
                   <Text
-                    style={{ fontSize: 12, fontWeight: fontWeight.semibold, color: '#F6F9FE' }}>
+                    style={{ fontSize: 12, fontWeight: fontWeight.semibold, color: '#16181C' }}>
                     Make it a routine
                   </Text>
                 </Pressable>

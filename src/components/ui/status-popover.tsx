@@ -3,7 +3,7 @@ import { router } from 'expo-router';
 import { Pressable, Text, View } from 'react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 
-import { AcidGlassFill } from '@/components/ui/window-fill';
+import { WindowDots } from '@/components/ui/window-fill';
 import type { ServiceState, ServiceStatus } from '@/mock/services';
 import { fontFamily, fontSize, radius, spacing, sysColor } from '@/theme/theme';
 
@@ -177,7 +177,9 @@ export function StatusPopover({
           top: topOffset + SCRIM_REACH,
           right: spacing.lg,
           width: 300,
-          borderRadius: 16,
+          // square like every section window since the 2026-07-14
+          // right-angle pass (this popover IS a window, unfolded)
+          borderRadius: 0,
           overflow: 'hidden',
           borderWidth: 1,
           // the section windows' white hairline, not an ink outline —
@@ -189,12 +191,9 @@ export function StatusPopover({
           shadowOffset: { width: 0, height: 10 },
           elevation: 12,
         }}>
-        {/* the sections' own material, whole: droplet tab + veil +
-            sill all come from AcidGlassFill — this popover IS the
-            status chip unfolded into a full section window */}
-        <AcidGlassFill effect="clear" tone="gray" />
-        {/* one extra veil: the popover floats over TEXT, not the desk,
-            so it needs more milk than the board windows to stay legible */}
+        {/* pale-blue body + strip title bar: matched to the ROUTINES
+            sheet's design (same colors, shape untouched) — the glass
+            fill + extra white veil era is in git history */}
         <View
           pointerEvents="none"
           style={{
@@ -203,29 +202,28 @@ export function StatusPopover({
             left: 0,
             right: 0,
             bottom: 0,
-            backgroundColor: 'rgba(255,255,255,0.55)',
+            backgroundColor: '#DCE9F6',
           }}
         />
         <View
           style={{
-            height: 30,
+            height: 34,
             flexDirection: 'row',
             alignItems: 'center',
             paddingHorizontal: spacing.lg,
+            backgroundColor: 'rgba(84,110,140,0.14)',
           }}>
+          <WindowDots />
           <Text
             style={{
               color: 'rgba(22,24,28,0.55)',
               fontFamily: fontFamily.mono,
-              fontSize: 10,
+              fontSize: 11,
               letterSpacing: 0.3,
             }}>
             SYSTEM STATUS
           </Text>
         </View>
-        {/* a crisp sill under the title bar: the extra veil muted the
-            fill's own hairline, so the popover draws its own */}
-        <View style={{ height: 1, backgroundColor: 'rgba(22,24,28,0.14)' }} />
         <View style={{ paddingVertical: spacing.md, paddingHorizontal: spacing.lg }}>
         {/* the summary is a CONCLUSION, not a title: the "Online" pill
             already declared health, so this line sits small and quiet

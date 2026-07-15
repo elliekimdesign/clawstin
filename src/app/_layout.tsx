@@ -27,16 +27,13 @@ export default function RootLayout() {
       ios: { allowAlert: true, allowBadge: true, allowSound: true },
     });
   }, []);
+  // Only two loaded voices remain (2026-07-14): the body voice is now
+  // Helvetica Neue, which ships with iOS — nothing to download.
   const [fontsLoaded] = useFonts({
-    'InstrumentSans-Regular': require('../../assets/fonts/InstrumentSans-Regular.ttf'),
-    'InstrumentSans-Medium': require('../../assets/fonts/InstrumentSans-Medium.ttf'),
-    'InstrumentSans-SemiBold': require('../../assets/fonts/InstrumentSans-SemiBold.ttf'),
-    'InstrumentSans-Bold': require('../../assets/fonts/InstrumentSans-Bold.ttf'),
-    // the companion display serif: the wordmark's voice
+    // the brand serif: wordmark + brand moments only
     'InstrumentSerif-Regular': require('../../assets/fonts/InstrumentSerif-Regular.ttf'),
-    // the system voice: ultraclean modern mono for labels/times/counts
-    'GeistMono-Regular': require('../../assets/fonts/GeistMono-Regular.ttf'),
-    // label voice candidate: clean geometric sans (the MAFTUNA ref)
+    // the label voice behind the fontFamily.mono tokens (window-title
+    // strips, times, counts — the MAFTUNA ref)
     'Poppins-Medium': require('../../assets/fonts/Poppins-Medium.ttf'),
     'Poppins-SemiBold': require('../../assets/fonts/Poppins-SemiBold.ttf'),
   });

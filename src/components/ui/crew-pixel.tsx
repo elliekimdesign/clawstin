@@ -1,3 +1,4 @@
+import { Fragment } from 'react';
 import Svg, { Rect } from 'react-native-svg';
 
 /**
@@ -112,6 +113,13 @@ const CREW: Record<string, Layer[]> = {
     { color: INK, cells: [[10, 17], [11, 17], [12, 17], [13, 17]], alpha: 0.35 },
     { color: '#F49FB6', cells: [[4, 14], [19, 14]], alpha: 0.75 },
   ],
+  // GHOST — the unhired seat on the roster: the same face ring with a
+  // chunky pixel plus where a face will go (Add-crew slot). No plate
+  // behind it, so the ring runs a little stronger to hold the edge.
+  ghost: [
+    { color: INK, cells: RING, alpha: 0.5 },
+    { color: INK, alpha: 0.55, rects: [[10.75, 8, 2.5, 8], [8, 10.75, 8, 2.5]] },
+  ],
 };
 
 export function CrewPixel({ id, size }: { id: string; size: number }) {
@@ -123,7 +131,9 @@ export function CrewPixel({ id, size }: { id: string; size: number }) {
   return (
     <Svg width={size} height={size}>
       {layers.map((layer, li) => (
-        <>
+        // a fragment in a list needs a key like anything else — this
+        // bare <> was the phantom "unique key" warning on every boot
+        <Fragment key={li}>
           {(layer.cells ?? []).map(([x, y], i) => (
             <Rect
               key={`c${li}-${i}`}
@@ -146,7 +156,7 @@ export function CrewPixel({ id, size }: { id: string; size: number }) {
               opacity={layer.alpha}
             />
           ))}
-        </>
+        </Fragment>
       ))}
     </Svg>
   );

@@ -13,7 +13,7 @@ import {
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { AcidSwooshBg } from '@/components/ui/acid-swoosh-bg';
+import { ColorPanelsBg } from '@/components/ui/color-panels-bg';
 import { AcidGlassFill, WindowDots } from '@/components/ui/window-fill';
 import { useAppStore } from '@/store/app-store';
 import { fontFamily, fontSize, sysColor } from '@/theme/theme';
@@ -107,7 +107,7 @@ export default function ActivityScreen() {
       style={{ flex: 1, backgroundColor: consoleLens ? '#0D1B36' : '#4E83B8' }}
       edges={['top']}>
       <StatusBar style="light" />
-      <AcidSwooshBg />
+      <ColorPanelsBg />
       {/* >_ takeover (2026-07-12): the lens is not a dark card on the
           desk, it IS the screen — the night plane swallows the desk */}
       {consoleLens ? (
@@ -138,7 +138,7 @@ export default function ActivityScreen() {
             style={({ pressed }) => ({
               paddingVertical: 6,
               paddingHorizontal: 12,
-              borderRadius: 10,
+              borderRadius: 0,
               backgroundColor: consoleLens ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.85)',
               borderWidth: 1,
               borderColor: consoleLens ? 'rgba(255,255,255,0.92)' : 'rgba(22,24,28,0.08)',
@@ -166,13 +166,14 @@ export default function ActivityScreen() {
             and wears the night palette. */}
         <View
           style={{
-            marginTop: 14,
+            // the board's airy 28pt rhythm (2026-07-14), was 14
+            marginTop: 28,
             flexDirection: 'row',
             alignItems: 'center',
             gap: 8,
             height: 44,
             paddingHorizontal: 14,
-            borderRadius: 16,
+            borderRadius: 0,
             backgroundColor: consoleLens ? 'rgba(255,255,255,0.08)' : '#F6F8FA',
             borderWidth: 1,
             borderColor: consoleLens ? 'rgba(255,255,255,0.14)' : 'rgba(255,255,255,0.55)',
@@ -199,8 +200,9 @@ export default function ActivityScreen() {
             consoleLens
               ? { marginTop: 8, marginHorizontal: -16 }
               : {
-                  marginTop: 16,
-                  borderRadius: 20,
+                  // 28pt rhythm here too (was 16)
+                  marginTop: 28,
+                  borderRadius: 0,
                   overflow: 'hidden',
                   borderWidth: 1,
                   borderColor: 'rgba(255,255,255,0.55)',

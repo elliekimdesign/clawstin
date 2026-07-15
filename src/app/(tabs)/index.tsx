@@ -17,6 +17,7 @@ import { StatusBar } from 'expo-status-bar';
 import { Platform } from 'react-native';
 import Svg, { Defs, LinearGradient as SvgGradient, Path, RadialGradient, Rect, Stop, Text as SvgText } from 'react-native-svg';
 import Animated, {
+  FadeInDown,
   useAnimatedStyle,
   useSharedValue,
   withRepeat,
@@ -31,12 +32,11 @@ import { AuroraLine } from '@/components/ui/aurora-line';
 import { Card } from '@/components/ui/card';
 import { GlassIconButton } from '@/components/ui/glass-icon-button';
 import { BlissSwooshBg } from '@/components/ui/bliss-swoosh-bg';
-import { AcidSwooshBg } from '@/components/ui/acid-swoosh-bg';
+import { ColorPanelsBg } from '@/components/ui/color-panels-bg';
 import { AutopilotSheet } from '@/components/ui/autopilot-sheet';
-import { ClawstinMark } from '@/components/ui/clawstin-mark';
+import { CTA_SLAB_INK, CtaSlabFill } from '@/components/ui/cta-slab';
 import { AcidGlassFill, WindowDots } from '@/components/ui/window-fill';
 import { PromptHistorySheet } from '@/components/ui/prompt-history-sheet';
-import { PulseMark } from '@/components/ui/pulse-mark';
 import { StatusPopover, worstServiceState } from '@/components/ui/status-popover';
 import { TOOL_ACTION_PHRASE, useAppStore } from '@/store/app-store';
 import { brandBlue,
@@ -673,69 +673,14 @@ export default function HomeScreen() {
       style={{ flex: 1, backgroundColor: '#4E83B8' }}
       edges={['top']}>
       <StatusBar style="dark" />
-      {/* start field: quiet paper-blue mesh, an Apple-style wash of soft
-          bright glows (warm light behind the mark, pale blue top-left,
-          deeper blue low-right, a whisper of sky) */}
-      {!connected && (
-        <View style={StyleSheet.absoluteFill} pointerEvents="none">
-          <Svg
-            width="100%"
-            height="100%"
-            viewBox="0 0 390 844"
-            preserveAspectRatio="xMidYMid slice">
-            <Defs>
-              <SvgGradient id="onbase" x1="0" y1="0" x2="0.4" y2="1">
-                <Stop offset="0%" stopColor="#F4F5F6" />
-                <Stop offset="50%" stopColor="#EAECEE" />
-                <Stop offset="100%" stopColor="#DEE1E4" />
-              </SvgGradient>
-              <RadialGradient
-                id="onwarm"
-                gradientUnits="userSpaceOnUse"
-                cx="195"
-                cy="330"
-                rx="250"
-                ry="270">
-                <Stop offset="0%" stopColor="#FFFFFF" stopOpacity={0.75} />
-                <Stop offset="60%" stopColor="#FFFFFF" stopOpacity={0.28} />
-                <Stop offset="100%" stopColor="#FFFFFF" stopOpacity={0} />
-              </RadialGradient>
-              {/* (the old top-left mint glow was removed — it read as a
-                  green cast against the blue world) */}
-              <RadialGradient
-                id="onmeadow"
-                gradientUnits="userSpaceOnUse"
-                cx="340"
-                cy="720"
-                rx="270"
-                ry="250">
-                <Stop offset="0%" stopColor="#8FB9EF" stopOpacity={0.22} />
-                <Stop offset="60%" stopColor="#8FB9EF" stopOpacity={0.08} />
-                <Stop offset="100%" stopColor="#8FB9EF" stopOpacity={0} />
-              </RadialGradient>
-              <RadialGradient
-                id="onsky"
-                gradientUnits="userSpaceOnUse"
-                cx="360"
-                cy="110"
-                rx="200"
-                ry="180">
-                <Stop offset="0%" stopColor="#A7CBEF" stopOpacity={0.16} />
-                <Stop offset="60%" stopColor="#A7CBEF" stopOpacity={0.06} />
-                <Stop offset="100%" stopColor="#A7CBEF" stopOpacity={0} />
-              </RadialGradient>
-            </Defs>
-            <Rect x="0" y="0" width="390" height="844" fill="url(#onbase)" />
-            <Rect x="0" y="0" width="390" height="844" fill="url(#onsky)" />
-            <Rect x="0" y="0" width="390" height="844" fill="url(#onmeadow)" />
-            <Rect x="0" y="0" width="390" height="844" fill="url(#onwarm)" />
-          </Svg>
-        </View>
-      )}
+      {/* start field: the color-panels shader in its light "paper"
+          colorway — silver-white and the old start-glow blues drifting
+          on pale paper gray, ink text stays legible */}
+      {!connected && <ColorPanelsBg variant="paper" animated={false} />}
       {connected ? (
         // ───────────────────────── State board ─────────────────────────
         <>
-          <AcidSwooshBg />
+          <ColorPanelsBg />
           {/* no veil: the aqua desktop shows at full strength; the
               silver windows carry legibility (fullback: white 0.1) */}
           <View style={{ flex: 1 }}>
@@ -751,39 +696,22 @@ export default function HomeScreen() {
                   justifyContent: 'space-between',
                   marginTop: 4,
                 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  {/* the main logo in its true colors, on a round chip
-                      — the same chip material as the crew badges */}
-                  <View
-                    style={{
-                      width: 30,
-                      height: 30,
-                      borderRadius: 999,
-                      backgroundColor: '#F5F6F4',
-                      borderWidth: 1,
-                      borderColor: 'rgba(22,24,28,0.1)',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}>
-                    <ClawstinMark size={22} />
-                  </View>
-                  {/* wordmark: Instrument Serif — refined rule: the
-                      serif belongs to the brand LOCKUP wherever it
-                      appears (mark + wordmark travel together); other
-                      in-app text stays sans + mono */}
-                  <Text
-                    style={{
-                      color: '#FFFFFF',
-                      fontSize: 23,
-                      letterSpacing: 0,
-                      fontFamily: 'InstrumentSerif-Regular',
-                      textShadowColor: '#FFFFFF',
-                      textShadowRadius: 0.9,
-                      textShadowOffset: { width: 0, height: 0 },
-                    }}>
-                    Clawstin
-                  </Text>
-                </View>
+                {/* header brand went wordmark-ONLY (2026-07-15, "그냥
+                    클로스틴만"): the pixel-girl chip read as clutter next
+                    to the serif; the mark still lives in chat routing
+                    and brand moments */}
+                <Text
+                  style={{
+                    color: '#FFFFFF',
+                    fontSize: 23,
+                    letterSpacing: 0.5,
+                    fontFamily: 'InstrumentSerif-Regular',
+                    textShadowColor: '#FFFFFF',
+                    textShadowRadius: 0.9,
+                    textShadowOffset: { width: 0, height: 0 },
+                  }}>
+                  Clawstin
+                </Text>
                 {/* status lives in a tag (crew-pill grammar, light mode)
                     so it stays readable on the pale sky */}
                 <Pressable
@@ -796,10 +724,12 @@ export default function HomeScreen() {
                     paddingVertical: 6,
                     paddingHorizontal: 12,
                     // the section windows' own glass: translucent veil +
-                    // white hairline, pill like every other Home pill.
+                    // white hairline, SQUARE like the section windows
+                    // (the board went right-angle, the chip follows —
+                    // it reads as a tiny folded window now, not a pill).
                     // While the popover is up the chip turns solid white:
                     // it IS that window's folded handle.
-                    borderRadius: 999,
+                    borderRadius: 0,
                     backgroundColor: statusOpen
                       ? 'rgba(255,255,255,0.92)'
                       : 'rgba(255,255,255,0.62)',
@@ -807,20 +737,9 @@ export default function HomeScreen() {
                     borderColor: 'rgba(255,255,255,0.55)',
                     opacity: pressed ? 0.6 : 1,
                   })}>
-                  {/* the dot carries the state; words only translate */}
-                  <View
-                    style={{
-                      width: 7,
-                      height: 7,
-                      borderRadius: 999,
-                      backgroundColor:
-                        worst === 'down'
-                          ? sysColor.fail
-                          : worst === 'degraded'
-                            ? sysColor.degraded
-                            : sysColor.ready,
-                    }}
-                  />
+                  {/* no status dot (2026-07-14): the living panels
+                      behind the board are the "engine running" signal;
+                      degraded/down still speak through amber text */}
                   <Text
                     style={{
                       color:
@@ -831,7 +750,7 @@ export default function HomeScreen() {
                       fontFamily: fontFamily.mono,
                       letterSpacing: 0.3,
                     }}>
-                    {statusLabel}
+                    {statusLabel.toUpperCase()}
                   </Text>
                   <Ionicons
                     name={statusOpen ? 'chevron-up' : 'chevron-down'}
@@ -868,11 +787,15 @@ export default function HomeScreen() {
                   approval feeds TRUST; TRUST slims YOUR TURN; undo makes
                   the added autonomy safe. ── */}
               {nextAsk ? (
+                // board entrance: each section floats in softly, top to
+                // bottom (FadeInDown, 120ms stagger), on connect/mount
+                <Animated.View
+                  entering={FadeInDown.duration(420)}
+                  style={{ marginTop: 28 }}>
                 <Pressable
                   onPress={() => router.push('/chat/t5')}
                   style={({ pressed }) => ({
-                    marginTop: 16,
-                    borderRadius: 20,
+                    borderRadius: 0,
                     overflow: 'hidden',
                     borderWidth: 1,
                     borderColor: 'rgba(255,255,255,0.55)',
@@ -941,6 +864,8 @@ export default function HomeScreen() {
                     style={{
                       marginTop: 14,
                       fontSize: fontSize.body,
+                      // Home-body trial voice: futuristic-clean grotesk
+                      fontFamily: fontFamily.medium,
                       color: AINK.text,
                     }}>
                     Friday dinner, 7:00 or 7:30?
@@ -977,20 +902,21 @@ export default function HomeScreen() {
                         }}
                         hitSlop={8}
                         style={({ pressed }) => ({
-                          // button system (2026-07-11): PRIMARY = ink
-                          // black (same as Get started); blue is the
-                          // secondary/signal color
-                          backgroundColor: '#121417',
+                          // button system (2026-07-14): PRIMARY = the
+                          // CTA slab material (same as Get started);
+                          // buttons are round capsules, sections square
                           borderRadius: 999,
+                          overflow: 'hidden',
                           paddingHorizontal: 17,
                           paddingVertical: 9,
                           opacity: pressed ? 0.7 : 1,
                         })}>
+                        <CtaSlabFill />
                         <Text
                           style={{
                             fontSize: 13,
                             fontWeight: fontWeight.semibold,
-                            color: '#F4F6F5',
+                            color: CTA_SLAB_INK,
                           }}>
                           {slot}
                         </Text>
@@ -1008,13 +934,15 @@ export default function HomeScreen() {
                   </View>
                   )}
                 </Pressable>
+                </Animated.View>
               ) : null}
 
-              <View
+              <Animated.View
+                entering={FadeInDown.duration(420).delay(120)}
                 style={{
                   flexDirection: 'row',
                   gap: 12,
-                  marginTop: 16,
+                  marginTop: 28,
                 }}>
                 {/* AUTOPILOT: the calibration gauge. The card is only the
                     gauge face; tapping opens the ledger as a bottom sheet
@@ -1025,7 +953,7 @@ export default function HomeScreen() {
                   style={({ pressed }) => ({
                     flex: 1,
                     height: 124,
-                    borderRadius: 20,
+                    borderRadius: 0,
                     overflow: 'hidden',
                     borderWidth: 1,
                     borderColor: 'rgba(255,255,255,0.55)',
@@ -1072,6 +1000,7 @@ export default function HomeScreen() {
                         style={{
                           fontSize: fontSize.body,
                           lineHeight: 20,
+                          fontFamily: fontFamily.regular,
                           color: AINK.text,
                         }}>
                         {trustHandled === 'allowed'
@@ -1128,7 +1057,7 @@ export default function HomeScreen() {
                     style={({ pressed }) => ({
                       flex: 1,
                       height: 124,
-                      borderRadius: 20,
+                      borderRadius: 0,
                       overflow: 'hidden',
                       borderWidth: 1,
                       borderColor: 'rgba(255,255,255,0.55)',
@@ -1192,6 +1121,7 @@ export default function HomeScreen() {
                         style={{
                           fontSize: fontSize.body,
                           lineHeight: 20,
+                          fontFamily: fontFamily.regular,
                           color: AINK.text,
                         }}>
                         {w.title}
@@ -1244,17 +1174,18 @@ export default function HomeScreen() {
                     </View>
                   </Pressable>
                 ))}
-              </View>
+              </Animated.View>
 
               {/* post-action control: the agent's most recent write
                   action stays undoable here instead of scrolling away
                   in chat. "+N more" expands the card in place into the
                   full undoable queue; the descending minutes column
                   explains itself, no caption needed. */}
-              <View
+              <Animated.View
+                entering={FadeInDown.duration(420).delay(240)}
                 style={{
-                  marginTop: 16,
-                  borderRadius: 20,
+                  marginTop: 28,
+                  borderRadius: 0,
                   overflow: 'hidden',
                   borderWidth: 1,
                   borderColor: 'rgba(255,255,255,0.55)',
@@ -1330,6 +1261,7 @@ export default function HomeScreen() {
                       style={{
                         flex: 1,
                         fontSize: fontSize.body,
+                        fontFamily: fontFamily.regular,
                         color: AINK.text,
                       }}>
                       {u.label}
@@ -1343,9 +1275,10 @@ export default function HomeScreen() {
                       style={({ pressed }) => ({
                         // secondary by design: quiet gray, not accent —
                         // undo is the rare path and should not compete
-                        // with the blue action pills above
+                        // with the blue action slabs above (square like
+                        // the rest of the board, color unchanged)
                         backgroundColor: 'rgba(22,24,28,0.06)',
-                        borderRadius: 999,
+                        borderRadius: 0,
                         paddingHorizontal: 16,
                         paddingVertical: 9,
                         opacity: pressed ? 0.6 : 1,
@@ -1379,17 +1312,18 @@ export default function HomeScreen() {
                     </Text>
                   </Pressable>
                 ) : null}
-              </View>
+              </Animated.View>
 
               {/* one glass section: filter chips as the header, then
                   every chat hangs off the thread rail below. Priority
                   reads top to bottom. */}
               {activeRows.length + visibleDone.length > 0 ? (
-                <View
+                <Animated.View
+                  entering={FadeInDown.duration(420).delay(360)}
                   onLayout={(e) => setApprovalsY(e.nativeEvent.layout.y)}
                   style={{
-                    marginTop: 16,
-                    borderRadius: 20,
+                    marginTop: 28,
+                    borderRadius: 0,
                     overflow: 'hidden',
                     borderWidth: 1,
                     borderColor: 'rgba(255,255,255,0.55)',
@@ -1524,9 +1458,10 @@ export default function HomeScreen() {
                               flex: 1,
                               color: AINK.text,
                               fontSize: fontSize.body,
-                              // only the front of the queue shouts;
-                              // the tail settles into regular weight
-                              fontWeight: idx < 3 ? fontWeight.semibold : fontWeight.regular,
+                              // one flat weight: in the list only the
+                              // ACTIVE TAB gets emphasis; rows never
+                              // shout (user call 2026-07-14)
+                              fontFamily: fontFamily.regular,
                             }}>
                             {row.label}
                           </Text>
@@ -1570,7 +1505,7 @@ export default function HomeScreen() {
                                 flexShrink: 1,
                                 color: AINK.text,
                                 fontSize: fontSize.body,
-                                fontWeight: fontWeight.regular,
+                                fontFamily: fontFamily.regular,
                               }}>
                               {t.title}
                             </Text>
@@ -1592,7 +1527,7 @@ export default function HomeScreen() {
                       </Pressable>
                     </View>
                   ))}
-                </View>
+                </Animated.View>
               ) : null}
               {visibleDone.length > 0 ? (
                 <Pressable
@@ -1645,11 +1580,13 @@ export default function HomeScreen() {
                 left: 16,
                 right: 16,
                 bottom: 90,
-                // same shadow family as the section windows
+                // neon retired (2026-07-14, "네온처리가 문제"): the pill
+                // now floats on the chat composer's own quiet ink
+                // shadow — lift, not light
                 shadowColor: '#16181C',
-                shadowOpacity: 0.1,
+                shadowOpacity: 0.22,
                 shadowRadius: 12,
-                shadowOffset: { width: 0, height: 5 },
+                shadowOffset: { width: 0, height: 3 },
                 elevation: 10,
               }}>
               <Pressable
@@ -1660,12 +1597,15 @@ export default function HomeScreen() {
                   // with the chat composer
                   borderRadius: 999,
                   overflow: 'hidden',
+                  // the chat composer's exact hairline — no blue, no glow
                   borderWidth: 1,
                   borderColor: 'rgba(255,255,255,0.55)',
                   opacity: pressed ? 0.85 : 1,
                 })}>
-                {/* the section windows' own material: liquid lens
-                    under the white veil, desk breathing through */}
+                {/* body = the chat composer's exact material (glass +
+                    white veil) so the two command pills read as one —
+                    the near-black console body felt foreign ("너무
+                    검정이라 이질감"); the lit rim stays */}
                 {GLASS_AVAILABLE ? (
                   <GlassView
                     glassEffectStyle="clear"
@@ -1715,22 +1655,29 @@ export default function HomeScreen() {
                       /
                     </Text>
                   </Pressable>
-                  <Text style={{ flex: 1, fontSize: fontSize.body, color: 'rgba(22,24,28,0.55)' }}>
-                    Ask anything
+                  <Text
+                    style={{
+                      flex: 1,
+                      fontSize: fontSize.body,
+                      fontFamily: fontFamily.regular,
+                      color: 'rgba(22,24,28,0.55)',
+                    }}>
+                    What needs doing?
                   </Text>
                   <Pressable
                     hitSlop={8}
                     onPress={() => openNewChat()}
                     style={({ pressed }) => ({
+                      // bare glyph, no chip — the filled cyan circle was
+                      // too bright for the quiet console; the mic itself
+                      // carries the color, same register as the rim light
                       width: 38,
                       height: 38,
-                      borderRadius: 999,
-                      backgroundColor: brandBlue,
                       alignItems: 'center',
                       justifyContent: 'center',
-                      opacity: pressed ? 0.8 : 1,
+                      opacity: pressed ? 0.6 : 1,
                     })}>
-                    <Ionicons name="mic" size={19} color="#2E4F73" />
+                    <Ionicons name="mic" size={21} color={sysColor.accent} />
                   </Pressable>
                 </View>
               </Pressable>
@@ -1759,22 +1706,8 @@ export default function HomeScreen() {
           showsVerticalScrollIndicator={false}>
           <View style={{ flex: 1 }} />
           <View style={{ alignItems: 'center' }}>
-            {/* Agent mark inside pulsing rings */}
-            <PulseMark size={140}>
-              <View
-                style={{
-                  // the split-face mark at hero size, lime eyes per the
-                  // eyeball-lime rule (ice-teal era retired)
-                  shadowColor: '#16181C',
-                  shadowOpacity: 0.22,
-                  shadowRadius: 20,
-                  shadowOffset: { width: 0, height: 10 },
-                  elevation: 6,
-                }}>
-                <ClawstinMark size={80.5} />
-              </View>
-            </PulseMark>
-
+            {/* Name set only — the mascot left the start screen; the
+                wordmark sits on the panel fan's bright axis instead */}
             {/* Headline: Instrument Serif — the sans family's own
                 display serif, vintage voice from the same foundry */}
             <Text
@@ -1785,7 +1718,9 @@ export default function HomeScreen() {
                 letterSpacing: 0,
                 lineHeight: 48,
                 textAlign: 'center',
-                marginTop: -8,
+                // optical nudge: the serif sat high on the fan axis
+                // (1px was imperceptible; 8 actually lands it)
+                marginTop: 8,
                 // the serif ships one weight; a same-color micro
                 // shadow thickens the strokes a touch
                 textShadowColor: '#121417',
@@ -1811,44 +1746,26 @@ export default function HomeScreen() {
           </View>
           <View style={{ flex: 1 }} />
 
-          {/* CTA → connect: borderless simple button, but the surface
-              carries a G4-panel light sweep — a curved band of light
-              across the right end, the same swoosh grammar as the
-              board's field art. */}
+          {/* CTA → connect: sharp right-angle slab (no radius) in the
+              shared CTA slab material — Liquid Glass + symmetric
+              sky→#333AFF→sky wash (see cta-slab.tsx; the brief purple
+              era was cut, the no-purple rule holds). */}
           <Pressable
             onPress={() => setConnected(true)}
             style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}>
             <View
               style={{
-                // exactly the mark's face color, so CTA and logo read
-                // as one material
-                backgroundColor: '#121417',
-                borderRadius: radius.lg,
+                // square here by explicit call — the round ring blobbed
+                // on the pale start field; small board buttons stay round
+                borderRadius: 0,
                 paddingVertical: spacing.lg,
                 alignItems: 'center',
                 overflow: 'hidden',
               }}>
-              <Svg
-                style={StyleSheet.absoluteFill}
-                viewBox="0 0 100 100"
-                preserveAspectRatio="none"
-                pointerEvents="none">
-                {/* the sweep, first-version style: two soft desk-blue
-                    bands; black owns ~70% of the button */}
-                <Path
-                  d="M 100 0 L 100 100 L 70 100 C 80 68, 86 32, 82 0 Z"
-                  fill="#4E83B8"
-                  fillOpacity={0.55}
-                />
-                <Path
-                  d="M 100 0 L 100 100 L 84 100 C 91 66, 94 30, 91 0 Z"
-                  fill="#6297CE"
-                  fillOpacity={0.75}
-                />
-              </Svg>
+              <CtaSlabFill shape="square" tone="white" />
               <Text
                 style={{
-                  color: '#F5F8FC',
+                  color: CTA_SLAB_INK,
                   fontSize: fontSize.bodyLg,
                   fontFamily: fontFamily.semibold,
                 }}>

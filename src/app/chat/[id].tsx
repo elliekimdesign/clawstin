@@ -26,7 +26,7 @@ import { CrewSwitch } from '@/components/ui/crew-switch';
 import { AquaBg } from '@/components/ui/aqua-bg';
 import { ButterBg } from '@/components/ui/butter-bg';
 import { CloudBg } from '@/components/ui/cloud-bg';
-import { DeskRetroBg } from '@/components/ui/desk-retro-bg';
+import { DeskGradientBg } from '@/components/ui/desk-gradient-bg';
 import { MeshBg } from '@/components/ui/mesh-bg';
 import { MintBg } from '@/components/ui/mint-bg';
 import { MonthOverlay } from '@/components/ui/month-overlay';
@@ -38,7 +38,7 @@ import { ScheduleProposalCard } from '@/components/ui/schedule-proposal-card';
 import { ScheduleCard } from '@/components/ui/schedule-card';
 import { SuggestionChips } from '@/components/ui/suggestion-chips';
 import { ThinkingConsole } from '@/components/ui/thinking-console';
-import { ToolSwitch } from '@/components/ui/tool-switch';
+import { TOOL_DEFS, ToolSwitch } from '@/components/ui/tool-switch';
 import { WeekStrip } from '@/components/ui/week-strip';
 import { TypingIndicator } from '@/components/ui/typing-indicator';
 import { routeCrew, type CrewKey } from '@/mock/crew-routing';
@@ -128,6 +128,54 @@ export function ChatThreadView({
 
   const isTyping = typingThreadId === effId;
   const thinkingHere = thinking?.threadId === effId ? thinking : null;
+  // the floating console's measured height, so the scroll's content
+  // starts below it at rest but slides BEHIND it when scrolling
+  const [consoleH, setConsoleH] = useState(0);
+  // console fold: expanded = full log floating up top (chat slides
+  // behind); folded = a small circle docked at the right, above the
+  // composer. Seeded threads arrive folded; folding/unfolding reflows
+  // the chat naturally (LayoutAnimation in the console's toggle).
+  const [consoleFolded, setConsoleFolded] = useState(true);
+  useEffect(() => {
+    // fresh runs open loud, seeded histories arrive quiet
+    setConsoleFolded(!thinkingHere);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [effId]);
+  useEffect(() => {
+    if (thinkingHere && !thinkingHere.done) setConsoleFolded(false);
+  }, [thinkingHere]);
+
+  // The chat-start boot lines (gateway + tools) merged INTO the seeded
+  // run console — they must never float bare in the scroll ("무조건 이
+  // 안에 들어가서 나오는 걸로")
+  const bootLog = thread
+    ? [
+        ...(thread.messages.find((m) => m.terminalLog)?.terminalLog ?? []),
+        ...(thread.consoleLog ?? []),
+      ]
+    : [];
+
+  // multi-tool tasks ("check email, find a slot, book it"): every tool
+  // the ask touches opens as its own circle on a line under the header
+  const lastUserText =
+    [...(thread?.messages ?? [])].reverse().find((m) => m.from === 'user')?.text ?? '';
+  const multiTools = TOOL_DEFS.filter((t) => {
+    if (t.key === 'gmail')
+      return /mail|inbox|email|이메일|메일/i.test(lastUserText);
+    if (t.key === 'calendar')
+      return /calendar|book|schedule|meeting|time|캘린더|달력|부킹|시간|예약/i.test(lastUserText);
+    if (t.key === 'contacts') return /contact|address book|연락처|주소록/i.test(lastUserText);
+    if (t.key === 'github') return /github|pr\b|pull request/i.test(lastUserText);
+    return false;
+  });
+  const showToolRow = multiTools.length >= 2 && !calOpen;
+  // where the floating console sits: expanded = top overlay (below the
+  // tool row when that's out); folded = docked circle above the composer
+  const consoleTop = showToolRow ? spacing.sm + 48 : spacing.sm;
+  const consoleDone = thinkingHere ? thinkingHere.done : bootLog.length > 0;
+  const consoleDocked = consoleDone && consoleFolded;
+  const consoleExpandedVisible =
+    !calOpen && !consoleDocked && (thinkingHere !== null || bootLog.length > 0);
 
   // The dark week-strip console: NOT during thinking (the console narrates
   // that) — it appears with the calendar answer, right under the console.
@@ -262,7 +310,7 @@ export function ChatThreadView({
       ) : darkChat.background === 'clouds' ? (
         <CloudBg />
       ) : darkChat.background === 'desk' ? (
-        <DeskRetroBg />
+        <DeskGradientBg />
       ) : (
         <MeshBg variant="dark" />
       )}
@@ -292,30 +340,32 @@ export function ChatThreadView({
               onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
               hitSlop={10}
               style={({ pressed }) => ({
-                width: 30,
-                height: 30,
-                borderRadius: 15,
+                // sized to match the header's other circles (the
+                // 40pt history/tool chips) — was 30
+                width: 40,
+                height: 40,
+                borderRadius: 999,
                 backgroundColor: 'rgba(255,255,255,0.85)',
                 alignItems: 'center',
                 justifyContent: 'center',
                 opacity: pressed ? 0.6 : 1,
               })}>
-              <Ionicons name="chevron-back" size={17} color="#16181C" />
+              <Ionicons name="chevron-back" size={19} color="#16181C" />
             </Pressable>
             ) : onShowHistory ? (
             <Pressable
               onPress={onShowHistory}
               hitSlop={10}
               style={({ pressed }) => ({
-                width: 30,
-                height: 30,
-                borderRadius: 15,
+                width: 40,
+                height: 40,
+                borderRadius: 999,
                 backgroundColor: 'rgba(255,255,255,0.85)',
                 alignItems: 'center',
                 justifyContent: 'center',
                 opacity: pressed ? 0.6 : 1,
               })}>
-              <Ionicons name="list" size={16} color="#16181C" />
+              <Ionicons name="list" size={18} color="#16181C" />
             </Pressable>
             ) : null}
           </Animated.View>
@@ -383,21 +433,90 @@ export function ChatThreadView({
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}>
         <View style={{ flex: 1 }}>
-          {/* Thinking console: in the FLOW, not an overlay — it pushes the
-              conversation down instead of covering it. Hidden while the
-              month view is open so dark edges never stack. */}
-          {thinkingHere && !calOpen ? (
+          {/* instrument row: the machine's line under the header. A
+              complex ask opens every touched tool as its own circle,
+              and the FOLDED console docks here as the rightmost seat
+              (user: the composer-corner dock was 뜬금없음 — the top is
+              the machine zone) */}
+          {showToolRow || (consoleDocked && !calOpen) ? (
+            <View
+              style={
+                showToolRow
+                  ? {
+                      flexDirection: 'row',
+                      justifyContent: 'flex-end',
+                      alignItems: 'center',
+                      gap: 8,
+                      paddingHorizontal: spacing.lg,
+                      marginTop: spacing.xs,
+                      marginBottom: spacing.xs,
+                    }
+                  : {
+                      // circle alone: costs NO flow height — floats in
+                      // the top-right corner and the chat rises fully
+                      // ("내용은 자동으로 위로 올라와야 해")
+                      position: 'absolute',
+                      top: spacing.sm,
+                      right: spacing.lg,
+                      zIndex: 20,
+                      flexDirection: 'row',
+                      gap: 8,
+                    }
+              }>
+              {showToolRow
+                ? multiTools.map((t) => (
+                    <View
+                      key={t.key}
+                      style={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: 999,
+                        backgroundColor: 'rgba(46,80,121,0.5)',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}>
+                      <Ionicons name={t.icon} size={19} color={darkChat.text} />
+                    </View>
+                  ))
+                : null}
+              {consoleDocked && !calOpen ? (
+                thinkingHere ? (
+                  <ThinkingConsole
+                    threadId={thinkingHere.threadId}
+                    lines={thinkingHere.lines}
+                    done={thinkingHere.done}
+                    failed={thinkingHere.failed}
+                    folded
+                    onToggleFold={() => setConsoleFolded(false)}
+                  />
+                ) : (
+                  <ThinkingConsole
+                    threadId={effId}
+                    lines={bootLog}
+                    done
+                    folded
+                    onToggleFold={() => setConsoleFolded(false)}
+                  />
+                )
+              ) : null}
+            </View>
+          ) : null}
+          {/* Thinking console: an OVERLAY now (2026-07-14) — the chat
+              scrolls BEHIND it ("모든 대화 내용은 콘솔 뒤로"); the scroll
+              gets measured top padding so content clears it at rest.
+              Hidden while the month view is open. */}
+          {thinkingHere && !calOpen && !consoleDocked ? (
             <Animated.View
               entering={FadeInDown.duration(280)}
               exiting={FadeOutUp.duration(220)}
+              onLayout={(e) => setConsoleH(e.nativeEvent.layout.height)}
               style={{
-                marginLeft: spacing.lg,
+                position: 'absolute',
+                top: consoleTop,
+                left: spacing.lg,
                 // this console cedes the rail column too — every dark
-                // panel steps left together when the rail is out
-                marginRight: calRail ? spacing.lg + 52 : spacing.lg,
-                marginTop: spacing.sm,
-                marginBottom: spacing.xs,
-                // the expanded full-log dropdown must float OVER the chat
+                // panel steps left when the rail is out
+                right: calRail ? spacing.lg + 52 : spacing.lg,
                 zIndex: 20,
               }}>
               <ThinkingConsole
@@ -405,25 +524,33 @@ export function ChatThreadView({
                 lines={thinkingHere.lines}
                 done={thinkingHere.done}
                 failed={thinkingHere.failed}
+                folded={false}
+                onToggleFold={() => setConsoleFolded(true)}
               />
             </Animated.View>
           ) : null}
 
           {/* Seeded run log: the background run that produced this
-              thread's ask, folded to the slim bar (it finished before
-              the user arrived — expand on demand). */}
-          {!thinkingHere && thread?.consoleLog && !calOpen ? (
+              thread's ask (folds to the right-edge circle). The gateway
+              boot lines ("Gateway connected | E2E...") ALWAYS live
+              inside this console — never as bare text in the scroll. */}
+          {!thinkingHere && bootLog.length > 0 && !calOpen && !consoleDocked ? (
             <View
+              onLayout={(e) => setConsoleH(e.nativeEvent.layout.height)}
               style={{
-                marginLeft: spacing.lg,
-                // the console cedes the same column as the strip while
-                // the calendar rail is out
-                marginRight: calRail ? spacing.lg + 52 : spacing.lg,
-                marginTop: spacing.sm,
-                marginBottom: spacing.xs,
+                position: 'absolute',
+                top: consoleTop,
+                left: spacing.lg,
+                right: calRail ? spacing.lg + 52 : spacing.lg,
                 zIndex: 20,
               }}>
-              <ThinkingConsole threadId={effId} lines={thread.consoleLog} done startCollapsed />
+              <ThinkingConsole
+                threadId={effId}
+                lines={bootLog}
+                done
+                folded={false}
+                onToggleFold={() => setConsoleFolded(true)}
+              />
             </View>
           ) : null}
 
@@ -515,7 +642,12 @@ export function ChatThreadView({
               paddingLeft: spacing.lg,
               // right rail reserved for a future vertical element
               paddingRight: 32,
-              paddingTop: spacing.lg,
+              // clear the floating console at rest (it overlays the
+              // scroll; content passes behind it once you scroll). A
+              // docked (folded) console frees the top — content rises.
+              paddingTop: consoleExpandedVisible
+                ? consoleH + consoleTop + spacing.md
+                : spacing.lg,
               // room to scroll past the floating command pill: the
               // conversation flows BEHIND it, no wall
               paddingBottom: 118,
@@ -543,35 +675,49 @@ export function ChatThreadView({
                     key={chip}
                     onPress={() => setDraft(chip)}
                     style={({ pressed }) => ({
-                      paddingHorizontal: 16,
-                      paddingVertical: 9,
                       borderRadius: 999,
-                      backgroundColor: 'rgba(255,255,255,0.16)',
+                      // thin glass, like the desk's motion panes: real
+                      // refraction under a veil far lighter than the
+                      // composer's, so the room shows through
+                      overflow: 'hidden',
                       borderWidth: 1,
-                      borderColor: 'rgba(255,255,255,0.3)',
+                      borderColor: 'rgba(255,255,255,0.45)',
                       opacity: pressed ? 0.7 : 1,
                     })}>
-                    <Text style={{ fontSize: 13, color: 'rgba(255,255,255,0.92)' }}>{chip}</Text>
+                    {GLASS_AVAILABLE ? (
+                      <GlassView
+                        glassEffectStyle="clear"
+                        colorScheme="light"
+                        style={StyleSheet.absoluteFill}
+                        pointerEvents="none"
+                      />
+                    ) : null}
+                    <View
+                      pointerEvents="none"
+                      style={[
+                        StyleSheet.absoluteFill,
+                        { backgroundColor: 'rgba(255,255,255,0.14)' },
+                      ]}
+                    />
+                    <Text
+                      style={{
+                        paddingHorizontal: 16,
+                        paddingVertical: 9,
+                        fontSize: 13,
+                        fontFamily: fontFamily.regular,
+                        color: 'rgba(255,255,255,0.92)',
+                      }}>
+                      {chip}
+                    </Text>
                   </Pressable>
                 ))}
               </View>
             ) : null}
             {thread?.messages.map((m) => (
               <View key={m.id}>
-                {taskStarts.includes(m.id) ? (
-                  <View
-                    style={{
-                      position: 'absolute',
-                      right: -24,
-                      top: 10,
-                      width: 16,
-                      height: 2.5,
-                      borderRadius: 2,
-                      backgroundColor:
-                        m.id === currentTaskStart ? sysColor.accent : 'rgba(255,255,255,0.35)',
-                    }}
-                  />
-                ) : null}
+                {/* the task tick experiment is retired ("이 흰색 바는
+                    지워") — the chop divider + console task line carry
+                    the context split on their own */}
                 {/* chop boundary: the orchestrator cut a new task here —
                     one scroll, visibly segmented */}
                 {m.taskDivider ? (
@@ -597,22 +743,8 @@ export function ChatThreadView({
                     <View style={{ flex: 1, height: 1, backgroundColor: 'rgba(255,255,255,0.22)' }} />
                   </View>
                 ) : null}
-                {m.terminalLog ? (
-                  <View style={{ marginBottom: spacing.sm }}>
-                    {m.terminalLog.map((line, i) => (
-                      <Text
-                        key={i}
-                        style={{
-                          fontFamily: fontFamily.mono,
-                          fontSize: 10,
-                          lineHeight: 14,
-                          color: darkChat.textTertiary,
-                        }}>
-                        {line}
-                      </Text>
-                    ))}
-                  </View>
-                ) : null}
+                {/* terminalLog no longer renders here — those boot
+                    lines live inside the top run console (bootLog) */}
                 {m.taskDivider ? null : (
                 <MessageBubble
                   from={m.from}
@@ -796,7 +928,7 @@ export function ChatThreadView({
                 onChangeText={setDraft}
                 autoFocus={composeNew}
                 onFocus={() => setAttachOpen(false)}
-                placeholder="Assign a task to your crew"
+                placeholder="What needs doing?"
                 placeholderTextColor="rgba(22,24,28,0.5)"
                 style={{
                   flex: 1,

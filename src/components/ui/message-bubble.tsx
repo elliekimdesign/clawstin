@@ -61,14 +61,14 @@ export function MessageBubble({ from, text, proactive, caption, children }: Prop
               }}>
               {'>'}
             </Text>
-            {/* a soft chip, not a hard block: the console navy at half
-                strength with round corners melts into the desk while
-                still reading as MY line */}
+            {/* square, like every window on the board (2026-07-14
+                right-angle grammar) — the dark navy stays for the
+                visibility the user liked; only the shape fell in line */}
             <View
               style={{
                 flexShrink: 1,
                 backgroundColor: 'rgba(13,27,54,0.45)',
-                borderRadius: 10,
+                borderRadius: 0,
                 paddingHorizontal: 10,
                 paddingVertical: 5,
               }}>

@@ -30,6 +30,20 @@ const PIXEL_BY_ROUTE: Record<CrewKey, string> = {
 // display order: Beanie, Specs, Wink, Crop
 const ORDER = ['muppet', 'scout', 'quill', 'pilot'] as const;
 
+/** dot colorway (2026-07-14): four hues from the paper-shaders preset
+ * the user liked — orange/red/periwinkle/yellow (the preset's purple
+ * and pink stay banned). DOTS ONLY: badges/underlines elsewhere keep
+ * CREW_ACCENT, so this is a deliberate divergence for the composer row. */
+// v2 (22:28): the vivid preset set read like candy ("너무 유치한데") —
+// dropped to a dusty editorial quartet: ochre / terracotta / dusty
+// periwinkle / sage. Same four identities, grown-up voices.
+const DOT_COLOR: Record<string, string> = {
+  muppet: '#E0A458',
+  scout: '#C65F4E',
+  quill: '#8FA8DC',
+  pilot: '#5FA383',
+};
+
 function Dot({
   color,
   awake,
@@ -97,7 +111,7 @@ export function CrewDots({
       {ORDER.map((id, i) => (
         <Dot
           key={id}
-          color={CREW_ACCENT[id]}
+          color={DOT_COLOR[id] ?? CREW_ACCENT[id]}
           awake={id === awakeId}
           wave={wave && !awakeId}
           waveDelay={i * 150}

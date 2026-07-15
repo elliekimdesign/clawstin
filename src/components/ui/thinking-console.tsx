@@ -24,6 +24,13 @@ const TEXT = 'rgba(255,255,255,0.72)';
 const DIM = 'rgba(255,255,255,0.4)';
 // runs that STOPPED on errors close amber, not green (Logs `wait` tone)
 const WARN = '#F0B25F';
+// clean runs close in success green (user's instinct 2026-07-14: the
+// verdict line's position was right, its color was the missing signal)
+const OK = '#7ED9A0';
+
+/** log lines display sentence-cased ("Parse & plan…") — the data stays
+ * lowercase mono-speak, only the first glyph dresses up */
+const cap1 = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
 
 /** Breathing ellipsis while the agent is still working. */
 function WorkingCursor() {
@@ -56,6 +63,8 @@ export function ThinkingConsole({
   done,
   failed,
   startCollapsed,
+  folded: foldedProp,
+  onToggleFold,
 }: {
   threadId: string;
   lines: string[];
@@ -63,8 +72,12 @@ export function ThinkingConsole({
   /** the run stopped on errors — amber "stopped" footer instead of done */
   failed?: boolean;
   /** for logs of runs that finished BEFORE the user arrived (seeded
-   * ask-threads): fold to the slim bar, expand on demand */
+   * ask-threads): start as the folded circle */
   startCollapsed?: boolean;
+  /** controlled fold: the chat screen owns placement (expanded log up
+   * top vs the docked circle above the composer), so it owns the state */
+  folded?: boolean;
+  onToggleFold?: () => void;
 }) {
   if (!done) {
     // Rolling two-line ticker: only the latest lines, one line each.
@@ -73,7 +86,7 @@ export function ThinkingConsole({
       <View
         style={{
           backgroundColor: PANEL_BG,
-          borderRadius: 20,
+          borderRadius: 16,
           paddingHorizontal: 16,
           paddingVertical: 12,
         }}>
@@ -83,7 +96,7 @@ export function ThinkingConsole({
             entering={FadeInDown.duration(240)}
             numberOfLines={1}
             style={{ fontFamily: MONO, fontSize: 12, lineHeight: 18, color: TEXT }}>
-            {line}
+            {cap1(line)}
           </Animated.Text>
         ))}
         <WorkingCursor />
@@ -91,10 +104,19 @@ export function ThinkingConsole({
     );
   }
 
-  // Two sizes, one element, no fold chrome: quarter-screen cap by
-  // default, tap = the log takes the screen, tap again = back.
+  // Two states (2026-07-14 rework): the full log IS the minimum — the
+  // old one-line "✓ Done N steps" bar is gone. Folding turns the whole
+  // console into a small circle at the right edge (under the header's
+  // calendar circle); tapping the circle brings the log back.
   return (
-    <DoneLog threadId={threadId} lines={lines} failed={failed} />
+    <DoneLog
+      threadId={threadId}
+      lines={lines}
+      failed={failed}
+      startCollapsed={startCollapsed}
+      foldedProp={foldedProp}
+      onToggleFold={onToggleFold}
+    />
   );
 }
 
@@ -102,17 +124,24 @@ function DoneLog({
   threadId,
   lines,
   failed,
+  startCollapsed,
+  foldedProp,
+  onToggleFold,
 }: {
   threadId: string;
   lines: string[];
   failed?: boolean;
+  startCollapsed?: boolean;
+  foldedProp?: boolean;
+  onToggleFold?: () => void;
 }) {
   const { height: winH } = useWindowDimensions();
-  // ANY tap shortens: content (quarter-capped) <-> one slim line
-  const [slim, setSlim] = useState(false);
+  const [foldedLocal, setFoldedLocal] = useState(!!startCollapsed);
+  const folded = foldedProp ?? foldedLocal;
   const toggle = () => {
-    LayoutAnimation.configureNext(LayoutAnimation.create(200, 'easeInEaseOut', 'opacity'));
-    setSlim((v) => !v);
+    LayoutAnimation.configureNext(LayoutAnimation.create(220, 'easeInEaseOut', 'opacity'));
+    if (onToggleFold) onToggleFold();
+    else setFoldedLocal((v) => !v);
   };
   // quarter view: as many of the LATEST lines as fit in screenH/4
   const LINE_H = 22;
@@ -120,21 +149,25 @@ function DoneLog({
   const shown = lines.slice(-cap);
   const clipped = lines.length > shown.length;
 
-  if (slim) {
+  if (folded) {
+    // the console asleep: a navy circle riding the empty right edge,
+    // '>_' in the run's verdict color; tap to reopen the log
     return (
       <Pressable
         onPress={toggle}
+        hitSlop={8}
         style={({ pressed }) => ({
+          alignSelf: 'flex-end',
+          width: 40,
+          height: 40,
+          borderRadius: 999,
           backgroundColor: PANEL_BG,
-          borderRadius: 20,
-          paddingHorizontal: 16,
-          paddingVertical: 10,
-          opacity: pressed ? 0.92 : 1,
+          alignItems: 'center',
+          justifyContent: 'center',
+          opacity: pressed ? 0.8 : 1,
         })}>
-        <Text style={{ fontFamily: MONO, fontSize: 11, color: failed ? WARN : DIM }}>
-          {failed ? '⚠ stopped  ' : '✓ done  '}
-          {lines.length}
-          {lines.length === 1 ? ' step' : ' steps'}
+        <Text style={{ fontFamily: MONO, fontSize: 12, color: failed ? WARN : OK }}>
+          {failed ? '⚠' : '>_'}
         </Text>
       </Pressable>
     );
@@ -145,7 +178,7 @@ function DoneLog({
       onPress={toggle}
       style={({ pressed }) => ({
         backgroundColor: PANEL_BG,
-        borderRadius: 20,
+        borderRadius: 16,
         paddingHorizontal: 16,
         paddingVertical: 12,
         opacity: pressed ? 0.92 : 1,
@@ -159,7 +192,7 @@ function DoneLog({
         <Text
           key={`${threadId}-${i}`}
           style={{ fontFamily: MONO, fontSize: 12, lineHeight: 18, color: TEXT, marginBottom: 4 }}>
-          {line}
+          {cap1(line)}
         </Text>
       ))}
       <View
@@ -169,8 +202,8 @@ function DoneLog({
           justifyContent: 'space-between',
           marginTop: 2,
         }}>
-        <Text style={{ fontFamily: MONO, fontSize: 11, color: failed ? WARN : DIM }}>
-          {failed ? '⚠ stopped' : '✓ done'}
+        <Text style={{ fontFamily: MONO, fontSize: 11, color: failed ? WARN : OK }}>
+          {failed ? '⚠ Stopped' : '✓ Done'}
         </Text>
       </View>
     </Pressable>

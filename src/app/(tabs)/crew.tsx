@@ -17,7 +17,7 @@ import {
 import type { ImageSourcePropType } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { AcidSwooshBg } from '@/components/ui/acid-swoosh-bg';
+import { ColorPanelsBg } from '@/components/ui/color-panels-bg';
 import { CREW_ACCENT, CrewPixel } from '@/components/ui/crew-pixel';
 import type { ActivityItem } from '@/mock/activity';
 import type { CrewMember } from '@/mock/crew';
@@ -89,7 +89,7 @@ function CrewBadge({ member, width }: { member: CrewMember; width: number }) {
       <Pressable
         onPress={() => router.push(`/crew/${member.id}`)}
         style={({ pressed }) => ({
-          borderRadius: 20,
+          borderRadius: 0,
           overflow: 'hidden',
           borderWidth: 1,
           borderColor: 'rgba(255,255,255,0.55)',
@@ -171,7 +171,7 @@ function ContributionCard({ crew }: { crew: CrewMember[] }) {
   return (
     <View
       style={{
-        borderRadius: 20,
+        borderRadius: 0,
         overflow: 'hidden',
         borderWidth: 1,
         borderColor: 'rgba(255,255,255,0.55)',
@@ -279,7 +279,7 @@ function StatTile({ label, value }: { label: string; value: string }) {
     <View
       style={{
         flex: 1,
-        borderRadius: 12,
+        borderRadius: 0,
         backgroundColor: 'rgba(22,24,28,0.05)',
         paddingVertical: 10,
         paddingHorizontal: 12,
@@ -315,7 +315,7 @@ function PerfSection({ member, recent }: { member: CrewMember; recent: ActivityI
     <Pressable
       onPress={() => router.push(`/crew/history/${member.id}`)}
       style={({ pressed }) => ({
-        borderRadius: 20,
+        borderRadius: 0,
         overflow: 'hidden',
         borderWidth: 1,
         borderColor: 'rgba(255,255,255,0.55)',
@@ -438,7 +438,7 @@ function ModeToggle({
         overflow: 'hidden',
         borderWidth: 1,
         borderColor: 'rgba(255,255,255,0.55)',
-        borderRadius: radius.pill,
+        borderRadius: 0,
         padding: 3,
       }}>
       <CardGlass />
@@ -449,7 +449,7 @@ function ModeToggle({
           style={{
             paddingVertical: 5,
             paddingHorizontal: 16,
-            borderRadius: radius.pill,
+            borderRadius: 0,
             backgroundColor: mode === m ? '#FFFFFF' : 'transparent',
             shadowColor: '#26301F',
             shadowOpacity: mode === m ? 0.12 : 0,
@@ -486,7 +486,7 @@ export default function CrewScreen() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#4E83B8' }} edges={['top']}>
       <StatusBar style="light" />
-      <AcidSwooshBg />
+      <ColorPanelsBg />
       <ScrollView
         contentContainerStyle={{ padding: spacing.lg, paddingBottom: 110 }}
         showsVerticalScrollIndicator={false}>
@@ -517,34 +517,96 @@ export default function CrewScreen() {
             {crew.map((m) => (
               <CrewBadge key={m.id} member={m} width={badgeW} />
             ))}
-            {/* the empty slot: register the next member */}
+            {/* the empty slot: a GHOST crew card — the next member's
+                badge already on the roster, translucent, with an empty
+                avatar seat (dashed default-y box rejected: "i dont like
+                this standard style"). Anatomy mirrors CrewBadge 1:1. */}
             <Pressable
               onPress={() =>
                 Alert.alert('Coming soon', 'Hiring new crew members is on the way.')
               }
               style={({ pressed }) => ({
                 width: badgeW,
-                marginTop: 28,
-                minHeight: 132,
-                borderRadius: 20,
-                borderWidth: 1.5,
-                borderStyle: 'dashed',
-                borderColor: 'rgba(255,255,255,0.6)',
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 6,
+                paddingTop: 28,
                 opacity: pressed ? 0.6 : 1,
               })}>
-              <Ionicons name="add" size={16} color="rgba(255,255,255,0.85)" />
-              <Text
+              {/* the empty seat: 무난하게 — the exact chip the real
+                  members wear (solid plate, hairline, shadow) with a
+                  plain + inside; every clever variant is in git history */}
+              <View
                 style={{
-                  color: 'rgba(255,255,255,0.85)',
-                  fontSize: 13,
-                  fontFamily: fontFamily.semibold,
+                  position: 'absolute',
+                  top: 0,
+                  left: badgeW / 2 - 28,
+                  zIndex: 2,
+                  width: 56,
+                  height: 56,
+                  borderRadius: 999,
+                  backgroundColor: CARD,
+                  borderWidth: 1,
+                  borderColor: 'rgba(22,24,28,0.1)',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  shadowColor: '#26301F',
+                  shadowOpacity: 0.12,
+                  shadowRadius: 8,
+                  shadowOffset: { width: 0, height: 3 },
+                  elevation: 7,
                 }}>
-                Add crew
-              </Text>
+                <Ionicons name="add" size={26} color="rgba(22,24,28,0.65)" />
+              </View>
+              <View
+                style={{
+                  borderRadius: 0,
+                  overflow: 'hidden',
+                  borderWidth: 1,
+                  borderColor: 'rgba(255,255,255,0.35)',
+                  alignItems: 'center',
+                  paddingTop: 38,
+                }}>
+                <CardGlass />
+                <Text
+                  style={{
+                    fontSize: 17,
+                    fontFamily: fontFamily.bold,
+                    letterSpacing: -0.3,
+                    color: INK_DIM,
+                  }}>
+                  Add crew
+                </Text>
+                {/* the accent underline, waiting for its color */}
+                <View
+                  style={{
+                    width: 26,
+                    height: 3,
+                    borderRadius: 99,
+                    marginTop: 7,
+                    backgroundColor: 'rgba(22,24,28,0.15)',
+                  }}
+                />
+                <Text
+                  style={{
+                    marginTop: 8,
+                    fontSize: 10,
+                    fontFamily: fontFamily.mono,
+                    letterSpacing: 0.3,
+                    color: INK_DIM,
+                  }}>
+                  OPEN SLOT
+                </Text>
+                <View
+                  style={{
+                    marginTop: 14,
+                    alignSelf: 'stretch',
+                    backgroundColor: INK_SOFT,
+                    paddingVertical: 9,
+                    alignItems: 'center',
+                  }}>
+                  <Text style={{ fontSize: 10, fontFamily: fontFamily.mono, color: INK_DIM }}>
+                    tap to hire
+                  </Text>
+                </View>
+              </View>
             </Pressable>
           </View>
         ) : (
@@ -572,14 +634,20 @@ export default function CrewScreen() {
             justifyContent: 'center',
             gap: spacing.sm,
             paddingVertical: spacing.lg,
-            borderRadius: radius.lg,
-            borderWidth: 1,
+            borderRadius: 0,
+            borderWidth: 1.5,
             borderStyle: 'dashed',
-            borderColor: 'rgba(22,24,28,0.25)',
+            borderColor: 'rgba(255,255,255,0.6)',
+            backgroundColor: 'rgba(255,255,255,0.08)',
             opacity: pressed ? 0.6 : 1,
           })}>
-          <Ionicons name="add" size={18} color={INK} />
-          <Text style={{ color: INK, fontSize: fontSize.body, fontFamily: fontFamily.semibold }}>
+          <Ionicons name="add" size={18} color="rgba(255,255,255,0.85)" />
+          <Text
+            style={{
+              color: 'rgba(255,255,255,0.85)',
+              fontSize: fontSize.body,
+              fontFamily: fontFamily.semibold,
+            }}>
             Add crew
           </Text>
         </Pressable>

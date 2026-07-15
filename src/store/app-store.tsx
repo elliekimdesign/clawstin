@@ -44,7 +44,10 @@ import { initialThreads, Thread } from '@/mock/threads';
  * Chat is now multi-thread: a list of conversations, each with its own messages.
  */
 
-let counter = 100;
+// seeded from the clock: a Fast Refresh re-runs this module and reset
+// the old `= 100` counter while state kept its ids — new items then
+// reused taken ids ("two children with the same key" in dev)
+let counter = Date.now() % 1_000_000_000;
 const nextId = (prefix: string) => `${prefix}-${counter++}`;
 
 // Intentional "Transition Hold" — an artificial delay so the crew indicator
@@ -622,10 +625,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [connected, appendToThread]);
 
   const respond = useCallback(
-    (threadId: string, userText: string) => {
+    (threadId: string, userText: string, bornTitle?: string) => {
       // Every new ask resets the tool context; each branch below sets its own.
       setPrReveal(null);
       setActiveTool('calendar');
+      // A message that BIRTHS a task announces its auto-generated name
+      // as the run's first console line — the user sees the christening
+      // the moment it happens, in the machine voice, where runs narrate.
+      const nameLine = bornTitle ? [`task  "${bornTitle}"`] : [];
 
       // Follow-ups from a paused task's chips resolve as quick runs —
       // matched FIRST so "Move to 11:00" never falls into the generic
@@ -635,7 +642,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setTypingThreadId(threadId);
         setCrewBusy(true);
         setActiveTool(edge.tool);
-        runThinking(threadId, edge.lines);
+        runThinking(threadId, [...nameLine, ...edge.lines]);
         runCrewSequence(['triage'], setCrewSelected, () => {
           setTypingThreadId(null);
           setCrewBusy(false);
@@ -661,7 +668,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setCrewBusy(true);
         setActiveTool('github');
         const needsReview = PENDING_PRS.filter((p) => p.status === 'review').length;
-        runThinking(threadId, [
+        runThinking(threadId, [...nameLine, 
           'parse & plan  GitHub status check  0.2s',
           `execute  GitHub, ${PENDING_PRS.length} pending PRs  1.1s`,
           'synthesize  building the list  0.3s',
@@ -688,7 +695,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setActiveTool('both');
         // Each line stays under ~46 mono chars so the trailing duration
         // never wraps to an orphan line on a phone-width console.
-        runThinking(threadId, [
+        runThinking(threadId, [...nameLine, 
           'parse & plan  Devtools + Calendar  0.2s',
           `execute  GitHub, ${PENDING_PRS.length} pending PRs  1.4s`,
           'execute  Calendar, 9-11 open tomorrow  0.8s',
@@ -743,7 +750,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const weekly =
           /\b(weekly|every week|each week|every mon)\b/i.test(userText);
         const cadence = weekly ? `Mon ${clock}` : `${clock} daily`;
-        runThinking(threadId, [
+        runThinking(threadId, [...nameLine, 
           'parse & plan  recurring intent  0.2s',
           `execute  drafting "${name}"  0.9s`,
           'synthesize  cadence + scope readback  0.3s',
@@ -858,16 +865,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
       // reveals — Clawstin Core (no crew) just holds on Operator.
       if (!crewManual) {
         const crew = routeCrew(userText);
-        runThinking(
-          threadId,
-          pipelineLines ??
+        runThinking(threadId, [
+          ...nameLine,
+          ...(pipelineLines ??
             (crew
               ? [
                   `parse & plan  routing to ${crew.name}  0.2s`,
                   `execute  ${crew.name} picked it up  0.9s`,
                 ]
-              : ['parse & plan  handled by core  0.2s'])
-        );
+              : ['parse & plan  handled by core  0.2s'])),
+        ]);
         const stages: CrewKey[] = crew ? ['triage', crew.key] : ['triage'];
         runCrewSequence(stages, setCrewSelected, () => {
           setTypingThreadId(null);
@@ -884,12 +891,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
         });
       } else {
         // Manual pick already reflects the active crew — just hold once.
-        runThinking(
-          threadId,
-          pipelineLines ?? [
+        runThinking(threadId, [
+          ...nameLine,
+          ...(pipelineLines ?? [
             `execute  sent to ${crewSelected ? ISLAND_CREWS[crewSelected].name : 'core'}  0.3s`,
-          ]
-        );
+          ]),
+        ]);
         setTimeout(() => {
           setTypingThreadId(null);
           setCrewBusy(false);
@@ -988,7 +995,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           ...prev,
         ]);
       }
-      if (seeded) respond(id, seeded);
+      if (seeded) respond(id, seeded, seeded.slice(0, 32));
       // A fresh thread opens unassigned: the pill reads "New Chat" until
       // the first message routes it to a crew (see sendMessage).
       if (greeting) {
@@ -1015,8 +1022,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
       // orchestrator drops an inline boundary + births a task object
       // (title now, ledger row now) — the scroll stays one river.
       const t = threads.find((th) => th.id === threadId);
+      // a task is BORN here in two cases: the chop (new topic after a
+      // done task) and the very first ask on a greeting-only thread —
+      // either way the console announces the auto-generated name
+      let bornTitle: string | undefined;
+      if (t && !t.outcome && !t.messages.some((m) => m.from === 'user')) {
+        bornTitle = trimmed.length > 32 ? `${trimmed.slice(0, 31)}…` : trimmed;
+        setThreads((prev) =>
+          prev.map((th) =>
+            th.id === threadId ? { ...th, title: bornTitle ?? th.title } : th
+          )
+        );
+      }
       if (t?.outcome && !CONTINUATION_RE.test(trimmed)) {
         const title = trimmed.length > 32 ? `${trimmed.slice(0, 31)}…` : trimmed;
+        bornTitle = title;
         appendToThread(threadId, { id: nextId('c'), from: 'agent', taskDivider: title });
         const now = new Date();
         const AGENT_OF: Record<string, string> = {
@@ -1044,7 +1064,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         );
       }
       appendToThread(threadId, { id: nextId('c'), from: 'user', text: trimmed });
-      respond(threadId, trimmed);
+      respond(threadId, trimmed, bornTitle);
     },
     [appendToThread, respond, threads]
   );
