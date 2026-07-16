@@ -124,12 +124,23 @@ const CREW: Record<string, Layer[]> = {
   ],
 };
 
-export function CrewPixel({ id, size }: { id: string; size: number }) {
+export function CrewPixel({
+  id,
+  size,
+  ink,
+}: {
+  id: string;
+  size: number;
+  /** override for the shared INK cells only (accessory colors keep) —
+   * lets the face render light on dark surfaces (the chat readout) */
+  ink?: string;
+}) {
   const layers = CREW[id];
   if (!layers) return null;
   const c = size / N;
   // pixels overlap a hair so no shimmer lines appear between cells
   const w = c * 1.06;
+  const fillOf = (color: string) => (ink && color === INK ? ink : color);
   return (
     <Svg width={size} height={size}>
       {layers.map((layer, li) => (
@@ -143,7 +154,7 @@ export function CrewPixel({ id, size }: { id: string; size: number }) {
               y={y * c}
               width={w}
               height={w}
-              fill={layer.color}
+              fill={fillOf(layer.color)}
               opacity={layer.alpha}
             />
           ))}
@@ -154,7 +165,7 @@ export function CrewPixel({ id, size }: { id: string; size: number }) {
               y={y * c}
               width={rw * c}
               height={rh * c}
-              fill={layer.color}
+              fill={fillOf(layer.color)}
               opacity={layer.alpha}
             />
           ))}

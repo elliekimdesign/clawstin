@@ -12,8 +12,13 @@ import { darkChat } from '@/theme/theme';
  * the crew pill: the system guesses, one tap pins.
  */
 
-const PILL_NAVY = 'rgba(46,80,121,0.5)';
-const AZURE = '#4285F4';
+// READOUT register (2026-07-16): tools are INSTRUMENTS — they change
+// with the prompt, so they wear the system-display face (dark +
+// faintly lit rim, the crew readout's exact material), never the
+// fixed-hardware keycap. Active tool = lit indicator.
+const DISPLAY_FACE = 'rgba(20,36,56,0.88)';
+const DISPLAY_RIM = 'rgba(143,191,242,0.22)';
+const DISPLAY_RIM_LIT = 'rgba(143,191,242,0.85)';
 
 export type ToolDef = { key: string; icon: keyof typeof Ionicons.glyphMap; connected: boolean };
 
@@ -84,8 +89,10 @@ export function ToolSwitch({
         style={({ pressed }) => ({
           width: 40,
           height: 40,
-          borderRadius: 999,
-          backgroundColor: calOpen ? AZURE : PILL_NAVY,
+          borderRadius: 0,
+          backgroundColor: DISPLAY_FACE,
+          borderWidth: 1,
+          borderColor: calOpen ? DISPLAY_RIM_LIT : DISPLAY_RIM,
           alignItems: 'center',
           justifyContent: 'center',
           opacity: pressed ? 0.7 : 1,
@@ -93,7 +100,7 @@ export function ToolSwitch({
         <Ionicons
           name={calOpen ? 'close' : active.icon}
           size={19}
-          color={calOpen ? '#FFFFFF' : darkChat.text}
+          color={calOpen ? '#EAF4FF' : darkChat.text}
         />
       </Pressable>
     );
@@ -109,10 +116,12 @@ export function ToolSwitch({
       <View
         style={{
           // unfolded, the row owns the header line ("한 라인을 다
-          // 차지해도 돼") — taller pill, bigger targets, bigger glyphs
+          // 차지해도 돼") — the display strip, wider targets
           height: 48,
-          borderRadius: 999,
-          backgroundColor: PILL_NAVY,
+          borderRadius: 0,
+          backgroundColor: DISPLAY_FACE,
+          borderWidth: 1,
+          borderColor: DISPLAY_RIM,
           flexDirection: 'row',
           alignItems: 'center',
           paddingHorizontal: 7,
@@ -135,11 +144,11 @@ export function ToolSwitch({
             style={({ pressed }) => ({
               width: 38,
               height: 38,
-              borderRadius: 999,
+              borderRadius: 0,
               alignItems: 'center',
               justifyContent: 'center',
-              // the active tool sits in a quiet white step
-              backgroundColor: t.key === tool ? 'rgba(255,255,255,0.18)' : 'transparent',
+              // the active tool is the LIT indicator on the strip
+              backgroundColor: t.key === tool ? 'rgba(143,191,242,0.22)' : 'transparent',
               opacity: pressed ? 0.6 : 1,
             })}>
             <Ionicons

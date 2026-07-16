@@ -27,6 +27,7 @@ import { CrewSwitch } from '@/components/ui/crew-switch';
 import { AquaBg } from '@/components/ui/aqua-bg';
 import { ButterBg } from '@/components/ui/butter-bg';
 import { CloudBg } from '@/components/ui/cloud-bg';
+import { ColorPanelsBg } from '@/components/ui/color-panels-bg';
 import { DeskGradientBg } from '@/components/ui/desk-gradient-bg';
 import { MeshBg } from '@/components/ui/mesh-bg';
 import { MintBg } from '@/components/ui/mint-bg';
@@ -311,7 +312,10 @@ export function ChatThreadView({
       ) : darkChat.background === 'clouds' ? (
         <CloudBg />
       ) : darkChat.background === 'desk' ? (
-        <DeskGradientBg />
+        // the Home board's own wash field, frozen (2026-07-16 "영롱...
+        // 모션은 없어도": one still frame of the turning-light shader —
+        // same luminous desk as the tabs, no motion cost)
+        <ColorPanelsBg variant="deskWash" preset="wash" animated={false} />
       ) : (
         <MeshBg variant="dark" />
       )}
@@ -392,20 +396,17 @@ export function ChatThreadView({
               // slot is the HISTORY door instead, for the hand that
               // reaches for an LLM-style history list (it lives in
               // Activity, our receipt ledger)
-              <Pressable
+              <AnalogKey
                 onPress={() => router.navigate('/(tabs)/chat')}
                 hitSlop={8}
-                style={({ pressed }) => ({
+                style={{
                   width: 40,
                   height: 40,
-                  borderRadius: 999,
-                  backgroundColor: 'rgba(46,80,121,0.5)',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  opacity: pressed ? 0.7 : 1,
-                })}>
-                <Ionicons name="time-outline" size={19} color={darkChat.text} />
-              </Pressable>
+                }}>
+                <Ionicons name="time-outline" size={19} color="rgba(22,24,28,0.6)" />
+              </AnalogKey>
             ) : (
               // bound thread: the tool circle unfolds into the tool row
               <ToolSwitch
@@ -893,7 +894,10 @@ export function ChatThreadView({
               ) : null}
               <View
                 pointerEvents="none"
-                style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(255,255,255,0.62)' }]}
+                // 0.62 read blue over the deep desk ("더 맑은 흰색"):
+                // the composer sits on darker ground than Home's bar,
+                // so its veil runs whiter to land on the same white
+                style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(255,255,255,0.86)' }]}
               />
               <Pressable
                 hitSlop={10}

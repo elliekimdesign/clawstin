@@ -40,6 +40,7 @@ import { CTA_SLAB_INK, CtaSlabFill } from '@/components/ui/cta-slab';
 import { AcidGlassFill } from '@/components/ui/window-fill';
 import { KeySheen } from '@/components/ui/analog-key';
 import { PixelChrome } from '@/components/ui/pixel-chrome';
+import { PixelText } from '@/components/ui/pixel-text';
 import { StatusPopover, worstServiceState } from '@/components/ui/status-popover';
 import { TOOL_ACTION_PHRASE, useAppStore } from '@/store/app-store';
 import { brandBlue,
@@ -352,60 +353,6 @@ function PixelWordmark({
           width={overlap}
           height={overlap}
           fill={r.blue ? dotColor : color}
-        />
-      ))}
-    </Svg>
-  );
-}
-
-/** Mini pixel font for the window counters ("+4 MORE", 2026-07-16 —
- * the plain mono label read as untouched typed text). 5-row glyphs in
- * the wordmark's own grid language; digits, '+', and M/O/R/E only. */
-const PX_GLYPHS: Record<string, string[]> = {
-  '+': ['...', '.#.', '###', '.#.', '...'],
-  '0': ['###', '#.#', '#.#', '#.#', '###'],
-  '1': ['.#.', '##.', '.#.', '.#.', '###'],
-  '2': ['###', '..#', '###', '#..', '###'],
-  '3': ['###', '..#', '.##', '..#', '###'],
-  '4': ['#.#', '#.#', '###', '..#', '..#'],
-  '5': ['###', '#..', '###', '..#', '###'],
-  '6': ['###', '#..', '###', '#.#', '###'],
-  '7': ['###', '..#', '..#', '..#', '..#'],
-  '8': ['###', '#.#', '###', '#.#', '###'],
-  '9': ['###', '#.#', '###', '..#', '###'],
-  M: ['#...#', '##.##', '#.#.#', '#...#', '#...#'],
-  O: ['###', '#.#', '#.#', '#.#', '###'],
-  R: ['##.', '#.#', '##.', '#.#', '#.#'],
-  E: ['###', '#..', '##.', '#..', '###'],
-  ' ': ['..', '..', '..', '..', '..'],
-};
-// settled small (2026-07-16, reverted from the 1.5/2-gap trial):
-// cell 1.3, 1-cell letter gap — the quiet counter style
-function PixelText({ text, cell = 1.3, color }: { text: string; cell?: number; color: string }) {
-  let xOff = 0;
-  const rects: { x: number; y: number }[] = [];
-  for (const ch of text.toUpperCase()) {
-    const glyph = PX_GLYPHS[ch];
-    if (!glyph) continue;
-    const width = Math.max(...glyph.map((r) => r.length));
-    glyph.forEach((row, y) => {
-      for (let x = 0; x < row.length; x++) {
-        if (row[x] === '#') rects.push({ x: xOff + x, y });
-      }
-    });
-    xOff += width + 1;
-  }
-  const overlap = cell * 1.06;
-  return (
-    <Svg width={(xOff - 1) * cell} height={5 * cell}>
-      {rects.map((r, i) => (
-        <Rect
-          key={i}
-          x={r.x * cell}
-          y={r.y * cell}
-          width={overlap}
-          height={overlap}
-          fill={color}
         />
       ))}
     </Svg>

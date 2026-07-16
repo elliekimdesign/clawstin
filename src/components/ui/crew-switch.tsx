@@ -19,12 +19,13 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { ClawstinMark } from '@/components/ui/clawstin-mark';
+import { PixelText, pixelTextWidth } from '@/components/ui/pixel-text';
 import { CrewPixel } from '@/components/ui/crew-pixel';
 import { CREW_LIST, CrewKey } from '@/mock/crew-routing';
 import { darkChat, fontFamily, fontSize, spacing } from '@/theme/theme';
 
 const PILL_H = 40;
-const SLOT_W = 92; // per-name slot width in the underlying (collapsed) strip
+const SLOT_W = 92; // per-name slot width in the collapsed strip
 
 // Our own pixel crew (the Muppet photos are retired): route key ->
 // crew-pixel character id.
@@ -62,7 +63,8 @@ const BORDER = 1;
 const RING = 3;
 // Everything inside the pill lives in its INNER box (inside the border).
 const INNER_H = PILL_H - 2 * BORDER;
-const CENTER_W = 124;
+// face at 10 + longest name at cell 1.25 + pin inset
+const CENTER_W = 156;
 const PILL_W = CENTER_W + 2 * RING;
 // One smooth glide with barely-there overshoot — no jitter.
 const SLIDE_SPRING = { damping: 24, stiffness: 220, mass: 0.9 };
@@ -135,7 +137,7 @@ export function CrewSwitch({
   // here (cognitive load): all four fit on screen, so the row never needs
   // to scroll. Avatars appear on the collapsed badge after selection.
   const expandedSlotWidths = useMemo(
-    () => CREW_LIST.map((c) => Math.max(SLOT_W * 0.72, c.name.length * 9.5 + 28)),
+    () => CREW_LIST.map((c) => Math.max(SLOT_W * 0.72, c.name.length * 8 + 22)),
     []
   );
   const expandedOffsets = useMemo(() => {
@@ -149,6 +151,19 @@ export function CrewSwitch({
   const expandedTotalW = expandedOffsets.length
     ? expandedOffsets[expandedOffsets.length - 1] + expandedSlotWidths[expandedSlotWidths.length - 1]
     : 0;
+
+  // Collapsed width HUGS the current name (2026-07-16 "간격오류"):
+  // face inset 10 + face 20 + gap 8 + exact text width + trailing
+  // inset (wider when the pin ✕ is up). While the routing reel is
+  // cycling, the width holds the fixed reel window instead so names
+  // don't jitter the box.
+  const badgeName =
+    selected === null
+      ? 'NEW CHAT'
+      : (CREW_LIST.find((c) => c.key === selected)?.name ?? '').toUpperCase();
+  const pinned = manual && selected !== null;
+  const restW =
+    10 + 20 + 8 + pixelTextWidth(badgeName, 1.25, true) + (pinned ? 35 : 12) + 2 * BORDER;
 
   // Pure "render whatever `selected` is" — all pacing (how long each crew
   // is shown before the next one) is decided upstream in the store's
@@ -203,7 +218,9 @@ export function CrewSwitch({
     // than its slots and the end capsule presses into the outline.
     const targetPillW = expanded
       ? Math.min(expandedTotalW + 2 * RING, maxExpandedW)
-      : PILL_W;
+      : selected !== null && busy
+        ? PILL_W
+        : restW;
     pillW.value = withSpring(targetPillW, EXTEND_SPRING);
     expandT.value = withTiming(expanded ? 1 : 0, FADE_TIMING);
 
@@ -219,7 +236,7 @@ export function CrewSwitch({
       if (i >= 0) strip.value = withSpring(-i * SLOT_W, EXTEND_SPRING);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [expanded, maxExpandedW]);
+  }, [expanded, maxExpandedW, restW, busy, selected]);
 
   const pillStyle = useAnimatedStyle(() => ({ width: pillW.value }));
   const stripStyle = useAnimatedStyle(() => ({
@@ -257,15 +274,19 @@ export function CrewSwitch({
           style={{ position: 'absolute', top: -1000, left: -1000, right: -1000, height: 3000, zIndex: 1 }}
         />
       ) : null}
-      <Animated.View style={[{ borderRadius: 999, overflow: 'hidden', zIndex: 2 }, pillStyle]}>
+      <Animated.View style={[{ borderRadius: 0, overflow: 'hidden', zIndex: 2 }, pillStyle]}>
         <View
           style={{
             height: PILL_H,
-            borderRadius: 999,
-            // minimal ref (2026-07-12): ONE soft translucent pill,
-            // no border, no capsule — selection is carried by text
-            // weight and brightness alone
-            backgroundColor: 'rgba(46,80,121,0.5)',
+            // SYSTEM READOUT window (2026-07-16 "사인이 들어오는 곳"):
+            // not a keycap — this is where the machine's routing signal
+            // ARRIVES, so it wears a dark display face (desk-night) with
+            // a faintly lit rim, like a powered readout on the desk.
+            // The picker mechanics are untouched.
+            borderRadius: 0,
+            backgroundColor: 'rgba(20,36,56,0.88)',
+            borderWidth: 1,
+            borderColor: 'rgba(143,191,242,0.22)',
             overflow: 'hidden',
           }}>
           {/* Collapsed layer: fixed centered capsule + picker-wheel strip.
@@ -303,30 +324,42 @@ export function CrewSwitch({
                   left: 0,
                   right: 0,
                   bottom: 0,
+                  // LEFT-ANCHORED with fixed insets (2026-07-16 "모든
+                  // 경우에 얼라인"): face always at 10, name always at
+                  // 38 — identical alignment for every name length;
+                  // the pin ✕ owns the right inset
                   flexDirection: 'row',
                   alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 6,
+                  paddingLeft: 10,
+                  gap: 8,
                 }}>
                 {selected === null ? (
-                  <LogoChip size={18} />
+                  <ClawstinMark size={20} tint="#EAF4FF" />
                 ) : (
-                  <CrewAvatar crewKey={selected} size={18} />
+                  <CrewPixel id={PIXEL_BY_ROUTE[selected]} size={20} ink="#EAF4FF" />
                 )}
-                <Text
-                  style={{
-                    fontSize: fontSize.small,
-                    fontFamily: fontFamily.semibold,
-                    color: '#FFFFFF',
-                    includeFontPadding: false,
-                  }}>
-                  {selected === null
-                    ? 'New Chat'
-                    : CREW_LIST.find((c) => c.key === selected)?.name}
-                </Text>
+                <PixelText
+                  text={
+                    selected === null
+                      ? 'NEW CHAT'
+                      : (CREW_LIST.find((c) => c.key === selected)?.name ?? '').toUpperCase()
+                  }
+                  cell={1.25}
+                  color="#EAF4FF"
+                  led
+                />
                 {/* pinned manually: the ✕ says "tap to release to auto" */}
                 {manual && selected !== null ? (
-                  <Ionicons name="close" size={13} color="rgba(255,255,255,0.9)" />
+                  <View
+                    style={{
+                      position: 'absolute',
+                      right: 8,
+                      top: 0,
+                      bottom: 0,
+                      justifyContent: 'center',
+                    }}>
+                    <Ionicons name="close" size={13} color="rgba(255,255,255,0.9)" />
+                  </View>
                 ) : null}
               </View>
             )}
@@ -353,19 +386,18 @@ export function CrewSwitch({
                         height: INNER_H,
                         alignItems: 'center',
                         justifyContent: 'center',
+                        // optical lift: geometric centering left the
+                        // caps feeling pressed to the floor ("밑에
+                        // 막혀있는 느낌", 2026-07-16)
+                        paddingBottom: 4,
                         opacity: pressed ? 0.6 : 1,
                       })}>
-                      <Text
-                        numberOfLines={1}
-                        style={{
-                          fontSize: fontSize.small,
-                          fontFamily: c.key === selected ? fontFamily.semibold : fontFamily.medium,
-                          color: c.key === selected ? '#FFFFFF' : 'rgba(255,255,255,0.55)',
-                          includeFontPadding: false,
-                          textAlignVertical: 'center',
-                        }}>
-                        {c.name}
-                      </Text>
+                      <PixelText
+                        text={c.name.toUpperCase()}
+                        cell={1.25}
+                        color={c.key === selected ? '#EAF4FF' : 'rgba(234,244,255,0.4)'}
+                        led
+                      />
                     </Pressable>
                   ))}
                 </View>
@@ -384,7 +416,7 @@ export function CrewSwitch({
               onPress={
                 manual && selected !== null ? () => onSelect(selected) : undefined
               }
-              style={{ position: 'absolute', left: 0, top: 0, width: PILL_W, height: PILL_H }}
+              style={{ position: 'absolute', left: 0, right: 0, top: 0, height: PILL_H }}
             />
           ) : null}
         </View>
@@ -442,18 +474,13 @@ function ReelLabel({
   return (
     <Animated.View
       style={[{ width: SLOT_W, height: INNER_H, alignItems: 'center', justifyContent: 'center' }, innerStyle]}>
-      <Pressable onPress={onPress} hitSlop={4}>
-        <Text
-          numberOfLines={1}
-          style={{
-            fontSize: fontSize.small,
-            fontFamily: active ? fontFamily.semibold : fontFamily.medium,
-            color: active ? '#FFFFFF' : 'rgba(255,255,255,0.55)',
-            includeFontPadding: false,
-            textAlignVertical: 'center',
-          }}>
-          {name}
-        </Text>
+      <Pressable onPress={onPress} hitSlop={4} style={{ paddingBottom: 3 }}>
+        <PixelText
+          text={name.toUpperCase()}
+          cell={1.25}
+          color={active ? '#EAF4FF' : 'rgba(234,244,255,0.4)'}
+          led
+        />
       </Pressable>
     </Animated.View>
   );
