@@ -22,6 +22,7 @@ import { KeySheen, keyChrome } from '@/components/ui/analog-key';
 import { AcidGlassFill } from '@/components/ui/window-fill';
 import { CREW_ACCENT, CrewPixel } from '@/components/ui/crew-pixel';
 import { PixelChrome } from '@/components/ui/pixel-chrome';
+import { PixelText } from '@/components/ui/pixel-text';
 import type { ActivityItem } from '@/mock/activity';
 import type { CrewMember } from '@/mock/crew';
 import { useAppStore } from '@/store/app-store';
@@ -56,11 +57,21 @@ function CardGlass() {
   );
 }
 
-/** the member's accessory color as an underline — one straight
- * square-ended bar (2026-07-16: the 4-cell version read as a battery
- * gauge); the right angles keep it in the pixel voice */
-function PixelUnderline({ color }: { color: string }) {
-  return <View style={{ width: 26, height: 4, marginTop: 7, backgroundColor: color }} />;
+/** the member's accessory color as a bare swatch riding beside the
+ * name (2026-07-16: the "COLOR" tag read as clutter — the small square
+ * says it alone). No color yet = empty outlined swatch. */
+function ColorSwatch({ color }: { color?: string }) {
+  return (
+    <View
+      style={{
+        width: 6,
+        height: 6,
+        backgroundColor: color ?? 'transparent',
+        borderWidth: color ? 0 : 1,
+        borderColor: 'rgba(22,24,28,0.3)',
+      }}
+    />
+  );
 }
 const INK = '#16181C';
 const INK_DIM = 'rgba(22,24,28,0.6)';
@@ -109,24 +120,30 @@ function CrewBadge({ member, width }: { member: CrewMember; width: number }) {
             {roleTag.toUpperCase()}
           </Text>
         </View>
-        <View style={{ alignItems: 'center', paddingTop: 10 }}>
-          <CrewPixel id={member.id} size={44} />
-          <Text
-            style={{
-              marginTop: 8,
-              fontSize: 17,
-              fontFamily: fontFamily.bold,
-              letterSpacing: -0.3,
-              color: INK,
-            }}>
-            {member.name}
-          </Text>
-          <PixelUnderline color={CREW_ACCENT[member.id] ?? INK_EDGE} />
-        </View>
-        <View style={{ paddingHorizontal: 14, paddingTop: 12, paddingBottom: 10 }}>
-          <Text style={{ fontSize: 10, fontFamily: fontFamily.mono, color: INK_DIM }}>
-            {member.active ? `${member.tasksDone} runs` : `paused · ${member.tasksDone} runs`}
-          </Text>
+        {/* SYSTEM ROW (2026-07-16 "페이스는 왼쪽 글씨는 오른쪽"):
+            small face left, left-aligned registry text right — the
+            chat readout's anatomy on the light card */}
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 12,
+            paddingHorizontal: 14,
+            paddingTop: 12,
+            paddingBottom: 14,
+          }}>
+          <CrewPixel id={member.id} size={30} />
+          <View style={{ gap: 7 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <PixelText text={member.name.toUpperCase()} cell={1.4} color={INK} led />
+              <ColorSwatch color={CREW_ACCENT[member.id]} />
+            </View>
+            {/* meta stays in the plain machine voice — bitmap is the
+                NAME's register only (2026-07-16 "여기까지 픽셀 안써도돼") */}
+            <Text style={{ fontSize: 10, fontFamily: fontFamily.mono, color: INK_DIM }}>
+              {member.active ? `${member.tasksDone} runs` : `paused, ${member.tasksDone} runs`}
+            </Text>
+          </View>
         </View>
       </Pressable>
     </View>
@@ -141,32 +158,33 @@ function ContributionCard({ crew }: { crew: CrewMember[] }) {
   return (
     <View
       style={{
+        // HOME WINDOW chrome (2026-07-16 "홈탭같은 스타일로 섹션"):
+        // glass fill + tinted title strip, the board's own shadow
         borderRadius: 0,
         overflow: 'hidden',
         borderWidth: 1,
         borderColor: 'rgba(255,255,255,0.55)',
-        shadowColor: '#26301F',
-        shadowOpacity: 0.14,
+        shadowColor: '#16181C',
+        shadowOpacity: 0.07,
         shadowRadius: 16,
-        shadowOffset: { width: 0, height: 8 },
-        elevation: 6,
-        paddingTop: 14,
-        paddingBottom: 14,
-        paddingHorizontal: 20,
+        shadowOffset: { width: 0, height: 6 },
+        elevation: 5,
       }}>
-      <CardGlass />
+      <AcidGlassFill effect="clear" bright tone="gray" />
       <View
         style={{
+          height: 30,
           flexDirection: 'row',
-          alignItems: 'baseline',
+          alignItems: 'center',
           justifyContent: 'space-between',
+          paddingHorizontal: 18,
         }}>
         <Text
           style={{
-            color: INK_DIM,
             fontSize: 11,
-            fontFamily: fontFamily.semibold,
-            letterSpacing: 1,
+            fontFamily: fontFamily.mono,
+            letterSpacing: 0.3,
+            color: 'rgba(22,24,28,0.55)',
           }}>
           ACTION RUNS
         </Text>
@@ -174,70 +192,53 @@ function ContributionCard({ crew }: { crew: CrewMember[] }) {
           tasks, last 7 days
         </Text>
       </View>
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'flex-end',
-          justifyContent: 'space-around',
-          marginTop: 14,
-          borderBottomWidth: 1,
-          borderBottomColor: 'rgba(22,24,28,0.12)',
-          paddingBottom: 0,
-        }}>
+      {/* SYSTEM MONITOR rows (2026-07-16 — the standing faces-on-bars
+          read as foreign): one row per member, a 12-cell pixel gauge
+          in their accent color (the RUNNING window's own block
+          grammar), count in the machine voice on the right */}
+      <View style={{ paddingHorizontal: 18, paddingTop: 8, paddingBottom: 16, gap: 13 }}>
         {crew.map((m) => {
-          const barH = 16 + (m.tasksDone / maxTasks) * 90;
+          const lit = Math.max(1, Math.round((m.tasksDone / maxTasks) * 12));
           return (
-            <View key={m.id} style={{ flex: 1, alignItems: 'center' }}>
+            <View key={m.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <CrewPixel id={m.id} size={20} />
+              <Text
+                numberOfLines={1}
+                style={{
+                  width: 92,
+                  fontSize: 10,
+                  fontFamily: fontFamily.mono,
+                  letterSpacing: 0.3,
+                  color: INK_DIM,
+                }}>
+                {m.role.split(' · ')[0].toUpperCase()}
+              </Text>
+              <View style={{ flexDirection: 'row', gap: 2, flex: 1 }}>
+                {Array.from({ length: 12 }, (_, i) => (
+                  <View
+                    key={i}
+                    style={{
+                      width: 8,
+                      height: 8,
+                      backgroundColor:
+                        i < lit ? (CREW_ACCENT[m.id] ?? '#8FBFF2') : 'rgba(22,24,28,0.08)',
+                    }}
+                  />
+                ))}
+              </View>
               <Text
                 style={{
-                  color: brandBlue,
-                  fontSize: 11,
-                  fontFamily: fontFamily.semibold,
-                  marginBottom: 4,
+                  width: 30,
+                  textAlign: 'right',
+                  fontSize: 10,
+                  fontFamily: fontFamily.mono,
+                  color: INK_DIM,
                 }}>
                 {m.tasksDone}
               </Text>
-              <View
-                style={{
-                  width: 36,
-                  height: 36,
-                  borderRadius: 999,
-                  overflow: 'hidden',
-                  backgroundColor: CARD,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  marginBottom: -6,
-                  zIndex: 1,
-                }}>
-                <CrewPixel id={m.id} size={30} />
-              </View>
-              <View
-                style={{
-                  width: 26,
-                  height: barH,
-                  borderTopLeftRadius: 8,
-                  borderTopRightRadius: 8,
-                  backgroundColor: CREW_ACCENT[m.id] ?? '#8FBFF2',
-                }}
-              />
             </View>
           );
         })}
-      </View>
-      <View
-        style={{
-          flexDirection: 'row',
-          justifyContent: 'space-around',
-          marginTop: 6,
-        }}>
-        {crew.map((m) => (
-          <Text
-            key={m.id}
-            numberOfLines={1}
-            style={{ flex: 1, textAlign: 'center', color: INK_DIM, fontSize: 10 }}>
-            {m.role.split(' · ')[0]}
-          </Text>
-        ))}
       </View>
     </View>
   );
@@ -285,67 +286,42 @@ function PerfSection({ member, recent }: { member: CrewMember; recent: ActivityI
     <Pressable
       onPress={() => router.push(`/crew/history/${member.id}`)}
       style={({ pressed }) => ({
+        // HOME WINDOW chrome, like the Info roster cards
         borderRadius: 0,
         overflow: 'hidden',
         borderWidth: 1,
         borderColor: 'rgba(255,255,255,0.55)',
-        shadowColor: '#26301F',
-        shadowOpacity: 0.14,
+        shadowColor: '#16181C',
+        shadowOpacity: 0.07,
         shadowRadius: 16,
-        shadowOffset: { width: 0, height: 8 },
-        elevation: 6,
-        padding: 14,
+        shadowOffset: { width: 0, height: 6 },
+        elevation: 5,
         opacity: pressed ? 0.9 : 1,
       })}>
-      <CardGlass />
-      {/* header in the badge grammar: chip, name over accent
-          underline, mono role — same anatomy as the roster cards */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-        <View
-          style={{
-            width: 40,
-            height: 40,
-            borderRadius: 999,
-            backgroundColor: CARD,
-            borderWidth: 1,
-            borderColor: 'rgba(22,24,28,0.1)',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}>
-          <CrewPixel id={member.id} size={30} />
-        </View>
-        <View>
-          <Text
-            style={{
-              fontSize: 15,
-              fontFamily: fontFamily.bold,
-              letterSpacing: -0.2,
-              color: INK,
-            }}>
-            {member.name}
-          </Text>
-          <View
-            style={{
-              width: 22,
-              height: 2.5,
-              borderRadius: 99,
-              marginTop: 4,
-              backgroundColor: CREW_ACCENT[member.id] ?? INK_EDGE,
-            }}
-          />
-        </View>
-        <View style={{ flex: 1 }} />
+      <AcidGlassFill effect="clear" bright tone="gray" />
+      {/* strip carries the ROLE, same as the Info cards */}
+      <View style={{ height: 30, justifyContent: 'center', paddingHorizontal: 18 }}>
         <Text
           style={{
-            fontSize: 10,
+            fontSize: 11,
             fontFamily: fontFamily.mono,
             letterSpacing: 0.3,
-            color: INK_DIM,
+            color: 'rgba(22,24,28,0.55)',
           }}>
           {roleTag.toUpperCase()}
         </Text>
       </View>
-      <View style={{ flexDirection: 'row', gap: 8, marginTop: 16 }}>
+      <View style={{ paddingHorizontal: 14, paddingTop: 10, paddingBottom: 14 }}>
+      {/* header in the roster cards' system-row anatomy: bare face,
+          bitmap name, swatch */}
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+        <CrewPixel id={member.id} size={30} />
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <PixelText text={member.name.toUpperCase()} cell={1.4} color={INK} led />
+          <ColorSwatch color={CREW_ACCENT[member.id]} />
+        </View>
+      </View>
+      <View style={{ flexDirection: 'row', gap: 8, marginTop: 14 }}>
         <StatTile label="AUTONOMY" value={`${member.autonomy}%`} />
         <StatTile label="TIME SAVED" value={`${member.timeSavedH}h`} />
         <StatTile label="TOKENS" value={`${member.tokensM}M`} />
@@ -388,6 +364,7 @@ function PerfSection({ member, recent }: { member: CrewMember; recent: ActivityI
             </Text>
           </Pressable>
         ))}
+      </View>
       </View>
     </Pressable>
   );
@@ -515,34 +492,34 @@ export default function CrewScreen() {
                     OPEN SLOT
                   </Text>
                 </View>
-                <View style={{ alignItems: 'center', paddingTop: 10 }}>
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 12,
+                    paddingHorizontal: 14,
+                    paddingTop: 12,
+                    paddingBottom: 14,
+                  }}>
                   {/* the empty seat: a bare + where the face would sit */}
                   <View
                     style={{
-                      width: 44,
-                      height: 44,
+                      width: 30,
+                      height: 30,
                       alignItems: 'center',
                       justifyContent: 'center',
                     }}>
-                    <Ionicons name="add" size={30} color="rgba(22,24,28,0.5)" />
+                    <Ionicons name="add" size={24} color="rgba(22,24,28,0.5)" />
                   </View>
-                  <Text
-                    style={{
-                      marginTop: 8,
-                      fontSize: 17,
-                      fontFamily: fontFamily.bold,
-                      letterSpacing: -0.3,
-                      color: INK_DIM,
-                    }}>
-                    Add crew
-                  </Text>
-                  {/* the accent underline, waiting for its color */}
-                  <PixelUnderline color="rgba(22,24,28,0.15)" />
-                </View>
-                <View style={{ paddingHorizontal: 14, paddingTop: 12, paddingBottom: 10 }}>
-                  <Text style={{ fontSize: 10, fontFamily: fontFamily.mono, color: INK_DIM }}>
-                    tap to hire
-                  </Text>
+                  <View style={{ gap: 7 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <PixelText text="ADD CREW" cell={1.4} color={INK_DIM} led />
+                      <ColorSwatch />
+                    </View>
+                    <Text style={{ fontSize: 10, fontFamily: fontFamily.mono, color: INK_DIM }}>
+                      tap to hire
+                    </Text>
+                  </View>
                 </View>
                 {/* drawn LAST so the frame rides over everything */}
                 <PixelChrome />

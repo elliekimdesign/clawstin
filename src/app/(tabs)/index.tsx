@@ -760,9 +760,9 @@ export default function HomeScreen() {
                     presence dot on the wordmark (2026-07-16) — tap the
                     lockup to open System Status; the dot goes amber/red
                     when a service is degraded/down. */}
-                {/* glow retired (2026-07-16 "글로우 아예 빼고") — the
-                    tight same-color shadow stays purely as faux weight
-                    for the single-cut serif */}
+                {/* faux-weight shadow only, eased 2.2 → 1.3 (2026-07-16
+                    "글로우 조금더 약하게") — barely thicker than the
+                    bare serif, no halo */}
                 <Text
                   style={{
                     color: '#FFFFFF',
@@ -770,7 +770,7 @@ export default function HomeScreen() {
                     letterSpacing: 0.5,
                     fontFamily: 'InstrumentSerif-Regular',
                     textShadowColor: '#FFFFFF',
-                    textShadowRadius: 2.2,
+                    textShadowRadius: 1.3,
                     textShadowOffset: { width: 0, height: 0 },
                   }}>
                   Clawstin
