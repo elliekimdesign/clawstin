@@ -55,18 +55,22 @@ export function AcidGlassFill({
           liquid-glass lens stays visible through it, 2026-07-12), and
           the title-bar strip stays nearly bare so the lens shows raw. */}
       <Svg style={StyleSheet.absoluteFill} pointerEvents="none" preserveAspectRatio="none">
-        {/* body: white veil thin enough that the desk breathes through */}
+        {/* body: white veil thin enough that the desk breathes through
+            — lifted 0.62 → 0.74 (2026-07-16, "약간 더 밝게") so the
+            windows stop sinking next to the pure-white ask bar */}
         <Rect
           x="0"
           y={dense ? 42 : 30}
           width="100%"
           height="100%"
           fill="#FFFFFF"
-          fillOpacity={0.62}
+          fillOpacity={0.74}
         />
-        {/* the tab: quiet gray plate over the lens (the blue desk
-            showing through read wrong — tabs are chrome, not sky) */}
-        <Rect x="0" y="0" width="100%" height={dense ? 42 : 30} fill="#E4E6E9" fillOpacity={0.6} />
+        {/* the tab: tinted with the desk shader's own soft-light-blue
+            pane (#B7D4EE, 2026-07-16 "one of the panel 컬러") — the
+            title strip now carries a drop of the field's color instead
+            of neutral chrome gray */}
+        <Rect x="0" y="0" width="100%" height={dense ? 42 : 30} fill="#B7D4EE" fillOpacity={0.6} />
         {accentBar ? (
           <Rect
             x="0"

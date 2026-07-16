@@ -14,7 +14,9 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ColorPanelsBg } from '@/components/ui/color-panels-bg';
-import { AcidGlassFill, WindowDots } from '@/components/ui/window-fill';
+import { AnalogKey } from '@/components/ui/analog-key';
+import { AcidGlassFill } from '@/components/ui/window-fill';
+import { PixelChrome } from '@/components/ui/pixel-chrome';
 import { useAppStore } from '@/store/app-store';
 import { fontFamily, fontSize, sysColor } from '@/theme/theme';
 
@@ -32,6 +34,9 @@ const INK = '#16181C';
 const DIM = 'rgba(22,24,28,0.55)';
 const FAINT = 'rgba(22,24,28,0.4)';
 const DIVIDER = 'rgba(22,24,28,0.08)';
+// the >_ lens plane, recolored to the desk's own family (2026-07-16
+// "홈탭스타일로 어둡게"): a deepened desk blue, not the old foreign navy
+const DESK_NIGHT = '#1E3D63';
 
 const GROUPS = [
   { key: 'today', label: 'TODAY' },
@@ -104,14 +109,14 @@ export default function ActivityScreen() {
 
   return (
     <SafeAreaView
-      style={{ flex: 1, backgroundColor: consoleLens ? '#0D1B36' : '#4E83B8' }}
+      style={{ flex: 1, backgroundColor: consoleLens ? DESK_NIGHT : '#4E83B8' }}
       edges={['top']}>
       <StatusBar style="light" />
       <ColorPanelsBg />
       {/* >_ takeover (2026-07-12): the lens is not a dark card on the
           desk, it IS the screen — the night plane swallows the desk */}
       {consoleLens ? (
-        <View style={[StyleSheet.absoluteFill, { backgroundColor: '#0D1B36' }]} />
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: DESK_NIGHT }]} />
       ) : null}
       {/* header FIXED above the scroll: the >_ button never moves, and
           pulling the list down reveals only the search underneath */}
@@ -132,28 +137,23 @@ export default function ActivityScreen() {
             }}>
             Activity
           </Text>
-          <Pressable
+          {/* analog key (2026-07-16): same physical keycap as the Home
+              status bar — and the SAME face in both lens states ("클릭
+              전이랑 후랑 스타일이 맞아야"), no solid-white active swap */}
+          <AnalogKey
             onPress={flipLens}
             hitSlop={12}
-            style={({ pressed }) => ({
-              paddingVertical: 6,
-              paddingHorizontal: 12,
-              borderRadius: 0,
-              backgroundColor: consoleLens ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.85)',
-              borderWidth: 1,
-              borderColor: consoleLens ? 'rgba(255,255,255,0.92)' : 'rgba(22,24,28,0.08)',
-              opacity: pressed ? 0.7 : 1,
-            })}>
+            style={{ paddingVertical: 6, paddingHorizontal: 12 }}>
             <Text
               style={{
                 fontSize: 11,
                 fontFamily: fontFamily.mono,
                 letterSpacing: 0.3,
-                color: consoleLens ? '#16181C' : DIM,
+                color: DIM,
               }}>
               {'>_'}
             </Text>
-          </Pressable>
+          </AnalogKey>
       </View>
 
       <ScrollView
@@ -175,9 +175,13 @@ export default function ActivityScreen() {
             paddingHorizontal: 14,
             borderRadius: 0,
             backgroundColor: consoleLens ? 'rgba(255,255,255,0.08)' : '#F6F8FA',
-            borderWidth: 1,
-            borderColor: consoleLens ? 'rgba(255,255,255,0.14)' : 'rgba(255,255,255,0.55)',
+            // day mode wears the pixel frame instead of a hairline
+            // (2026-07-16, "여기도 픽셀"); the night lens keeps its own
+            // faint border — ink steps would vanish on the dark glass
+            borderWidth: consoleLens ? 1 : 0,
+            borderColor: 'rgba(255,255,255,0.14)',
           }}>
+          {!consoleLens && <PixelChrome />}
           <Ionicons name="search" size={14} color={consoleLens ? rowFaint : FAINT} />
           <TextInput
             value={query}
@@ -215,7 +219,7 @@ export default function ActivityScreen() {
           }>
           {consoleLens ? (
             // raw lens: dark terminal plane (the Logs screen's night)
-            <View style={[StyleSheet.absoluteFill, { backgroundColor: '#0D1B36' }]} />
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: DESK_NIGHT }]} />
           ) : (
             <AcidGlassFill key={`feed-${rows.length}`} effect="clear" bright tone="gray" />
           )}
@@ -229,7 +233,6 @@ export default function ActivityScreen() {
               paddingHorizontal: 18,
             }}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-              <WindowDots lit={needsYou} />
               <Text
                 style={{
                   fontSize: 11,
@@ -296,7 +299,7 @@ export default function ActivityScreen() {
                           <>
                             <Text
                               style={{
-                                fontSize: 10.5,
+                                fontSize: 12.5,
                                 fontFamily: fontFamily.mono,
                                 color: rowFaint,
                               }}>
@@ -306,7 +309,7 @@ export default function ActivityScreen() {
                               numberOfLines={1}
                               style={{
                                 flex: 1,
-                                fontSize: 10.5,
+                                fontSize: 12.5,
                                 fontFamily: fontFamily.mono,
                                 color: rowDim,
                               }}>
@@ -317,7 +320,7 @@ export default function ActivityScreen() {
                             </Text>
                             <Text
                               style={{
-                                fontSize: 10.5,
+                                fontSize: 12.5,
                                 fontFamily: fontFamily.mono,
                                 color:
                                   a.status === 'failed'
@@ -333,11 +336,12 @@ export default function ActivityScreen() {
                           // sentence lens: task title anchors the row,
                           // the result sentence supports underneath
                           <>
+                            {/* 8×8 pixel cell (2026-07-16), matching the
+                                Home list's square state markers */}
                             <View
                               style={{
-                                width: 7,
-                                height: 7,
-                                borderRadius: 999,
+                                width: 8,
+                                height: 8,
                                 marginTop: 5,
                                 backgroundColor: dotColor(a),
                               }}

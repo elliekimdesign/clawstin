@@ -13,7 +13,9 @@ import Svg, { Rect } from 'react-native-svg';
  * Each member carries exactly one accessory color over the shared ink.
  */
 
-const INK = '#101214';
+// pure black → deep desk-blue ink (2026-07-16), matching the pixel
+// chrome frames so every pixel element shares one ink
+const INK = '#284261';
 
 /** each member's ONE accessory color (hat / frames / hair / blush) —
  * doubles as their accent in UI chrome (badge underlines etc.) */

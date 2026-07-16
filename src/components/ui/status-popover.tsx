@@ -3,7 +3,6 @@ import { router } from 'expo-router';
 import { Pressable, Text, View } from 'react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 
-import { WindowDots } from '@/components/ui/window-fill';
 import type { ServiceState, ServiceStatus } from '@/mock/services';
 import { fontFamily, fontSize, radius, spacing, sysColor } from '@/theme/theme';
 
@@ -213,7 +212,6 @@ export function StatusPopover({
             paddingHorizontal: spacing.lg,
             backgroundColor: 'rgba(84,110,140,0.14)',
           }}>
-          <WindowDots />
           <Text
             style={{
               color: 'rgba(22,24,28,0.55)',

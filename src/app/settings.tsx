@@ -7,9 +7,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ColorPanelsBg } from '@/components/ui/color-panels-bg';
 import { ConnectionDiagram } from '@/components/ui/connection-diagram';
-import { AcidGlassFill, WindowDots } from '@/components/ui/window-fill';
+import { AcidGlassFill } from '@/components/ui/window-fill';
 import { useAppStore } from '@/store/app-store';
-import { fontFamily, spacing, sysColor } from '@/theme/theme';
+import { fontFamily, fontSize, spacing, sysColor } from '@/theme/theme';
 
 // System settings (2026-07-12): the status popover's destination. The
 // popover is the summary; this screen is where system things get DONE:
@@ -39,7 +39,6 @@ function SettingsWindow({ title, children }: { title: string; children: ReactNod
       }}>
       <AcidGlassFill effect="clear" tone="gray" />
       <View style={{ height: 30, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18 }}>
-        <WindowDots />
         <Text
           style={{ fontSize: 11, fontFamily: fontFamily.mono, letterSpacing: 0.3, color: DIM }}>
           {title}
@@ -71,12 +70,16 @@ function Row({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingVertical: 11,
+        paddingVertical: 10,
         borderBottomWidth: last ? 0 : 1,
         borderBottomColor: DIVIDER,
         opacity: pressed ? 0.55 : 1,
       })}>
-      <Text style={{ color: INK, fontFamily: fontFamily.medium, fontSize: 14 }}>{label}</Text>
+      {/* compact technical voice (2026-07-16): 13 semibold labels over
+          11 machine values — the Access-row calibration, app-wide now */}
+      <Text style={{ color: INK, fontFamily: fontFamily.semibold, fontSize: fontSize.small }}>
+        {label}
+      </Text>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginLeft: 12 }}>
         {right}
       </View>
@@ -85,7 +88,7 @@ function Row({
 }
 
 const Mono = ({ children }: { children: ReactNode }) => (
-  <Text style={{ color: DIM, fontFamily: fontFamily.mono, fontSize: 12 }}>{children}</Text>
+  <Text style={{ color: DIM, fontFamily: fontFamily.mono, fontSize: 11 }}>{children}</Text>
 );
 
 export default function SettingsScreen() {

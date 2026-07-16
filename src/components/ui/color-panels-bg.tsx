@@ -220,8 +220,26 @@ const PALETTES = {
       vec4('#B7D4EE'), // soft light blue
     ],
   },
+  // Home's wash colorway (2026-07-16, "다양하게. 너무 흰색은 쓰지
+  // 않기"): the desk panes re-cut for the flattened light field —
+  // white dropped for a blue-tinted pale, two new mid-blues for
+  // variety, all inside the aqua family (no purple/pink, ever)
+  deskWash: {
+    back: vec4('#4E83B8'),
+    panes: [
+      vec4('#8FC0E8'), // light sky glow
+      vec4('#DFEAF6'), // palest blue (the old white, tinted)
+      vec4('#5E8FC8'), // clear mid blue
+      vec4('#33689C'), // deep blue anchor
+      vec4('#79B4E4'), // cerulean
+      vec4('#C7DDF2'), // pale silver-blue
+      vec4('#4A7FB5'), // dusty deep
+    ],
+  },
   paper: {
-    back: vec4('#EDEFF1'),
+    // full-bright by request (2026-07-16): pure white field, the fan's
+    // own blues carry all the color
+    back: vec4('#FFFFFF'),
     panes: [
       vec4('#FFFFFF'), // warm paper light
       vec4('#A7CBEF'), // the start field's sky glow
@@ -244,26 +262,54 @@ const SPEED = 0.5;
 // whose fan reads balanced around the axis. In shader time-space this
 // is u_time seconds; tune by screenshot, Fast Refresh applies it.
 const STATIC_TIME_S = 12.5;
-const PARAMS = {
-  u_scale: 0.8,
-  u_density: 3,
-  u_angle1: 0,
-  u_angle2: 0,
-  u_length: 1.1,
-  u_edges: 1,
-  u_blur: 0,
-  u_fadeIn: 1,
-  u_fadeOut: 0.3,
-  u_gradient: 0,
-};
+const PRESETS = {
+  /** the original mid-screen 3D fan — panels visibly rotate around the
+   * horizontal axis (start screen, Crew, Activity) */
+  fan: {
+    u_scale: 0.8,
+    u_density: 3,
+    u_angle1: 0,
+    u_angle2: 0,
+    u_length: 1.1,
+    u_edges: 1,
+    u_blur: 0,
+    u_fadeIn: 1,
+    u_fadeOut: 0.3,
+    u_gradient: 0,
+  },
+  /** the same rotation flattened into a full-screen light WASH
+   * (2026-07-16, Home only): zoomed in and blurred so the turning
+   * panels read as subtle light sweeping behind EVERY window — the
+   * sections stay consistent because none sits outside the fan */
+  wash: {
+    u_scale: 2,
+    // denser fan = narrower band spacing ("폭 간격을 약간 더 좁게")
+    u_density: 4.5,
+    u_angle1: 0,
+    u_angle2: 0,
+    u_length: 3,
+    // no lines (2026-07-16 "선은없애고"): edge highlights off, blur
+    // maxed, per-panel color gradation on — pure light and gradient
+    u_edges: 0,
+    u_blur: 1,
+    u_fadeIn: 1,
+    u_fadeOut: 0.5,
+    u_gradient: 1,
+  },
+} as const;
+export type ColorPanelsPreset = keyof typeof PRESETS;
 
 export function ColorPanelsBg({
   variant = 'desk',
   animated = true,
+  preset = 'fan',
 }: {
   variant?: ColorPanelsVariant;
   /** false = one frozen frame (the start screen); no clock work runs. */
   animated?: boolean;
+  /** 'fan' = the 3D mid-screen fan; 'wash' = the flattened full-screen
+   * light sweep (Home board). */
+  preset?: ColorPanelsPreset;
 }) {
   const { width, height } = useWindowDimensions();
   const clock = useClock();
@@ -299,9 +345,9 @@ export function ColorPanelsBg({
       u_color5: palette.panes[5],
       u_color6: palette.panes[6],
       u_colorBack: palette.back,
-      ...PARAMS,
+      ...PRESETS[preset],
     };
-  }, [width, height, palette, animated]);
+  }, [width, height, palette, animated, preset]);
 
   if (!effect) return <AcidSwooshBg />;
 

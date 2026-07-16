@@ -281,12 +281,13 @@ export const fontFamily = {
   semibold: 'HelveticaNeue-Bold',
   bold: 'HelveticaNeue-Bold',
   // The system voice — window-title labels, times, counts, statuses,
-  // terminal-log lines. Geist Mono (the settled winner of the
-  // 2026-07-11 font tour: Menlo, DM Mono, Space Mono, IBM Plex Mono,
-  // Space Grotesk all tried and passed over).
-  mono: 'Poppins-Medium',
+  // terminal-log lines. Folded into the body's own Helvetica
+  // (2026-07-16, "모두 helvetica로"): one typeface everywhere, the
+  // machine register now carried by size/spacing/case alone. The
+  // Poppins-as-mono era (and the earlier Geist Mono tour) is retired.
+  mono: 'HelveticaNeue-Medium',
   /** the heavier cut for labels that must anchor (active tabs etc.) */
-  monoMedium: 'Poppins-SemiBold',
+  monoMedium: 'HelveticaNeue-Bold',
 } as const;
 
 /** Gentle iOS-like shadow for cards. */

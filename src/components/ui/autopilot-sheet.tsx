@@ -8,7 +8,7 @@ import { AUTOPILOT_RULES, isInactiveAgo } from '@/mock/autopilot';
 import { useAppStore } from '@/store/app-store';
 import { fontFamily, fontSize, fontWeight, spacing, sysColor } from '@/theme/theme';
 
-import { WindowDots } from './window-fill';
+import { PixelChrome } from './pixel-chrome';
 
 // aquaos sheet tokens: this sheet is the ROUTINES window opened big,
 // so it wears the same silver pane + ink + mono system voice.
@@ -169,15 +169,16 @@ export function AutopilotSheet({
           // and should belong to it (deepened a step; the first #E6EFF8
           // was too shy to register as a change)
           backgroundColor: '#DCE9F6',
-          // rounded per the user's call — the sheet is a transient
-          // overlay, not a board window; round marks it as liftable
-          borderTopLeftRadius: 16,
-          borderTopRightRadius: 16,
+          // REDESIGN 2026-07-16 ("픽셀스타일 아웃라인 섹션에 한거처럼"):
+          // the rounded transient sheet became a floating BOARD WINDOW —
+          // square corners, the sections' stepped-ink pixel frame, and
+          // side/bottom margins so the frame reads all the way around
+          borderRadius: 0,
+          marginHorizontal: 10,
+          marginBottom: Math.max(insets.bottom, 10),
           overflow: 'hidden',
-          borderTopWidth: 1,
-          borderTopColor: 'rgba(255,255,255,0.55)',
           maxHeight: '78%',
-          paddingBottom: Math.max(insets.bottom, 12),
+          paddingBottom: 12,
           shadowColor: '#16181C',
           shadowOpacity: 0.2,
           shadowRadius: 24,
@@ -187,16 +188,16 @@ export function AutopilotSheet({
         {/* no grabber — it doubled up oddly above the title strip
             ("띠 위에 또 저게 있으니까 이상해"); the strip IS the handle */}
         {/* title bar: the section-window grammar — fold dots + mono
-            label on the slightly darker strip, full bleed */}
+            label on the board's tinted strip (#B7D4EE, same pane color
+            the section windows wear), full bleed */}
         <View
           style={{
             height: 34,
             flexDirection: 'row',
             alignItems: 'center',
             paddingHorizontal: 18,
-            backgroundColor: 'rgba(84,110,140,0.14)',
+            backgroundColor: 'rgba(183,212,238,0.6)',
           }}>
-          <WindowDots />
           <Text
             style={{
               fontSize: 11,
@@ -365,6 +366,8 @@ export function AutopilotSheet({
             <Ionicons name="chevron-forward" size={13} color={INK_DIM} />
           </Pressable>
         </ScrollView>
+        {/* drawn last so the frame rides over the strip and rows */}
+        <PixelChrome />
       </View>
       </View>
     </Modal>

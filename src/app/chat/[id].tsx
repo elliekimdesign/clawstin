@@ -18,6 +18,7 @@ import {
 import Animated, { FadeIn, FadeInDown, FadeOut, FadeOutUp } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AnalogKey } from '@/components/ui/analog-key';
 import { ApprovalCard } from '@/components/ui/approval-card';
 import { CrewDots } from '@/components/ui/crew-dots';
 import { NewChatSeed, type SeedPhase } from '@/components/ui/new-chat-seed';
@@ -842,9 +843,10 @@ export function ChatThreadView({
               wave={draft.trim().length > 0}
             />
           </View>
-          {/* Command pill row: attach lives OUTSIDE the pill (system
-              gesture, iMessage grammar); inside-left is the "/" command
-              chip; the right circle talks or sends. */}
+          {/* Command KEY row (2026-07-16, Home-consistency pass):
+              attach lives OUTSIDE as a mini keycap (iMessage grammar
+              kept, material updated); the bar itself is the Home ask
+              bar's exact ANALOG KEY — bevel, sheen, square. */}
           <View
             style={{
               marginHorizontal: spacing.lg,
@@ -852,42 +854,34 @@ export function ChatThreadView({
               flexDirection: 'row',
               alignItems: 'center',
               gap: 8,
-              shadowColor: '#16181C',
-              shadowOpacity: 0.22,
-              shadowRadius: 12,
-              shadowOffset: { width: 0, height: 3 },
-              elevation: 10,
             }}>
-          <Pressable
+          <AnalogKey
             onPress={() => setAttachOpen((v) => !v)}
             hitSlop={10}
-            style={({ pressed }) => ({
+            style={{
               width: 36,
               height: 36,
-              borderRadius: 999,
-              backgroundColor: 'rgba(255,255,255,0.2)',
-              borderWidth: 1,
-              borderColor: 'rgba(255,255,255,0.35)',
               alignItems: 'center',
               justifyContent: 'center',
-              opacity: pressed ? 0.6 : 1,
-            })}>
-            <Ionicons name="add" size={20} color="rgba(255,255,255,0.92)" />
-          </Pressable>
+            }}>
+            <Ionicons name="add" size={20} color="rgba(22,24,28,0.6)" />
+          </AnalogKey>
           <View
             style={{
               flex: 1,
+              // the Home ask bar's expanded FIELD skin, exactly (2026-
+              // 07-16 "챗 봇안에는 그게 똑같이"): square writable glass
+              // — the keycap look belongs only to the COLLAPSED bar
+              height: 52,
+              borderRadius: 0,
+              overflow: 'hidden',
+              borderWidth: 1,
+              borderColor: 'rgba(255,255,255,0.55)',
               flexDirection: 'row',
               alignItems: 'center',
               gap: spacing.sm,
-              paddingLeft: 12,
-              paddingRight: 4,
-              paddingVertical: 4,
-              borderRadius: 999,
-              overflow: 'hidden',
-              // the Home ask bar's exact glass: ONE command-pill material
-              borderWidth: 1,
-              borderColor: 'rgba(255,255,255,0.55)',
+              paddingLeft: 16,
+              paddingRight: 7,
             }}>
               {GLASS_AVAILABLE ? (
                 <GlassView
@@ -958,18 +952,19 @@ export function ChatThreadView({
               <Pressable
                 onPress={() => (draft.trim() ? onSend() : Alert.alert('Coming soon'))}
                 style={({ pressed }) => ({
+                  // bare glyph, no chip — the Home ask key's exact mic
+                  // (2026-07-16 "마이크도 그렇고"); the accent color
+                  // carries send-readiness, not a plate
                   width: 38,
                   height: 38,
-                  borderRadius: 999,
-                  backgroundColor: brandBlue,
                   alignItems: 'center',
                   justifyContent: 'center',
-                  opacity: pressed ? 0.8 : 1,
+                  opacity: pressed ? 0.6 : 1,
                 })}>
                 <Ionicons
                   name={draft.trim() ? 'arrow-up' : 'mic'}
-                  size={19}
-                  color={darkChat.onLight}
+                  size={21}
+                  color={sysColor.accent}
                 />
               </Pressable>
           </View>

@@ -18,7 +18,10 @@ import type { ImageSourcePropType } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ColorPanelsBg } from '@/components/ui/color-panels-bg';
+import { KeySheen, keyChrome } from '@/components/ui/analog-key';
+import { AcidGlassFill } from '@/components/ui/window-fill';
 import { CREW_ACCENT, CrewPixel } from '@/components/ui/crew-pixel';
+import { PixelChrome } from '@/components/ui/pixel-chrome';
 import type { ActivityItem } from '@/mock/activity';
 import type { CrewMember } from '@/mock/crew';
 import { useAppStore } from '@/store/app-store';
@@ -45,10 +48,19 @@ function CardGlass() {
       ) : null}
       <View
         pointerEvents="none"
-        style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(255,255,255,0.62)' }]}
+        // 0.62 → 0.74 (2026-07-16): tracks the Home windows' veil so
+        // the crew cards sit at the same brightness as the board
+        style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(255,255,255,0.74)' }]}
       />
     </>
   );
+}
+
+/** the member's accessory color as an underline — one straight
+ * square-ended bar (2026-07-16: the 4-cell version read as a battery
+ * gauge); the right angles keep it in the pixel voice */
+function PixelUnderline({ color }: { color: string }) {
+  return <View style={{ width: 26, height: 4, marginTop: 7, backgroundColor: color }} />;
 }
 const INK = '#16181C';
 const INK_DIM = 'rgba(22,24,28,0.6)';
@@ -60,32 +72,17 @@ const NAME_GHOST = 'rgba(22,24,28,0.07)';
  * top edge, real centered name (no ghost watermark), the member's
  * accessory color as a small underline, mono role, and ONE footer
  * fact line. The card identifies; the detail screen explains. */
+/** The crew badge as a HOME WINDOW (2026-07-16 "같은 카드 질감을
+ * 그대로": the flat vintage paper was a foreign material — the badge
+ * now wears the board's own AcidGlassFill, tinted title strip and
+ * hairline). Window grammar mapping: strip label = the member's ROLE,
+ * body = face + name + accent bar, bottom-left meta = runs (the "5
+ * routines" slot). "ready" stays dropped; paused shows as the
+ * exception. */
 function CrewBadge({ member, width }: { member: CrewMember; width: number }) {
   const roleTag = member.role.split(' · ')[0];
   return (
-    <View style={{ width, paddingTop: 28 }}>
-      <View
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: width / 2 - 28,
-          zIndex: 2,
-          width: 56,
-          height: 56,
-          borderRadius: 999,
-          backgroundColor: CARD,
-          borderWidth: 1,
-          borderColor: 'rgba(22,24,28,0.1)',
-          alignItems: 'center',
-          justifyContent: 'center',
-          shadowColor: '#26301F',
-          shadowOpacity: 0.12,
-          shadowRadius: 8,
-          shadowOffset: { width: 0, height: 3 },
-          elevation: 7,
-        }}>
-        <CrewPixel id={member.id} size={40} />
-      </View>
+    <View style={{ width }}>
       <Pressable
         onPress={() => router.push(`/crew/${member.id}`)}
         style={({ pressed }) => ({
@@ -93,69 +90,42 @@ function CrewBadge({ member, width }: { member: CrewMember; width: number }) {
           overflow: 'hidden',
           borderWidth: 1,
           borderColor: 'rgba(255,255,255,0.55)',
-          alignItems: 'center',
-          paddingTop: 38,
-          shadowColor: '#26301F',
-          shadowOpacity: 0.12,
-          shadowRadius: 14,
+          shadowColor: '#16181C',
+          shadowOpacity: 0.07,
+          shadowRadius: 16,
           shadowOffset: { width: 0, height: 6 },
           elevation: 5,
-          opacity: pressed ? 0.9 : 1,
+          opacity: pressed ? 0.85 : 1,
         })}>
-        <CardGlass />
-        <Text
-          style={{
-            fontSize: 17,
-            fontFamily: fontFamily.bold,
-            letterSpacing: -0.3,
-            color: INK,
-          }}>
-          {member.name}
-        </Text>
-        <View
-          style={{
-            width: 26,
-            height: 3,
-            borderRadius: 99,
-            marginTop: 7,
-            backgroundColor: CREW_ACCENT[member.id] ?? INK_EDGE,
-          }}
-        />
-        <Text
-          style={{
-            marginTop: 8,
-            fontSize: 10,
-            fontFamily: fontFamily.mono,
-            letterSpacing: 0.3,
-            color: INK_DIM,
-          }}>
-          {roleTag.toUpperCase()}
-        </Text>
-        <View
-          style={{
-            marginTop: 14,
-            alignSelf: 'stretch',
-            backgroundColor: INK_SOFT,
-            paddingVertical: 9,
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 6,
-          }}>
-          <View
+        <AcidGlassFill effect="clear" bright tone="gray" />
+        <View style={{ height: 30, justifyContent: 'center', paddingHorizontal: 14 }}>
+          <Text
             style={{
-              width: 5,
-              height: 5,
-              borderRadius: 999,
-              backgroundColor: member.active ? sysColor.ready : 'rgba(22,24,28,0.25)',
-            }}
-          />
-          <Text style={{ fontSize: 10, fontFamily: fontFamily.mono, color: INK_DIM }}>
-            {member.active ? 'ready' : 'paused'}
+              fontSize: 11,
+              fontFamily: fontFamily.mono,
+              letterSpacing: 0.3,
+              color: 'rgba(22,24,28,0.55)',
+            }}>
+            {roleTag.toUpperCase()}
           </Text>
-          <View style={{ width: 10 }} />
+        </View>
+        <View style={{ alignItems: 'center', paddingTop: 10 }}>
+          <CrewPixel id={member.id} size={44} />
+          <Text
+            style={{
+              marginTop: 8,
+              fontSize: 17,
+              fontFamily: fontFamily.bold,
+              letterSpacing: -0.3,
+              color: INK,
+            }}>
+            {member.name}
+          </Text>
+          <PixelUnderline color={CREW_ACCENT[member.id] ?? INK_EDGE} />
+        </View>
+        <View style={{ paddingHorizontal: 14, paddingTop: 12, paddingBottom: 10 }}>
           <Text style={{ fontSize: 10, fontFamily: fontFamily.mono, color: INK_DIM }}>
-            {`${member.tasksDone} runs`}
+            {member.active ? `${member.tasksDone} runs` : `paused · ${member.tasksDone} runs`}
           </Text>
         </View>
       </Pressable>
@@ -432,16 +402,10 @@ function ModeToggle({
   onChange: (m: 'info' | 'perf') => void;
 }) {
   return (
-    <View
-      style={{
-        flexDirection: 'row',
-        overflow: 'hidden',
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.55)',
-        borderRadius: 0,
-        padding: 3,
-      }}>
-      <CardGlass />
+    // analog key shell (2026-07-16): the segmented toggle sits on the
+    // same beveled keycap material as the Home status bar / >_ lens
+    <View style={[keyChrome(false), { flexDirection: 'row', padding: 3 }]}>
+      <KeySheen />
       {(['info', 'perf'] as const).map((m) => (
         <Pressable
           key={m}
@@ -512,8 +476,10 @@ export default function CrewScreen() {
         </View>
 
         {mode === 'info' ? (
-          // the roster: profile badges in two columns; tap = detail
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+          // the roster: profile badges in two columns; tap = detail.
+          // Board rhythm: 12pt column gutter, the Home sections' 28pt
+          // air between rows (2026-07-16 "홈탭 섹션 간격처럼")
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: 12, rowGap: 28 }}>
             {crew.map((m) => (
               <CrewBadge key={m.id} member={m} width={badgeW} />
             ))}
@@ -527,85 +493,59 @@ export default function CrewScreen() {
               }
               style={({ pressed }) => ({
                 width: badgeW,
-                paddingTop: 28,
                 opacity: pressed ? 0.6 : 1,
               })}>
-              {/* the empty seat: 무난하게 — the exact chip the real
-                  members wear (solid plate, hairline, shadow) with a
-                  plain + inside; every clever variant is in git history */}
-              <View
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: badgeW / 2 - 28,
-                  zIndex: 2,
-                  width: 56,
-                  height: 56,
-                  borderRadius: 999,
-                  backgroundColor: CARD,
-                  borderWidth: 1,
-                  borderColor: 'rgba(22,24,28,0.1)',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  shadowColor: '#26301F',
-                  shadowOpacity: 0.12,
-                  shadowRadius: 8,
-                  shadowOffset: { width: 0, height: 3 },
-                  elevation: 7,
-                }}>
-                <Ionicons name="add" size={26} color="rgba(22,24,28,0.65)" />
-              </View>
               <View
                 style={{
                   borderRadius: 0,
                   overflow: 'hidden',
-                  borderWidth: 1,
-                  borderColor: 'rgba(255,255,255,0.35)',
-                  alignItems: 'center',
-                  paddingTop: 38,
+                  // the board's own window material, like its siblings;
+                  // the pixel chrome frame stays — the open slot asks
+                  // to be filled, same grammar as Home's YOUR TURN
                 }}>
-                <CardGlass />
-                <Text
-                  style={{
-                    fontSize: 17,
-                    fontFamily: fontFamily.bold,
-                    letterSpacing: -0.3,
-                    color: INK_DIM,
-                  }}>
-                  Add crew
-                </Text>
-                {/* the accent underline, waiting for its color */}
-                <View
-                  style={{
-                    width: 26,
-                    height: 3,
-                    borderRadius: 99,
-                    marginTop: 7,
-                    backgroundColor: 'rgba(22,24,28,0.15)',
-                  }}
-                />
-                <Text
-                  style={{
-                    marginTop: 8,
-                    fontSize: 10,
-                    fontFamily: fontFamily.mono,
-                    letterSpacing: 0.3,
-                    color: INK_DIM,
-                  }}>
-                  OPEN SLOT
-                </Text>
-                <View
-                  style={{
-                    marginTop: 14,
-                    alignSelf: 'stretch',
-                    backgroundColor: INK_SOFT,
-                    paddingVertical: 9,
-                    alignItems: 'center',
-                  }}>
+                <AcidGlassFill effect="clear" bright tone="gray" />
+                <View style={{ height: 30, justifyContent: 'center', paddingHorizontal: 14 }}>
+                  <Text
+                    style={{
+                      fontSize: 11,
+                      fontFamily: fontFamily.mono,
+                      letterSpacing: 0.3,
+                      color: 'rgba(22,24,28,0.55)',
+                    }}>
+                    OPEN SLOT
+                  </Text>
+                </View>
+                <View style={{ alignItems: 'center', paddingTop: 10 }}>
+                  {/* the empty seat: a bare + where the face would sit */}
+                  <View
+                    style={{
+                      width: 44,
+                      height: 44,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}>
+                    <Ionicons name="add" size={30} color="rgba(22,24,28,0.5)" />
+                  </View>
+                  <Text
+                    style={{
+                      marginTop: 8,
+                      fontSize: 17,
+                      fontFamily: fontFamily.bold,
+                      letterSpacing: -0.3,
+                      color: INK_DIM,
+                    }}>
+                    Add crew
+                  </Text>
+                  {/* the accent underline, waiting for its color */}
+                  <PixelUnderline color="rgba(22,24,28,0.15)" />
+                </View>
+                <View style={{ paddingHorizontal: 14, paddingTop: 12, paddingBottom: 10 }}>
                   <Text style={{ fontSize: 10, fontFamily: fontFamily.mono, color: INK_DIM }}>
                     tap to hire
                   </Text>
                 </View>
+                {/* drawn LAST so the frame rides over everything */}
+                <PixelChrome />
               </View>
             </Pressable>
           </View>

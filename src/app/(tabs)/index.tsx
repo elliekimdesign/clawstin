@@ -15,9 +15,11 @@ import {
 import { GlassView, isGlassEffectAPIAvailable } from 'expo-glass-effect';
 import { StatusBar } from 'expo-status-bar';
 import { Platform } from 'react-native';
-import Svg, { Defs, LinearGradient as SvgGradient, Path, RadialGradient, Rect, Stop, Text as SvgText } from 'react-native-svg';
+import Svg, { Defs, LinearGradient as SvgGradient, Path, Polygon, RadialGradient, Rect, Stop, Text as SvgText } from 'react-native-svg';
 import Animated, {
   FadeInDown,
+  interpolate,
+  useAnimatedScrollHandler,
   useAnimatedStyle,
   useSharedValue,
   withRepeat,
@@ -35,8 +37,9 @@ import { BlissSwooshBg } from '@/components/ui/bliss-swoosh-bg';
 import { ColorPanelsBg } from '@/components/ui/color-panels-bg';
 import { AutopilotSheet } from '@/components/ui/autopilot-sheet';
 import { CTA_SLAB_INK, CtaSlabFill } from '@/components/ui/cta-slab';
-import { AcidGlassFill, WindowDots } from '@/components/ui/window-fill';
-import { PromptHistorySheet } from '@/components/ui/prompt-history-sheet';
+import { AcidGlassFill } from '@/components/ui/window-fill';
+import { KeySheen } from '@/components/ui/analog-key';
+import { PixelChrome } from '@/components/ui/pixel-chrome';
 import { StatusPopover, worstServiceState } from '@/components/ui/status-popover';
 import { TOOL_ACTION_PHRASE, useAppStore } from '@/store/app-store';
 import { brandBlue,
@@ -49,8 +52,6 @@ import { brandBlue,
   spacing,
   sysColor,
 } from '@/theme/theme';
-
-const USER_NAME = 'Ellie';
 
 // Brand accent (orange). Used as a POINT color: marks, icon chips, tiles.
 // (Buttons/CTAs stay black via colors.accent.)
@@ -227,7 +228,16 @@ function MuppetFace({ size = 34, square }: { size?: number; square?: boolean }) 
 }
 
 /** Small breathing dot for in-flight background work. */
-function RunningDot({ color = GLASS.blue, size = 7 }: { color?: string; size?: number }) {
+function RunningDot({
+  color = GLASS.blue,
+  size = 7,
+  square = false,
+}: {
+  color?: string;
+  size?: number;
+  /** pixel-cell body (the task list's 8×8 block grammar) */
+  square?: boolean;
+}) {
   const o = useSharedValue(0.3);
   useEffect(() => {
     o.value = withRepeat(
@@ -238,10 +248,16 @@ function RunningDot({ color = GLASS.blue, size = 7 }: { color?: string; size?: n
   const style = useAnimatedStyle(() => ({ opacity: o.value }));
   return (
     <Animated.View
-      style={[{ width: size, height: size, borderRadius: 999, backgroundColor: color }, style]}
+      style={[
+        { width: size, height: size, borderRadius: square ? 0 : 999, backgroundColor: color },
+        style,
+      ]}
     />
   );
 }
+
+// Pixel chrome (the stepped-corner ink frame) moved to
+// components/ui/pixel-chrome.tsx once Crew's open slot adopted it too.
 
 /** Thread rail: the quiet rounded connector that strings the list's
  * conversations together like replies in a thread. Each row gets an
@@ -336,6 +352,60 @@ function PixelWordmark({
           width={overlap}
           height={overlap}
           fill={r.blue ? dotColor : color}
+        />
+      ))}
+    </Svg>
+  );
+}
+
+/** Mini pixel font for the window counters ("+4 MORE", 2026-07-16 —
+ * the plain mono label read as untouched typed text). 5-row glyphs in
+ * the wordmark's own grid language; digits, '+', and M/O/R/E only. */
+const PX_GLYPHS: Record<string, string[]> = {
+  '+': ['...', '.#.', '###', '.#.', '...'],
+  '0': ['###', '#.#', '#.#', '#.#', '###'],
+  '1': ['.#.', '##.', '.#.', '.#.', '###'],
+  '2': ['###', '..#', '###', '#..', '###'],
+  '3': ['###', '..#', '.##', '..#', '###'],
+  '4': ['#.#', '#.#', '###', '..#', '..#'],
+  '5': ['###', '#..', '###', '..#', '###'],
+  '6': ['###', '#..', '###', '#.#', '###'],
+  '7': ['###', '..#', '..#', '..#', '..#'],
+  '8': ['###', '#.#', '###', '#.#', '###'],
+  '9': ['###', '#.#', '###', '..#', '###'],
+  M: ['#...#', '##.##', '#.#.#', '#...#', '#...#'],
+  O: ['###', '#.#', '#.#', '#.#', '###'],
+  R: ['##.', '#.#', '##.', '#.#', '#.#'],
+  E: ['###', '#..', '##.', '#..', '###'],
+  ' ': ['..', '..', '..', '..', '..'],
+};
+// settled small (2026-07-16, reverted from the 1.5/2-gap trial):
+// cell 1.3, 1-cell letter gap — the quiet counter style
+function PixelText({ text, cell = 1.3, color }: { text: string; cell?: number; color: string }) {
+  let xOff = 0;
+  const rects: { x: number; y: number }[] = [];
+  for (const ch of text.toUpperCase()) {
+    const glyph = PX_GLYPHS[ch];
+    if (!glyph) continue;
+    const width = Math.max(...glyph.map((r) => r.length));
+    glyph.forEach((row, y) => {
+      for (let x = 0; x < row.length; x++) {
+        if (row[x] === '#') rects.push({ x: xOff + x, y });
+      }
+    });
+    xOff += width + 1;
+  }
+  const overlap = cell * 1.06;
+  return (
+    <Svg width={(xOff - 1) * cell} height={5 * cell}>
+      {rects.map((r, i) => (
+        <Rect
+          key={i}
+          x={r.x * cell}
+          y={r.y * cell}
+          width={overlap}
+          height={overlap}
+          fill={color}
         />
       ))}
     </Svg>
@@ -513,18 +583,6 @@ function LiquidCard({
   );
 }
 
-const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const MONTHS = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
-];
-
-function greeting(hour: number) {
-  if (hour < 12) return 'Morning';
-  if (hour < 18) return 'Afternoon';
-  return 'Evening';
-}
-
 export default function HomeScreen() {
   const {
     connected,
@@ -553,17 +611,64 @@ export default function HomeScreen() {
   const worst = worstServiceState(services);
   const statusDot: string =
     worst === 'down' ? sysColor.fail : worst === 'degraded' ? sysColor.degraded : sysColor.ready;
-  const statusLabel = worst === 'down' ? 'Issue' : worst === 'degraded' ? 'Degraded' : 'Online';
-
-  const now = new Date();
-  const hello = greeting(now.getHours());
-  const dateLabel = `${DAYS[now.getDay()]}, ${MONTHS[now.getMonth()]} ${now.getDate()}`;
 
   const startChat = () => router.push(`/chat/${createThread()}`);
   const openThread = (id: string) => router.push(`/chat/${id}`);
 
   // Scroll-to-approvals (the charcoal count tile jumps here).
   const scrollRef = useRef<ScrollView>(null);
+  // Ask bar shrinks to a mic circle while reading (scroll down),
+  // expands back on scroll-up or when the list comes to rest —
+  // present but out of the way, Gmail-compose style.
+  const askCollapse = useSharedValue(0);
+  const lastScrollY = useSharedValue(0);
+  const onBoardScroll = useAnimatedScrollHandler({
+    onScroll: (e) => {
+      const y = e.contentOffset.y;
+      const dy = y - lastScrollY.value;
+      if (y > 60 && dy > 4) {
+        askCollapse.value = withTiming(1, { duration: 220 });
+      } else if (dy < -4 || y <= 60) {
+        askCollapse.value = withTiming(0, { duration: 220 });
+      }
+      lastScrollY.value = y;
+    },
+    onEndDrag: (e) => {
+      // finger lifted with no fling to follow -> at rest, expand
+      if (Math.abs(e.velocity?.y ?? 0) < 0.3) {
+        askCollapse.value = withTiming(0, { duration: 220 });
+      }
+    },
+    onMomentumEnd: () => {
+      askCollapse.value = withTiming(0, { duration: 220 });
+    },
+  });
+  const askBarStyle = useAnimatedStyle(() => ({
+    // right edge stays anchored; the bar narrows into a 52pt key.
+    // NOT full-bleed (2026-07-16 "반보다는 길게"): it's a button, not
+    // a divider — anchored right at ~62% width so the list stays
+    // visible beside it
+    width: interpolate(askCollapse.value, [0, 1], [Math.round(screenW * 0.62), 52]),
+  }));
+  const askRowStyle = useAnimatedStyle(() => ({
+    paddingLeft: interpolate(askCollapse.value, [0, 1], [16, 7]),
+  }));
+  const askSlashStyle = useAnimatedStyle(() => ({
+    width: interpolate(askCollapse.value, [0, 1], [32, 0]),
+    opacity: interpolate(askCollapse.value, [0, 0.5], [1, 0]),
+  }));
+  // two skins crossfade with the collapse (2026-07-16 "펼쳐질때는
+  // 투명한, 접혔을땐 버튼"): expanded = the writable glass FIELD,
+  // collapsed = the analog KEYCAP
+  const askFieldSkin = useAnimatedStyle(() => ({
+    opacity: interpolate(askCollapse.value, [0, 1], [1, 0]),
+  }));
+  const askKeySkin = useAnimatedStyle(() => ({
+    opacity: askCollapse.value,
+  }));
+  const askHintStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(askCollapse.value, [0, 0.5], [1, 0]),
+  }));
   const [approvalsY, setApprovalsY] = useState(0);
   // TRUST widget: calibration proposal -> autonomy summary. 'allowed'
   // promotes the pattern to auto-approve; 'kept' snoozes the proposal.
@@ -598,8 +703,6 @@ export default function HomeScreen() {
     sendMessage(u.threadId, u.ask);
     router.push(`/chat/${u.threadId}`);
   };
-  // Full prompt-history bottom sheet, opened from the RECENT card
-  const [historyOpen, setHistoryOpen] = useState(false);
   const scrollToApprovals = () => scrollRef.current?.scrollTo({ y: approvalsY, animated: true });
 
   // The greeting speaks: the orchestrator's status line, terse and
@@ -680,12 +783,19 @@ export default function HomeScreen() {
       {connected ? (
         // ───────────────────────── State board ─────────────────────────
         <>
-          <ColorPanelsBg />
+          {/* wash preset (2026-07-16): the fan flattened full-screen so
+              every window — YOUR TURN at the top, the task list at the
+              bottom — gets the same subtle turning light behind its
+              glass; the mid-screen-only fan made outer sections read
+              opaque. Other tabs keep the fan for now. */}
+          <ColorPanelsBg variant="deskWash" preset="wash" />
           {/* no veil: the aqua desktop shows at full strength; the
               silver windows carry legibility (fullback: white 0.1) */}
           <View style={{ flex: 1 }}>
-            <ScrollView
+            <Animated.ScrollView
               ref={scrollRef}
+              onScroll={onBoardScroll}
+              scrollEventThrottle={16}
               contentContainerStyle={{ padding: spacing.lg, paddingBottom: 190 }}
               showsVerticalScrollIndicator={false}>
               {/* top row: the wordmark left, gateway status right */}
@@ -699,7 +809,13 @@ export default function HomeScreen() {
                 {/* header brand went wordmark-ONLY (2026-07-15, "그냥
                     클로스틴만"): the pixel-girl chip read as clutter next
                     to the serif; the mark still lives in chat routing
-                    and brand moments */}
+                    and brand moments. The ONLINE chip dissolved into a
+                    presence dot on the wordmark (2026-07-16) — tap the
+                    lockup to open System Status; the dot goes amber/red
+                    when a service is degraded/down. */}
+                {/* glow retired (2026-07-16 "글로우 아예 빼고") — the
+                    tight same-color shadow stays purely as faux weight
+                    for the single-cut serif */}
                 <Text
                   style={{
                     color: '#FFFFFF',
@@ -707,78 +823,58 @@ export default function HomeScreen() {
                     letterSpacing: 0.5,
                     fontFamily: 'InstrumentSerif-Regular',
                     textShadowColor: '#FFFFFF',
-                    textShadowRadius: 0.9,
+                    textShadowRadius: 2.2,
                     textShadowOffset: { width: 0, height: 0 },
                   }}>
                   Clawstin
                 </Text>
-                {/* status lives in a tag (crew-pill grammar, light mode)
-                    so it stays readable on the pale sky */}
+                {/* status = the glass stamp stretched into a slim bar
+                    (greeting retired 2026-07-16) — a blank ANALOG KEY on
+                    the desk: beveled edges (lit top, inked bottom), a
+                    sheen on the upper face, and a press that physically
+                    sinks. Same glass palette as the section windows.
+                    Tap opens System Status; warning states fill it. */}
                 <Pressable
                   onPress={() => setStatusOpen(true)}
                   hitSlop={12}
                   style={({ pressed }) => ({
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: 6,
-                    paddingVertical: 6,
-                    paddingHorizontal: 12,
-                    // the section windows' own glass: translucent veil +
-                    // white hairline, SQUARE like the section windows
-                    // (the board went right-angle, the chip follows —
-                    // it reads as a tiny folded window now, not a pill).
-                    // While the popover is up the chip turns solid white:
-                    // it IS that window's folded handle.
+                    width: 84,
+                    height: 22,
                     borderRadius: 0,
-                    backgroundColor: statusOpen
-                      ? 'rgba(255,255,255,0.92)'
-                      : 'rgba(255,255,255,0.62)',
-                    borderWidth: 1,
-                    borderColor: 'rgba(255,255,255,0.55)',
-                    opacity: pressed ? 0.6 : 1,
-                  })}>
-                  {/* no status dot (2026-07-14): the living panels
-                      behind the board are the "engine running" signal;
-                      degraded/down still speak through amber text */}
-                  <Text
-                    style={{
-                      color:
-                        worst === 'down' || worst === 'degraded'
-                          ? '#9A6B1F'
-                          : 'rgba(22,24,28,0.6)',
-                      fontSize: 10,
-                      fontFamily: fontFamily.mono,
-                      letterSpacing: 0.3,
-                    }}>
-                    {statusLabel.toUpperCase()}
-                  </Text>
-                  <Ionicons
-                    name={statusOpen ? 'chevron-up' : 'chevron-down'}
-                    size={11}
-                    color={
+                    overflow: 'hidden',
+                    backgroundColor:
                       worst === 'down' || worst === 'degraded'
-                        ? 'rgba(154,107,31,0.8)'
-                        : 'rgba(22,24,28,0.45)'
-                    }
+                        ? statusDot
+                        : statusOpen
+                          ? 'rgba(255,255,255,0.92)'
+                          : pressed
+                            ? 'rgba(255,255,255,0.5)'
+                            : 'rgba(255,255,255,0.62)',
+                    borderWidth: 1,
+                    borderTopColor: 'rgba(255,255,255,0.95)',
+                    borderLeftColor: 'rgba(255,255,255,0.8)',
+                    borderRightColor: 'rgba(255,255,255,0.6)',
+                    borderBottomColor: 'rgba(22,24,28,0.25)',
+                    shadowColor: '#16181C',
+                    shadowOpacity: pressed ? 0.08 : 0.18,
+                    shadowRadius: pressed ? 1.5 : 3,
+                    shadowOffset: { width: 0, height: pressed ? 1 : 2 },
+                    transform: [{ translateY: pressed ? 1 : 0 }],
+                  })}>
+                  {/* the key's curved face: brighter upper half */}
+                  <View
+                    pointerEvents="none"
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      height: 9,
+                      backgroundColor: 'rgba(255,255,255,0.4)',
+                    }}
                   />
                 </Pressable>
               </View>
-
-              {/* just the greeting, floating on the sky — the tab counts
-                  already carry the numbers */}
-
-              {/* greeting: back by request, one size down — a quiet
-                  line on the desk, not a headline */}
-              <Text
-                style={{
-                  marginTop: 10,
-                  color: '#FFFFFF',
-                  fontSize: 20,
-                  letterSpacing: -0.3,
-                  fontFamily: fontFamily.bold,
-                }}>
-                {`${hello}, ${USER_NAME}`}
-              </Text>
 
               {/* ── Control-tower dashboard: the trust cycle as a board.
                   YOUR TURN asks (pre-action), RUNNING shows delegation
@@ -797,8 +893,8 @@ export default function HomeScreen() {
                   style={({ pressed }) => ({
                     borderRadius: 0,
                     overflow: 'hidden',
-                    borderWidth: 1,
-                    borderColor: 'rgba(255,255,255,0.55)',
+                    // the pixel frame replaces the white hairline on
+                    // this ONE window — the ask wears the mascot's ink
                     paddingHorizontal: 18,
                     paddingBottom: 18,
                     shadowColor: '#16181C',
@@ -817,6 +913,7 @@ export default function HomeScreen() {
                     tone="gray"
                     accentBar
                   />
+                  <PixelChrome />
                   <View
                     style={{
                       height: 30,
@@ -825,7 +922,6 @@ export default function HomeScreen() {
                       alignItems: 'center',
                     }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                      <WindowDots lit />
                       <Text
                         style={{
                           fontSize: 11,
@@ -843,14 +939,7 @@ export default function HomeScreen() {
                           scrollRef.current?.scrollTo({ y: approvalsY, animated: true });
                         }}
                         hitSlop={16}>
-                        <Text
-                          style={{
-                            fontSize: 10,
-                            fontFamily: fontFamily.mono,
-                            color: AINK.text,
-                          }}>
-                          {`+${needsYou - 1} more`}
-                        </Text>
+                        <PixelText text={`+${needsYou - 1} MORE`} color={AINK.dim} />
                       </Pressable>
                     ) : null}
                   </View>
@@ -902,16 +991,26 @@ export default function HomeScreen() {
                         }}
                         hitSlop={8}
                         style={({ pressed }) => ({
-                          // button system (2026-07-14): PRIMARY = the
-                          // CTA slab material (same as Get started);
-                          // buttons are round capsules, sections square
-                          borderRadius: 999,
-                          overflow: 'hidden',
-                          paddingHorizontal: 17,
-                          paddingVertical: 9,
+                          // TICKET STUB (2026-07-16, "알약말고"): the
+                          // pill retired — answer chips are tickets now,
+                          // top-right corner snipped, drawn in the CTA
+                          // slab's own flat blue-gray with a darker
+                          // fold-back triangle at the cut
+                          width: 66,
+                          height: 36,
+                          alignItems: 'center',
+                          justifyContent: 'center',
                           opacity: pressed ? 0.7 : 1,
                         })}>
-                        <CtaSlabFill />
+                        <Svg
+                          width={66}
+                          height={36}
+                          style={StyleSheet.absoluteFill}
+                          pointerEvents="none">
+                          <Polygon points="0,0 55,0 66,11 66,36 0,36" fill="#9FB6CD" />
+                          {/* the folded-back corner */}
+                          <Polygon points="55,0 66,11 55,11" fill="#8CA3BB" />
+                        </Svg>
                         <Text
                           style={{
                             fontSize: 13,
@@ -975,7 +1074,6 @@ export default function HomeScreen() {
                       alignItems: 'center',
                     }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                      <WindowDots />
                       <Text
                         style={{
                           fontSize: 11,
@@ -1072,7 +1170,6 @@ export default function HomeScreen() {
                     })}>
                     <AcidGlassFill effect="clear" bright tone="gray" />
                     <View style={{ height: 30, flexDirection: 'row', alignItems: 'center' }}>
-                      <WindowDots />
                       <Text
                         style={{
                           fontSize: 11,
@@ -1097,14 +1194,7 @@ export default function HomeScreen() {
                           right: 14,
                           opacity: pressed ? 0.5 : 1,
                         })}>
-                        <Text
-                          style={{
-                            fontSize: 10,
-                            fontFamily: fontFamily.mono,
-                            color: w.moreColor,
-                          }}>
-                          {`+${w.more} more`}
-                        </Text>
+                        <PixelText text={`+${w.more} MORE`} color={w.moreColor} />
                       </Pressable>
                     ) : null}
                     {/* title floats centered between the label above and
@@ -1142,16 +1232,19 @@ export default function HomeScreen() {
                       }}>
                       {w.progress ? (
                         <>
-                          <View style={{ flexDirection: 'row', gap: 3, marginTop: 2 }}>
+                          {/* pixel block gauge: chunky 8pt cells in the
+                              crew-pixel ink language — same honest
+                              discrete steps, retro loading-bar body */}
+                          <View style={{ flexDirection: 'row', gap: 3 }}>
                             {Array.from({ length: w.progress.total }, (_, i) => (
                               <View
                                 key={i}
                                 style={{
-                                  width: 10,
-                                  height: 3,
+                                  width: 8,
+                                  height: 8,
                                   backgroundColor:
                                     i < w.progress!.done
-                                      ? 'rgba(22,24,28,0.5)'
+                                      ? 'rgba(22,24,28,0.6)'
                                       : 'rgba(22,24,28,0.12)',
                                 }}
                               />
@@ -1213,7 +1306,6 @@ export default function HomeScreen() {
                     alignItems: 'center',
                   }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                    <WindowDots />
                     <Text
                       style={{
                         fontSize: 11,
@@ -1230,14 +1322,7 @@ export default function HomeScreen() {
                     </Pressable>
                   ) : UNDOABLES.length > 1 ? (
                     <Pressable hitSlop={16} onPress={() => setLastActionOpen(true)}>
-                      <Text
-                        style={{
-                          fontSize: 10,
-                          fontFamily: fontFamily.mono,
-                          color: AINK.text,
-                        }}>
-                        {`+${UNDOABLES.length - 1} more`}
-                      </Text>
+                      <PixelText text={`+${UNDOABLES.length - 1} MORE`} color={AINK.dim} />
                     </Pressable>
                   ) : null}
                 </View>
@@ -1424,29 +1509,29 @@ export default function HomeScreen() {
                             paddingVertical: 11,
                             opacity: pressed ? 0.5 : aged ? 0.5 : 1,
                           })}>
-                          {/* state dot zone: teal dot = your turn,
-                              pulse = running, dim dot = resting */}
+                          {/* state cell zone (2026-07-16 "픽셀스타일"):
+                              the round dots became 8×8 pixel cells, the
+                              same block the RUNNING gauge uses — teal =
+                              your turn, pulse = running, dim = resting */}
                           <View
-                            style={{ width: 12, alignItems: 'flex-start', justifyContent: 'center' }}>
+                            style={{ width: 13, alignItems: 'flex-start', justifyContent: 'center' }}>
                             {row.waiting && !aged ? (
                               <View
                                 style={{
-                                  width: 7,
-                                  height: 7,
-                                  borderRadius: 999,
+                                  width: 8,
+                                  height: 8,
                                   backgroundColor: sysColor.action,
                                 }}
                               />
                             ) : !row.waiting ? (
-                              // every state dot shares the accent dot's
-                              // 7px body; only color and motion differ
-                              <RunningDot color="rgba(22,24,28,0.35)" size={7} />
+                              // every state cell shares the gauge's 8px
+                              // body; only color and motion differ
+                              <RunningDot color="rgba(22,24,28,0.35)" size={8} square />
                             ) : (
                               <View
                                 style={{
-                                  width: 7,
-                                  height: 7,
-                                  borderRadius: 999,
+                                  width: 8,
+                                  height: 8,
                                   backgroundColor: 'rgba(22,24,28,0.22)',
                                 }}
                               />
@@ -1496,7 +1581,8 @@ export default function HomeScreen() {
                           paddingVertical: 11,
                           opacity: pressed ? 0.5 : t.outcome === 'expired' ? 0.6 : 1,
                         })}>
-                        <View style={{ width: 12 }} />
+                        {/* no state mark on closed rows, so no reserved
+                            column either — text starts flush (2026-07-16) */}
                         <View style={{ flex: 1 }}>
                           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                             <Text
@@ -1527,29 +1613,35 @@ export default function HomeScreen() {
                       </Pressable>
                     </View>
                   ))}
+                  {/* door to Activity in the BOARD's own door grammar
+                      (2026-07-16 "이런 규칙으로" = the ROUTINES window's
+                      "5 routines ›"): quiet bottom-left mono meta with
+                      an inline chevron — not the sheet's full-width row */}
+                  <Pressable
+                    onPress={() => router.navigate('/(tabs)/chat')}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                    style={({ pressed }) => ({
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      alignSelf: 'flex-start',
+                      paddingHorizontal: 18,
+                      paddingTop: 6,
+                      paddingBottom: 14,
+                      opacity: pressed ? 0.5 : 1,
+                    })}>
+                    <Text style={{ fontSize: 10, fontFamily: fontFamily.mono, color: AINK.dim }}>
+                      all activity
+                    </Text>
+                    <Ionicons
+                      name="chevron-forward"
+                      size={11}
+                      color={AINK.dim}
+                      style={{ marginLeft: 2 }}
+                    />
+                  </Pressable>
                 </Animated.View>
               ) : null}
-              {visibleDone.length > 0 ? (
-                <Pressable
-                  onPress={() => setHistoryOpen(true)}
-                  hitSlop={{ top: 14, bottom: 14, left: 10, right: 10 }}
-                  style={({ pressed }) => ({
-                    marginTop: 14,
-                    paddingVertical: 4,
-                    alignSelf: 'flex-start' as const,
-                    opacity: pressed ? 0.6 : 1,
-                  })}>
-                  <Text
-                    style={{
-                      fontSize: 10,
-                      fontFamily: fontFamily.mono,
-                      color: 'rgba(255,255,255,0.85)',
-                    }}>
-                    {'full history ›'}
-                  </Text>
-                </Pressable>
-              ) : null}
-            </ScrollView>
+            </Animated.ScrollView>
 
           {/* Connection status popover (over the board) */}
             {statusOpen ? (
@@ -1573,39 +1665,31 @@ export default function HomeScreen() {
                 tab bar. The section windows' own glass material with a
                 white hairline; no ring (2026-07-12). The slash chip
                 hints at commands (undo, pause, status) to come. */}
-            <View
+            <Animated.View
               pointerEvents="box-none"
-              style={{
-                position: 'absolute',
-                left: 16,
-                right: 16,
-                bottom: 90,
-                // neon retired (2026-07-14, "네온처리가 문제"): the pill
-                // now floats on the chat composer's own quiet ink
-                // shadow — lift, not light
-                shadowColor: '#16181C',
-                shadowOpacity: 0.22,
-                shadowRadius: 12,
-                shadowOffset: { width: 0, height: 3 },
-                elevation: 10,
-              }}>
+              style={[
+                {
+                  position: 'absolute',
+                  right: 10,
+                  bottom: 90,
+                  shadowColor: '#16181C',
+                  shadowOpacity: 0.18,
+                  shadowRadius: 10,
+                  shadowOffset: { width: 0, height: 3 },
+                  elevation: 8,
+                },
+                askBarStyle,
+              ]}>
               <Pressable
                 onPress={() => openNewChat()}
                 style={({ pressed }) => ({
                   height: 52,
-                  // fully round: the ONE command-pill silhouette, shared
-                  // with the chat composer
-                  borderRadius: 999,
+                  borderRadius: 0,
                   overflow: 'hidden',
-                  // the chat composer's exact hairline — no blue, no glow
-                  borderWidth: 1,
-                  borderColor: 'rgba(255,255,255,0.55)',
                   opacity: pressed ? 0.85 : 1,
                 })}>
-                {/* body = the chat composer's exact material (glass +
-                    white veil) so the two command pills read as one —
-                    the near-black console body felt foreign ("너무
-                    검정이라 이질감"); the lit rim stays */}
+                {/* blur under both skins: the bar floats over list
+                    text — without it the rows bleed through */}
                 {GLASS_AVAILABLE ? (
                   <GlassView
                     glassEffectStyle="clear"
@@ -1614,56 +1698,95 @@ export default function HomeScreen() {
                     pointerEvents="none"
                   />
                 ) : null}
-                <View
+                {/* FIELD skin (expanded): the writable glass panel */}
+                <Animated.View
                   pointerEvents="none"
                   style={[
                     StyleSheet.absoluteFill,
-                    { backgroundColor: 'rgba(255,255,255,0.62)' },
+                    {
+                      backgroundColor: 'rgba(255,255,255,0.62)',
+                      borderWidth: 1,
+                      borderColor: 'rgba(255,255,255,0.55)',
+                    },
+                    askFieldSkin,
                   ]}
                 />
-                <View
-                  style={{
-                    flex: 1,
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    paddingLeft: 16,
-                    paddingRight: 7,
-                  }}>
+                {/* KEYCAP skin (collapsed): bevel + sheen */}
+                <Animated.View
+                  pointerEvents="none"
+                  style={[
+                    StyleSheet.absoluteFill,
+                    {
+                      backgroundColor: 'rgba(255,255,255,0.62)',
+                      borderWidth: 1,
+                      borderTopColor: 'rgba(255,255,255,0.95)',
+                      borderLeftColor: 'rgba(255,255,255,0.8)',
+                      borderRightColor: 'rgba(255,255,255,0.6)',
+                      borderBottomColor: 'rgba(22,24,28,0.25)',
+                    },
+                    askKeySkin,
+                  ]}>
+                  <KeySheen />
+                </Animated.View>
+                <Animated.View
+                  style={[
+                    {
+                      flex: 1,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      paddingRight: 7,
+                    },
+                    askRowStyle,
+                  ]}>
                   {/* pill anatomy, app-wide: command on the LEFT ("/"
                       here, "+" in chat), voice circle on the RIGHT that
                       becomes send once you type — right thumb talks,
-                      left hand commands */}
-                  <Pressable
-                    hitSlop={14}
-                    onPress={() => openNewChat('undo ')}
-                    style={({ pressed }) => ({
-                      width: 22,
-                      height: 22,
-                      borderRadius: 6,
-                      backgroundColor: 'rgba(59,118,196,0.12)',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      marginRight: 10,
-                      opacity: pressed ? 0.6 : 1,
-                    })}>
-                    <Text
-                      style={{
-                        fontSize: 11,
-                        fontWeight: fontWeight.semibold,
-                        color: sysColor.accent,
-                      }}>
-                      /
-                    </Text>
-                  </Pressable>
-                  <Text
-                    style={{
-                      flex: 1,
-                      fontSize: fontSize.body,
-                      fontFamily: fontFamily.regular,
-                      color: 'rgba(22,24,28,0.55)',
-                    }}>
+                      left hand commands. Slash chip + hint melt away
+                      as the bar shrinks to its mic circle. */}
+                  <Animated.View
+                    style={[
+                      {
+                        overflow: 'hidden',
+                        justifyContent: 'center',
+                        alignItems: 'flex-start',
+                      },
+                      askSlashStyle,
+                    ]}>
+                    <Pressable
+                      hitSlop={14}
+                      onPress={() => openNewChat('undo ')}
+                      style={({ pressed }) => ({
+                        width: 22,
+                        height: 22,
+                        borderRadius: 6,
+                        backgroundColor: 'rgba(59,118,196,0.12)',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        opacity: pressed ? 0.6 : 1,
+                      })}>
+                      <Text
+                        style={{
+                          fontSize: 11,
+                          fontWeight: fontWeight.semibold,
+                          color: sysColor.accent,
+                        }}>
+                        /
+                      </Text>
+                    </Pressable>
+                  </Animated.View>
+                  <Animated.Text
+                    numberOfLines={1}
+                    style={[
+                      {
+                        flex: 1,
+                        fontSize: fontSize.body,
+                        fontFamily: fontFamily.regular,
+                        color: 'rgba(22,24,28,0.55)',
+                      },
+                      askHintStyle,
+                    ]}>
                     What needs doing?
-                  </Text>
+                  </Animated.Text>
                   <Pressable
                     hitSlop={8}
                     onPress={() => openNewChat()}
@@ -1679,15 +1802,13 @@ export default function HomeScreen() {
                     })}>
                     <Ionicons name="mic" size={21} color={sysColor.accent} />
                   </Pressable>
-                </View>
+                </Animated.View>
               </Pressable>
-            </View>
+            </Animated.View>
 
 
           </View>
 
-          {/* Full prompt history, slid up from the RECENT card */}
-          <PromptHistorySheet visible={historyOpen} onClose={() => setHistoryOpen(false)} />
           <AutopilotSheet
             visible={autopilotOpen}
             onClose={() => setAutopilotOpen(false)}
@@ -1705,7 +1826,9 @@ export default function HomeScreen() {
           contentContainerStyle={{ padding: spacing.lg, paddingBottom: 110, flexGrow: 1 }}
           showsVerticalScrollIndicator={false}>
           <View style={{ flex: 1 }} />
-          <View style={{ alignItems: 'center' }}>
+          {/* nudged below true center (2026-07-16): the lockup rides
+              the fan's lower-third axis instead of splitting it */}
+          <View style={{ alignItems: 'center', transform: [{ translateY: 32 }] }}>
             {/* Name set only — the mascot left the start screen; the
                 wordmark sits on the panel fan's bright axis instead */}
             {/* Headline: Instrument Serif — the sans family's own
@@ -1761,6 +1884,16 @@ export default function HomeScreen() {
                 paddingVertical: spacing.lg,
                 alignItems: 'center',
                 overflow: 'hidden',
+                // the field went pure white (2026-07-16), so the white
+                // slab needs its own edge: ink hairline + a quiet lift,
+                // a white key resting on white paper
+                borderWidth: 1,
+                borderColor: 'rgba(22,24,28,0.16)',
+                shadowColor: '#16181C',
+                shadowOpacity: 0.1,
+                shadowRadius: 10,
+                shadowOffset: { width: 0, height: 4 },
+                elevation: 4,
               }}>
               <CtaSlabFill shape="square" tone="white" />
               <Text
