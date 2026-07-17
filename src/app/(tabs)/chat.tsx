@@ -15,8 +15,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ColorPanelsBg } from '@/components/ui/color-panels-bg';
 import { AnalogKey } from '@/components/ui/analog-key';
-import { AcidGlassFill } from '@/components/ui/window-fill';
-import { PixelChrome } from '@/components/ui/pixel-chrome';
+import { FrostedGlassFill } from '@/components/ui/frosted-glass-fill';
+import { MosaicDot } from '@/components/ui/mosaic-dot';
 import { useAppStore } from '@/store/app-store';
 import { fontFamily, fontSize, sysColor } from '@/theme/theme';
 
@@ -99,6 +99,9 @@ export default function ActivityScreen() {
   const glyph = (a: (typeof activity)[number]) =>
     a.status === 'failed' ? '✗' : a.status === 'needs_approval' ? '…' : '✓';
 
+  // the folder flap hugs the ACTIVITY label, same measure pattern as
+  // Home's sections (2026-07-17)
+  const [titleW, setTitleW] = useState(0);
   // >_ raw view is a DARK TERMINAL (the Logs screen's family), so the
   // whole window flips palette with the lens
   const rowInk = consoleLens ? 'rgba(255,255,255,0.85)' : INK;
@@ -172,16 +175,19 @@ export default function ActivityScreen() {
             alignItems: 'center',
             gap: 8,
             height: 44,
-            paddingHorizontal: 14,
-            borderRadius: 0,
-            backgroundColor: consoleLens ? 'rgba(255,255,255,0.08)' : '#F6F8FA',
-            // day mode wears the pixel frame instead of a hairline
-            // (2026-07-16, "여기도 픽셀"); the night lens keeps its own
-            // faint border — ink steps would vanish on the dark glass
-            borderWidth: consoleLens ? 1 : 0,
-            borderColor: 'rgba(255,255,255,0.14)',
+            paddingHorizontal: 16,
+            // day mode joined Home's frosted language (2026-07-17
+            // "홈탭 스타일로"): rounded glass pill, no pixel frame;
+            // the night lens keeps its own faint border
+            borderRadius: 22,
+            backgroundColor: consoleLens
+              ? 'rgba(255,255,255,0.08)'
+              : 'rgba(255,255,255,0.62)',
+            borderWidth: 1,
+            borderColor: consoleLens
+              ? 'rgba(255,255,255,0.14)'
+              : 'rgba(255,255,255,0.7)',
           }}>
-          {!consoleLens && <PixelChrome />}
           <Ionicons name="search" size={14} color={consoleLens ? rowFaint : FAINT} />
           <TextInput
             value={query}
@@ -204,16 +210,14 @@ export default function ActivityScreen() {
             consoleLens
               ? { marginTop: 8, marginHorizontal: -16 }
               : {
-                  // 28pt rhythm here too (was 16)
+                  // Home's frosted-folder card (2026-07-17 "홈탭
+                  // 스타일로"): the shape is the SVG path, so no
+                  // border/clip on the box itself
                   marginTop: 28,
-                  borderRadius: 0,
-                  overflow: 'hidden',
-                  borderWidth: 1,
-                  borderColor: 'rgba(255,255,255,0.55)',
                   shadowColor: '#16181C',
-                  shadowOpacity: 0.07,
-                  shadowRadius: 16,
-                  shadowOffset: { width: 0, height: 6 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 20,
+                  shadowOffset: { width: 0, height: 8 },
                   elevation: 5,
                 }
           }>
@@ -221,15 +225,11 @@ export default function ActivityScreen() {
             // raw lens: dark terminal plane (the Logs screen's night)
             <View style={[StyleSheet.absoluteFill, { backgroundColor: DESK_NIGHT }]} />
           ) : (
-            <AcidGlassFill key={`feed-${rows.length}`} effect="clear" bright tone="gray" />
+            <FrostedGlassFill radius={16} tabWidth={titleW ? 18 + titleW + 18 : 100} />
           )}
           {/* title bar: dots glow while something needs you */}
           <View
             style={{
-              // matches the shared strip height (26, 2026-07-16 sweep)
-              // — was still 30 here, so the text centered against a
-              // taller box than the glass fill's tint rect ("이름
-              // 가운데 아니야")
               height: 26,
               flexDirection: 'row',
               alignItems: 'center',
@@ -238,6 +238,10 @@ export default function ActivityScreen() {
             }}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <Text
+                onTextLayout={(e) => {
+                  const w = Math.ceil(e.nativeEvent.lines[0]?.width ?? 0);
+                  if (w !== titleW) setTitleW(w);
+                }}
                 style={{
                   fontSize: 11,
                   fontFamily: fontFamily.mono,
@@ -340,16 +344,11 @@ export default function ActivityScreen() {
                           // sentence lens: task title anchors the row,
                           // the result sentence supports underneath
                           <>
-                            {/* 8×8 pixel cell (2026-07-16), matching the
-                                Home list's square state markers */}
-                            <View
-                              style={{
-                                width: 8,
-                                height: 8,
-                                marginTop: 5,
-                                backgroundColor: dotColor(a),
-                              }}
-                            />
+                            {/* mosaic cluster (2026-07-17), matching the
+                                Home list's state markers */}
+                            <View style={{ marginTop: 5 }}>
+                              <MosaicDot color={dotColor(a)} />
+                            </View>
                             <View style={{ flex: 1 }}>
                               <Text
                                 numberOfLines={1}

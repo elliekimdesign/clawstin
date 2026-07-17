@@ -19,9 +19,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ColorPanelsBg } from '@/components/ui/color-panels-bg';
 import { KeySheen, keyChrome } from '@/components/ui/analog-key';
-import { AcidGlassFill } from '@/components/ui/window-fill';
+import { FrostedGlassFill } from '@/components/ui/frosted-glass-fill';
+import { MosaicDot } from '@/components/ui/mosaic-dot';
 import { CREW_ACCENT, CrewPixel } from '@/components/ui/crew-pixel';
-import { PixelChrome } from '@/components/ui/pixel-chrome';
 import { PixelText } from '@/components/ui/pixel-text';
 import type { ActivityItem } from '@/mock/activity';
 import type { CrewMember } from '@/mock/crew';
@@ -57,22 +57,6 @@ function CardGlass() {
   );
 }
 
-/** the member's accessory color as a bare swatch riding beside the
- * name (2026-07-16: the "COLOR" tag read as clutter — the small square
- * says it alone). No color yet = empty outlined swatch. */
-function ColorSwatch({ color }: { color?: string }) {
-  return (
-    <View
-      style={{
-        width: 6,
-        height: 6,
-        backgroundColor: color ?? 'transparent',
-        borderWidth: color ? 0 : 1,
-        borderColor: 'rgba(22,24,28,0.3)',
-      }}
-    />
-  );
-}
 const INK = '#16181C';
 const INK_DIM = 'rgba(22,24,28,0.6)';
 const INK_SOFT = 'rgba(22,24,28,0.06)';
@@ -83,35 +67,44 @@ const NAME_GHOST = 'rgba(22,24,28,0.07)';
  * top edge, real centered name (no ghost watermark), the member's
  * accessory color as a small underline, mono role, and ONE footer
  * fact line. The card identifies; the detail screen explains. */
-/** The crew badge as a HOME WINDOW (2026-07-16 "같은 카드 질감을
- * 그대로": the flat vintage paper was a foreign material — the badge
- * now wears the board's own AcidGlassFill, tinted title strip and
- * hairline). Window grammar mapping: strip label = the member's ROLE,
- * body = face + name + accent bar, bottom-left meta = runs (the "5
- * routines" slot). "ready" stays dropped; paused shows as the
- * exception. */
+/** the sections' fitted-flap measure, shared by every folder card on
+ * this screen (same pattern as Home's flapW) */
+function useFlapW(fallback: number, pad = 14, gap = 16) {
+  const [w, setW] = useState(0);
+  const onTitleLayout = (e: { nativeEvent: { lines: { width: number }[] } }) => {
+    const m = Math.ceil(e.nativeEvent.lines[0]?.width ?? 0);
+    if (m !== w) setW(m);
+  };
+  return [w ? pad + w + gap : fallback, onTitleLayout] as const;
+}
+
+/** The crew badge as a FROSTED FOLDER (2026-07-17 "홈탭 스타일" +
+ * "카드 사이즈 크게"): the member's ROLE rides the flap, the body got
+ * air — a bigger face, the bitmap name with the member's mosaic
+ * accent, runs in the machine voice pinned bottom-left like Home's
+ * "1 routines" door. */
 function CrewBadge({ member, width }: { member: CrewMember; width: number }) {
   const roleTag = member.role.split(' · ')[0];
+  const [flapW, onTitleLayout] = useFlapW(96);
   return (
     <View style={{ width }}>
       <Pressable
         onPress={() => router.push(`/crew/${member.id}`)}
         style={({ pressed }) => ({
-          borderRadius: 0,
-          overflow: 'hidden',
-          borderWidth: 1,
-          borderColor: 'rgba(255,255,255,0.55)',
+          height: 150,
           shadowColor: '#16181C',
-          shadowOpacity: 0.07,
-          shadowRadius: 16,
+          shadowOpacity: 0.1,
+          shadowRadius: 18,
           shadowOffset: { width: 0, height: 6 },
           elevation: 5,
           opacity: pressed ? 0.85 : 1,
         })}>
-        <AcidGlassFill effect="clear" bright tone="gray" />
+        <FrostedGlassFill radius={14} tabWidth={flapW} tabHeight={22} />
         <View style={{ height: 26, justifyContent: 'center', paddingHorizontal: 14 }}>
           <Text
+            onTextLayout={onTitleLayout}
             style={{
+              alignSelf: 'flex-start',
               fontSize: 11,
               fontFamily: fontFamily.mono,
               letterSpacing: 0.3,
@@ -120,30 +113,32 @@ function CrewBadge({ member, width }: { member: CrewMember; width: number }) {
             {roleTag.toUpperCase()}
           </Text>
         </View>
-        {/* SYSTEM ROW (2026-07-16 "페이스는 왼쪽 글씨는 오른쪽"):
-            small face left, left-aligned registry text right — the
-            chat readout's anatomy on the light card */}
+        {/* SYSTEM ROW, scaled up: face left, registry text right */}
         <View
           style={{
+            flex: 1,
             flexDirection: 'row',
             alignItems: 'center',
-            gap: 12,
+            gap: 14,
             paddingHorizontal: 14,
-            paddingTop: 12,
-            paddingBottom: 14,
+            marginBottom: 10,
           }}>
-          <CrewPixel id={member.id} size={30} />
-          <View style={{ gap: 7 }}>
+          <CrewPixel id={member.id} size={44} />
+          <View style={{ gap: 8, flexShrink: 1 }}>
+            <PixelText text={member.name.toUpperCase()} cell={1.6} color={INK} led />
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <PixelText text={member.name.toUpperCase()} cell={1.4} color={INK} led />
-              <ColorSwatch color={CREW_ACCENT[member.id]} />
+              <MosaicDot color={CREW_ACCENT[member.id] ?? INK_DIM} size={8} />
+              <Text style={{ fontSize: 10, fontFamily: fontFamily.mono, color: INK_DIM }}>
+                {member.active ? 'active' : 'paused'}
+              </Text>
             </View>
-            {/* meta stays in the plain machine voice — bitmap is the
-                NAME's register only (2026-07-16 "여기까지 픽셀 안써도돼") */}
-            <Text style={{ fontSize: 10, fontFamily: fontFamily.mono, color: INK_DIM }}>
-              {member.active ? `${member.tasksDone} runs` : `paused, ${member.tasksDone} runs`}
-            </Text>
           </View>
+        </View>
+        {/* runs: the bottom-left meta door, Home's "1 routines" slot */}
+        <View style={{ position: 'absolute', left: 14, bottom: 12 }}>
+          <Text style={{ fontSize: 10, fontFamily: fontFamily.mono, color: INK_DIM }}>
+            {`${member.tasksDone} runs`}
+          </Text>
         </View>
       </Pressable>
     </View>
@@ -154,25 +149,18 @@ function CrewBadge({ member, width }: { member: CrewMember; width: number }) {
  * (height = share of the busiest agent's completed tasks) with the
  * agent's round face chip sitting on top of their bar. */
 function ContributionCard({ crew }: { crew: CrewMember[] }) {
+  const [flapW, onTitleLayout] = useFlapW(120, 18, 18);
   return (
     <View
       style={{
-        // HOME WINDOW chrome (2026-07-16 "홈탭같은 스타일로 섹션"):
-        // glass fill + tinted title strip, the board's own shadow
-        borderRadius: 0,
-        overflow: 'hidden',
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.55)',
+        // frosted folder (2026-07-17 "홈탭 스타일")
         shadowColor: '#16181C',
-        shadowOpacity: 0.07,
-        shadowRadius: 16,
-        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.1,
+        shadowRadius: 20,
+        shadowOffset: { width: 0, height: 8 },
         elevation: 5,
       }}>
-      {/* 'regular' frost: tall windows show a blue edge-lens band at
-          the bottom with 'clear' (2026-07-16 "파란색 선 지워"; same
-          diagnosis as 2026-07-07) */}
-      <AcidGlassFill effect="regular" bright tone="gray" />
+      <FrostedGlassFill radius={16} tabWidth={flapW} />
       <View
         style={{
           height: 26,
@@ -182,6 +170,7 @@ function ContributionCard({ crew }: { crew: CrewMember[] }) {
           paddingHorizontal: 18,
         }}>
         <Text
+          onTextLayout={onTitleLayout}
           style={{
             fontSize: 11,
             fontFamily: fontFamily.mono,
@@ -352,27 +341,26 @@ function StatTile({ label, value }: { label: string; value: string }) {
  * pill, and a bento stat row inside. */
 function PerfSection({ member, recent }: { member: CrewMember; recent: ActivityItem[] }) {
   const roleTag = member.role.split(' · ')[0];
+  const [perfFlapW, onPerfTitleLayout] = useFlapW(110, 18, 18);
   return (
     <Pressable
       onPress={() => router.push(`/crew/history/${member.id}`)}
       style={({ pressed }) => ({
-        // HOME WINDOW chrome, like the Info roster cards
-        borderRadius: 0,
-        overflow: 'hidden',
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.55)',
+        // frosted folder, like the Info roster cards (2026-07-17)
         shadowColor: '#16181C',
-        shadowOpacity: 0.07,
-        shadowRadius: 16,
-        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.1,
+        shadowRadius: 20,
+        shadowOffset: { width: 0, height: 8 },
         elevation: 5,
         opacity: pressed ? 0.9 : 1,
       })}>
-      <AcidGlassFill effect="regular" bright tone="gray" />
+      <FrostedGlassFill radius={16} tabWidth={perfFlapW} />
       {/* strip carries the ROLE, same as the Info cards */}
       <View style={{ height: 26, justifyContent: 'center', paddingHorizontal: 18 }}>
         <Text
+          onTextLayout={onPerfTitleLayout}
           style={{
+            alignSelf: 'flex-start',
             fontSize: 11,
             fontFamily: fontFamily.mono,
             letterSpacing: 0.3,
@@ -383,12 +371,12 @@ function PerfSection({ member, recent }: { member: CrewMember; recent: ActivityI
       </View>
       <View style={{ paddingHorizontal: 14, paddingTop: 10, paddingBottom: 14 }}>
       {/* header in the roster cards' system-row anatomy: bare face,
-          bitmap name, swatch */}
+          bitmap name, mosaic accent */}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
         <CrewPixel id={member.id} size={30} />
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
           <PixelText text={member.name.toUpperCase()} cell={1.4} color={INK} led />
-          <ColorSwatch color={CREW_ACCENT[member.id]} />
+          <MosaicDot color={CREW_ACCENT[member.id] ?? INK_DIM} size={8} />
         </View>
       </View>
       <View style={{ flexDirection: 'row', gap: 8, marginTop: 14 }}>
@@ -540,59 +528,54 @@ export default function CrewScreen() {
               }
               style={({ pressed }) => ({
                 width: badgeW,
+                height: 150,
                 opacity: pressed ? 0.6 : 1,
               })}>
+              {/* the empty slot is a GHOST FOLDER (2026-07-17): the
+                  same anatomy as its siblings but the front plate goes
+                  see-through — an unfiled folder waiting for a member */}
+              <FrostedGlassFill
+                radius={14}
+                tabWidth={110}
+                tabHeight={22}
+                tint="rgba(255,255,255,0.28)"
+              />
+              <View style={{ height: 26, justifyContent: 'center', paddingHorizontal: 14 }}>
+                <Text
+                  style={{
+                    fontSize: 11,
+                    fontFamily: fontFamily.mono,
+                    letterSpacing: 0.3,
+                    color: 'rgba(22,24,28,0.55)',
+                  }}>
+                  OPEN SLOT
+                </Text>
+              </View>
               <View
                 style={{
-                  borderRadius: 0,
-                  overflow: 'hidden',
-                  // the board's own window material, like its siblings;
-                  // the pixel chrome frame stays — the open slot asks
-                  // to be filled, same grammar as Home's YOUR TURN
+                  flex: 1,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 14,
+                  paddingHorizontal: 14,
+                  marginBottom: 10,
                 }}>
-                <AcidGlassFill effect="clear" bright tone="gray" />
-                <View style={{ height: 26, justifyContent: 'center', paddingHorizontal: 14 }}>
-                  <Text
-                    style={{
-                      fontSize: 11,
-                      fontFamily: fontFamily.mono,
-                      letterSpacing: 0.3,
-                      color: 'rgba(22,24,28,0.55)',
-                    }}>
-                    OPEN SLOT
-                  </Text>
-                </View>
+                {/* the empty seat: a bare + where the face would sit */}
                 <View
                   style={{
-                    flexDirection: 'row',
+                    width: 44,
+                    height: 44,
                     alignItems: 'center',
-                    gap: 12,
-                    paddingHorizontal: 14,
-                    paddingTop: 12,
-                    paddingBottom: 14,
+                    justifyContent: 'center',
                   }}>
-                  {/* the empty seat: a bare + where the face would sit */}
-                  <View
-                    style={{
-                      width: 30,
-                      height: 26,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}>
-                    <Ionicons name="add" size={24} color="rgba(22,24,28,0.5)" />
-                  </View>
-                  <View style={{ gap: 7 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                      <PixelText text="ADD CREW" cell={1.4} color={INK_DIM} led />
-                      <ColorSwatch />
-                    </View>
-                    <Text style={{ fontSize: 10, fontFamily: fontFamily.mono, color: INK_DIM }}>
-                      tap to hire
-                    </Text>
-                  </View>
+                  <Ionicons name="add" size={28} color="rgba(22,24,28,0.5)" />
                 </View>
-                {/* drawn LAST so the frame rides over everything */}
-                <PixelChrome />
+                <View style={{ gap: 8 }}>
+                  <PixelText text="ADD CREW" cell={1.6} color={INK_DIM} led />
+                  <Text style={{ fontSize: 10, fontFamily: fontFamily.mono, color: INK_DIM }}>
+                    tap to hire
+                  </Text>
+                </View>
               </View>
             </Pressable>
           </View>

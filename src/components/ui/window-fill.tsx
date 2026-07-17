@@ -56,15 +56,15 @@ export function AcidGlassFill({
           the title-bar strip stays nearly bare so the lens shows raw. */}
       <Svg style={StyleSheet.absoluteFill} pointerEvents="none" preserveAspectRatio="none">
         {/* body: white veil thin enough that the desk breathes through
-            — lifted 0.62 → 0.74 (2026-07-16, "약간 더 밝게") so the
-            windows stop sinking next to the pure-white ask bar */}
+            — settled at 0.66 (2026-07-17, "더 state of the art 느낌",
+            sections read too opaque at 0.74 and killed the wash glow) */}
         <Rect
           x="0"
           y={dense ? 42 : 26}
           width="100%"
           height="100%"
           fill="#FFFFFF"
-          fillOpacity={0.74}
+          fillOpacity={0.66}
         />
         {/* the tab: tinted with the desk shader's own soft-light-blue
             pane (#B7D4EE, 2026-07-16 "one of the panel 컬러") — the
