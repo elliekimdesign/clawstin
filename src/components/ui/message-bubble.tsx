@@ -1,6 +1,8 @@
-import { ReactNode } from 'react';
-import { Text, View } from 'react-native';
+import { ReactNode, useState } from 'react';
+import { NativeSyntheticEvent, Text, TextLayoutEventData, View } from 'react-native';
+import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { darkChat, fontFamily, spacing } from '@/theme/theme';
+import { ThinkingBlob } from './thinking-blob';
 
 type Props = {
   from: 'user' | 'agent';
@@ -9,6 +11,11 @@ type Props = {
   proactive?: boolean;
   /** caption override, e.g. "TASK PAUSED" on failure updates */
   caption?: string;
+  /** the blob glued to the end of this reply's text (2026-07-16): only
+   * the LAST agent message in the thread, and only while nothing new
+   * is being thought about — it vanishes the instant a fresh send
+   * starts and reappears once the new reply settles */
+  showBlob?: boolean;
   /** optional content rendered below the text (e.g. an inline approval card) */
   children?: ReactNode;
 };
@@ -17,7 +24,10 @@ type Props = {
 const NUDGE = '#F0812F';
 
 const BODY_STYLE = {
-  color: darkChat.text,
+  // v2 (2026-07-16, "near white" desk): the field flipped from bright
+  // blue to near-white, so white text would vanish — back to the
+  // app's own ink black, no backing wash either way
+  color: '#16181C',
   fontSize: 16,
   lineHeight: 24,
   fontFamily: fontFamily.regular,
@@ -37,52 +47,49 @@ const BODY_STYLE = {
  * re-wrapping the text. Other participating crews will be revealed on tap
  * later; no counts, no extra faces.
  */
-export function MessageBubble({ from, text, proactive, caption, children }: Props) {
+export function MessageBubble({ from, text, proactive, caption, showBlob, children }: Props) {
   const isUser = from === 'user';
 
   if (isUser) {
     return (
       // my prompt starts a new beat: extra air above separates it from
       // the previous answer chunk's rail
-      <View style={{ marginTop: spacing.md, marginBottom: spacing.lg }}>
+      <View style={{ marginTop: spacing.md, marginBottom: spacing.lg, alignItems: 'flex-start' }}>
         {text ? (
-          // highlighter, not a card: the background hugs ONLY the
-          // glyphs. INK, the console's own dark — nothing else on the
-          // blue desk is this dark, so my command cuts through, and it
-          // rhymes with the terminal console above (command = console)
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          // v2 (2026-07-16, "> 이거 없애고 ask bar 스타일로"): the "> "
+          // console prefix is retired — the sent message now wears the
+          // ASK BAR's own light glass field material (translucent
+          // white + hairline), not the dark command-line look.
+          // v3 (same day, "글씨가 나올때는... 쳐지면서 나오게"): a real
+          // settle-in micro-interaction — drops a few points and fades,
+          // instead of hard-cutting into existence.
+          <Animated.View
+            entering={FadeIn.duration(220).springify().damping(14).withInitialValues({
+              transform: [{ translateY: -8 }],
+            })}
+            style={{
+              // v2 (2026-07-16, "near white" desk): a white-on-white
+              // pill vanished once the field lightened — a soft blue
+              // tint now carries the same "ask bar" glass language but
+              // actually reads as a distinct sent bubble
+              maxWidth: '86%',
+              backgroundColor: 'rgba(143,191,242,0.28)',
+              borderRadius: 0,
+              borderWidth: 1,
+              borderColor: 'rgba(94,159,224,0.4)',
+              paddingHorizontal: 14,
+              paddingVertical: 9,
+            }}>
             <Text
               style={{
-                color: 'rgba(255,255,255,0.85)',
-                fontSize: 14,
-                lineHeight: 22,
-                fontFamily: fontFamily.mono,
-                marginRight: 8,
+                color: '#16181C',
+                fontSize: 15,
+                lineHeight: 21,
+                fontFamily: fontFamily.regular,
               }}>
-              {'>'}
+              {text}
             </Text>
-            {/* square, like every window on the board (2026-07-14
-                right-angle grammar) — the dark navy stays for the
-                visibility the user liked; only the shape fell in line */}
-            <View
-              style={{
-                flexShrink: 1,
-                backgroundColor: 'rgba(13,27,54,0.45)',
-                borderRadius: 0,
-                paddingHorizontal: 10,
-                paddingVertical: 5,
-              }}>
-              <Text
-                style={{
-                  color: '#FFFFFF',
-                  fontSize: 14,
-                  lineHeight: 20,
-                  fontFamily: fontFamily.mono,
-                }}>
-                {text}
-              </Text>
-            </View>
-          </View>
+          </Animated.View>
         ) : null}
         {children ? <View style={{ marginTop: text ? spacing.md : 0 }}>{children}</View> : null}
       </View>
@@ -90,7 +97,7 @@ export function MessageBubble({ from, text, proactive, caption, children }: Prop
   }
 
   return (
-    <AgentMessage text={text} proactive={proactive} caption={caption}>
+    <AgentMessage text={text} proactive={proactive} caption={caption} showBlob={showBlob}>
       {children}
     </AgentMessage>
   );
@@ -117,21 +124,59 @@ function AgentMessage({
   text,
   proactive,
   caption,
+  showBlob,
   children,
 }: {
   text?: string;
   proactive?: boolean;
   caption?: string;
+  showBlob?: boolean;
   children?: ReactNode;
 }) {
   const capText = caption ?? (proactive ? 'CREW UPDATE' : null);
+  // the blob glues to the END OF THE ACTUAL LAST LINE (2026-07-16,
+  // "문장 바로 긑에 오게") — RN can't inline a live Skia canvas inside
+  // Text, so instead onTextLayout measures where the last wrapped line
+  // actually ends and the blob is absolutely positioned right there,
+  // rather than dropping to its own row under the whole paragraph.
+  const [lastLineEnd, setLastLineEnd] = useState<{ x: number; y: number } | null>(null);
+  const onTextLayout = (e: NativeSyntheticEvent<TextLayoutEventData>) => {
+    const lines = e.nativeEvent.lines;
+    const last = lines[lines.length - 1];
+    if (last) setLastLineEnd({ x: last.x + last.width, y: last.y });
+  };
+
   // RULE: no rails, no boxes — every answer (text or card) sits flush on
   // the same left edge as the user's prompt. Alignment does the grouping;
   // a data card's own border is all the framing it needs.
   return (
     <View style={{ alignSelf: 'flex-start', maxWidth: '92%', marginBottom: spacing.lg }}>
       {capText ? <SystemCaption label={capText} /> : null}
-      {text ? <Text style={BODY_STYLE}>{text}</Text> : null}
+      {text ? (
+        <Animated.View
+          entering={FadeIn.duration(240).springify().damping(14).withInitialValues({
+            transform: [{ translateY: -6 }],
+          })}
+          // extra right padding reserves room for the blob so it never
+          // gets clipped past the bubble's own maxWidth
+          style={{ paddingRight: showBlob ? 30 : 0 }}>
+          <Text style={BODY_STYLE} onTextLayout={onTextLayout}>
+            {text}
+          </Text>
+          {showBlob && lastLineEnd ? (
+            <Animated.View
+              entering={FadeIn.duration(260)}
+              exiting={FadeOut.duration(150)}
+              style={{
+                position: 'absolute',
+                left: lastLineEnd.x + 6,
+                top: lastLineEnd.y - 2,
+              }}>
+              <ThinkingBlob size={28} />
+            </Animated.View>
+          ) : null}
+        </Animated.View>
+      ) : null}
       {children ? <View style={{ marginTop: text ? spacing.md : 0 }}>{children}</View> : null}
     </View>
   );

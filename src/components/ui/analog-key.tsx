@@ -67,7 +67,13 @@ export function AnalogKey({
     <Pressable
       onPress={onPress}
       hitSlop={hitSlop}
-      style={({ pressed }) => [keyChrome(pressed, active), style]}>
+      style={({ pressed }) => [
+        // centered by default (2026-07-16 "다 가운데로") — callers'
+        // own style can override, but every key face starts centered
+        { alignItems: 'center', justifyContent: 'center' },
+        keyChrome(pressed, active),
+        style,
+      ]}>
       <KeySheen />
       {children}
     </Pressable>

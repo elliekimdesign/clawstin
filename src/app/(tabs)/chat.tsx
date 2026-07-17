@@ -226,7 +226,11 @@ export default function ActivityScreen() {
           {/* title bar: dots glow while something needs you */}
           <View
             style={{
-              height: 30,
+              // matches the shared strip height (26, 2026-07-16 sweep)
+              // — was still 30 here, so the text centered against a
+              // taller box than the glass fill's tint rect ("이름
+              // 가운데 아니야")
+              height: 26,
               flexDirection: 'row',
               alignItems: 'center',
               justifyContent: 'space-between',

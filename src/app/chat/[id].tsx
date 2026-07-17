@@ -27,7 +27,6 @@ import { CrewSwitch } from '@/components/ui/crew-switch';
 import { AquaBg } from '@/components/ui/aqua-bg';
 import { ButterBg } from '@/components/ui/butter-bg';
 import { CloudBg } from '@/components/ui/cloud-bg';
-import { ColorPanelsBg } from '@/components/ui/color-panels-bg';
 import { DeskGradientBg } from '@/components/ui/desk-gradient-bg';
 import { MeshBg } from '@/components/ui/mesh-bg';
 import { MintBg } from '@/components/ui/mint-bg';
@@ -40,9 +39,8 @@ import { ScheduleProposalCard } from '@/components/ui/schedule-proposal-card';
 import { ScheduleCard } from '@/components/ui/schedule-card';
 import { SuggestionChips } from '@/components/ui/suggestion-chips';
 import { ThinkingConsole } from '@/components/ui/thinking-console';
-import { TOOL_DEFS, ToolSwitch } from '@/components/ui/tool-switch';
+import { ToolSwitch } from '@/components/ui/tool-switch';
 import { WeekStrip } from '@/components/ui/week-strip';
-import { TypingIndicator } from '@/components/ui/typing-indicator';
 import { routeCrew, type CrewKey } from '@/mock/crew-routing';
 import { UNDOABLES } from '@/mock/undoables';
 import { useAppStore } from '@/store/app-store';
@@ -107,9 +105,6 @@ export function ChatThreadView({
     setCalRail((v) => !v);
   };
   const [crewExpanded, setCrewExpanded] = useState(false);
-  // tool row open: the center crew pill steps aside (mirror of the
-  // crew pill hiding the side buttons)
-  const [toolExpanded, setToolExpanded] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
 
   const effId = boundId ?? id;
@@ -157,23 +152,12 @@ export function ChatThreadView({
       ]
     : [];
 
-  // multi-tool tasks ("check email, find a slot, book it"): every tool
-  // the ask touches opens as its own circle on a line under the header
-  const lastUserText =
-    [...(thread?.messages ?? [])].reverse().find((m) => m.from === 'user')?.text ?? '';
-  const multiTools = TOOL_DEFS.filter((t) => {
-    if (t.key === 'gmail')
-      return /mail|inbox|email|이메일|메일/i.test(lastUserText);
-    if (t.key === 'calendar')
-      return /calendar|book|schedule|meeting|time|캘린더|달력|부킹|시간|예약/i.test(lastUserText);
-    if (t.key === 'contacts') return /contact|address book|연락처|주소록/i.test(lastUserText);
-    if (t.key === 'github') return /github|pr\b|pull request/i.test(lastUserText);
-    return false;
-  });
-  const showToolRow = multiTools.length >= 2 && !calOpen;
-  // where the floating console sits: expanded = top overlay (below the
-  // tool row when that's out); folded = docked circle above the composer
-  const consoleTop = showToolRow ? spacing.sm + 48 : spacing.sm;
+  // multi-tool ROW retired (2026-07-16, "이 디자인은 다 지우면 돼") —
+  // every tool the ask touches now stacks vertically as its own circle
+  // in the corner instead of a horizontal strip under the header; the
+  // corner stack IS the tool switch, no separate multi-tool concept.
+  // where the floating console sits: always the collapsed position now
+  const consoleTop = spacing.sm;
   const consoleDone = thinkingHere ? thinkingHere.done : bootLog.length > 0;
   const consoleDocked = consoleDone && consoleFolded;
   const consoleExpandedVisible =
@@ -301,7 +285,9 @@ export function ChatThreadView({
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: darkChat.base }} edges={['top', 'bottom']}>
       {/* blue desk: light status icons */}
-      <StatusBar style="light" />
+      {/* v2 (2026-07-16, "near white" desk): dark status bar icons —
+          "light" (white) vanished once the field lightened */}
+      <StatusBar style="dark" />
       {/* Background art follows the active chat colorway (see chatThemes) */}
       {darkChat.background === 'aqua' ? (
         <AquaBg />
@@ -312,13 +298,31 @@ export function ChatThreadView({
       ) : darkChat.background === 'clouds' ? (
         <CloudBg />
       ) : darkChat.background === 'desk' ? (
-        // the Home board's own wash field, frozen (2026-07-16 "영롱...
-        // 모션은 없어도": one still frame of the turning-light shader —
-        // same luminous desk as the tabs, no motion cost)
-        <ColorPanelsBg variant="deskWash" preset="wash" animated={false} />
+        // v2 (2026-07-16, "배경을 더 심플하게... 그라데이션은 있는게
+        // 좋을거같아"): the moving-panel shader retired for this screen
+        // — a plain vertical gradient instead, in the same lighter sky
+        // blue. Home keeps its own animated deskWash panels untouched.
+        <DeskGradientBg />
       ) : (
         <MeshBg variant="dark" />
       )}
+      {/* v3 same day ("우리 아이덴티티가 사라진느낌" — the near-white
+          field read as a foreign screen): a solid system-accent-blue
+          rule right under the status bar, the same #3B76C4 the whole
+          app uses for its own energy signal — an unmistakable "this is
+          still the desk" anchor even though the field lightened. Must
+          render AFTER the background (absoluteFill) or the gradient
+          paints over it — this is why it wasn't visible at first. */}
+      <View
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: 4,
+          backgroundColor: sysColor.accent,
+        }}
+      />
 
       {/* Slim header: back pinned left, crew switch truly centered on the
           screen (not just centered in the space left of the arrow) — a
@@ -376,15 +380,13 @@ export function ChatThreadView({
           </Animated.View>
         ) : null}
         <View style={{ flex: 1, alignItems: 'center' }}>
-          {toolExpanded ? null : (
-            <CrewSwitch
-              selected={crewSelected}
-              manual={crewManual}
-              busy={crewBusy}
-              onSelect={selectCrew}
-              onExpandChange={setCrewExpanded}
-            />
-          )}
+          <CrewSwitch
+            selected={crewSelected}
+            manual={crewManual}
+            busy={crewBusy}
+            onSelect={selectCrew}
+            onExpandChange={setCrewExpanded}
+          />
         </View>
         {!crewExpanded ? (
           <Animated.View
@@ -395,26 +397,34 @@ export function ChatThreadView({
               // empty new chat: the calendar means nothing yet — this
               // slot is the HISTORY door instead, for the hand that
               // reaches for an LLM-style history list (it lives in
-              // Activity, our receipt ledger)
-              <AnalogKey
+              // Activity, our receipt ledger). v2 (2026-07-16, "눈에
+              // 띄는걸로") — the white glass key nearly vanished on the
+              // near-white desk; a solid accent-blue chip instead, so
+              // it reads as a real button, not a blend-in artifact.
+              <Pressable
                 onPress={() => router.navigate('/(tabs)/chat')}
                 hitSlop={8}
-                style={{
+                style={({ pressed }) => ({
                   width: 40,
                   height: 40,
+                  borderRadius: 999,
+                  backgroundColor: sysColor.accent,
                   alignItems: 'center',
                   justifyContent: 'center',
-                }}>
-                <Ionicons name="time-outline" size={19} color="rgba(22,24,28,0.6)" />
-              </AnalogKey>
+                  opacity: pressed ? 0.75 : 1,
+                  shadowColor: sysColor.accent,
+                  shadowOpacity: 0.35,
+                  shadowRadius: 6,
+                  shadowOffset: { width: 0, height: 2 },
+                })}>
+                <Ionicons name="time-outline" size={19} color="#FFFFFF" />
+              </Pressable>
             ) : (
-              // bound thread: the tool circle unfolds into the tool row
+              // bound thread: a single tool circle, always the active
+              // tool's icon (2026-07-16, row-unfold retired)
               <ToolSwitch
                 tool={activeToolKey}
                 calOpen={calOpen}
-                directCalendar={stripTarget != null}
-                onExpandChange={setToolExpanded}
-                onPick={setToolPinned}
                 onCalendarTap={() => {
                   if (calOpen) {
                     setCalOpen(false);
@@ -435,72 +445,42 @@ export function ChatThreadView({
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}>
         <View style={{ flex: 1 }}>
-          {/* instrument row: the machine's line under the header. A
-              complex ask opens every touched tool as its own circle,
-              and the FOLDED console docks here as the rightmost seat
+          {/* the FOLDED console docks in the corner as its own circle
               (user: the composer-corner dock was 뜬금없음 — the top is
-              the machine zone) */}
-          {showToolRow || (consoleDocked && !calOpen) ? (
+              the machine zone). The multi-tool horizontal strip that
+              used to share this row was retired 2026-07-16 — every
+              tool now lives in the vertical corner stack instead. */}
+          {consoleDocked && !calOpen ? (
             <View
-              style={
-                showToolRow
-                  ? {
-                      flexDirection: 'row',
-                      justifyContent: 'flex-end',
-                      alignItems: 'center',
-                      gap: 8,
-                      paddingHorizontal: spacing.lg,
-                      marginTop: spacing.xs,
-                      marginBottom: spacing.xs,
-                    }
-                  : {
-                      // circle alone: costs NO flow height — floats in
-                      // the top-right corner and the chat rises fully
-                      // ("내용은 자동으로 위로 올라와야 해")
-                      position: 'absolute',
-                      top: spacing.sm,
-                      right: spacing.lg,
-                      zIndex: 20,
-                      flexDirection: 'row',
-                      gap: 8,
-                    }
-              }>
-              {showToolRow
-                ? multiTools.map((t) => (
-                    <View
-                      key={t.key}
-                      style={{
-                        width: 40,
-                        height: 40,
-                        borderRadius: 999,
-                        backgroundColor: 'rgba(46,80,121,0.5)',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}>
-                      <Ionicons name={t.icon} size={19} color={darkChat.text} />
-                    </View>
-                  ))
-                : null}
-              {consoleDocked && !calOpen ? (
-                thinkingHere ? (
-                  <ThinkingConsole
-                    threadId={thinkingHere.threadId}
-                    lines={thinkingHere.lines}
-                    done={thinkingHere.done}
-                    failed={thinkingHere.failed}
-                    folded
-                    onToggleFold={() => setConsoleFolded(false)}
-                  />
-                ) : (
-                  <ThinkingConsole
-                    threadId={effId}
-                    lines={bootLog}
-                    done
-                    folded
-                    onToggleFold={() => setConsoleFolded(false)}
-                  />
-                )
-              ) : null}
+              style={{
+                // circle alone: costs NO flow height — floats in the
+                // top-right corner and the chat rises fully ("내용은
+                // 자동으로 위로 올라와야 해")
+                position: 'absolute',
+                top: spacing.sm,
+                right: spacing.lg,
+                zIndex: 20,
+                flexDirection: 'row',
+                gap: 8,
+              }}>
+              {thinkingHere ? (
+                <ThinkingConsole
+                  threadId={thinkingHere.threadId}
+                  lines={thinkingHere.lines}
+                  done={thinkingHere.done}
+                  failed={thinkingHere.failed}
+                  folded
+                  onToggleFold={() => setConsoleFolded(false)}
+                />
+              ) : (
+                <ThinkingConsole
+                  threadId={effId}
+                  lines={bootLog}
+                  done
+                  folded
+                  onToggleFold={() => setConsoleFolded(false)}
+                />
+              )}
             </View>
           ) : null}
           {/* Thinking console: an OVERLAY now (2026-07-14) — the chat
@@ -632,7 +612,9 @@ export function ChatThreadView({
                       justifyContent: 'center',
                       opacity: pressed ? 0.7 : 1,
                     })}>
-                    <Ionicons name={r.icon} size={17} color={darkChat.text} />
+                    {/* fixed light ink (2026-07-16 fix): sits on the
+                        navy circle fill, not the light desk */}
+                    <Ionicons name={r.icon} size={17} color="#EAF4FF" />
                   </Pressable>
                 </Animated.View>
               ))}
@@ -677,13 +659,13 @@ export function ChatThreadView({
                     key={chip}
                     onPress={() => setDraft(chip)}
                     style={({ pressed }) => ({
+                      // v2 (2026-07-16, "near white" desk): white-based
+                      // glass vanished on a white-based field — blue
+                      // tint instead, same thin-glass idea
                       borderRadius: 999,
-                      // thin glass, like the desk's motion panes: real
-                      // refraction under a veil far lighter than the
-                      // composer's, so the room shows through
                       overflow: 'hidden',
                       borderWidth: 1,
-                      borderColor: 'rgba(255,255,255,0.45)',
+                      borderColor: 'rgba(94,159,224,0.45)',
                       opacity: pressed ? 0.7 : 1,
                     })}>
                     {GLASS_AVAILABLE ? (
@@ -698,7 +680,7 @@ export function ChatThreadView({
                       pointerEvents="none"
                       style={[
                         StyleSheet.absoluteFill,
-                        { backgroundColor: 'rgba(255,255,255,0.14)' },
+                        { backgroundColor: 'rgba(94,159,224,0.14)' },
                       ]}
                     />
                     <Text
@@ -707,7 +689,7 @@ export function ChatThreadView({
                         paddingVertical: 9,
                         fontSize: 13,
                         fontFamily: fontFamily.regular,
-                        color: 'rgba(255,255,255,0.92)',
+                        color: '#16181C',
                       }}>
                       {chip}
                     </Text>
@@ -715,7 +697,16 @@ export function ChatThreadView({
                 ))}
               </View>
             ) : null}
-            {thread?.messages.map((m) => (
+            {thread?.messages.map((m, mi) => {
+              // the last AGENT message in the thread gets the blob
+              // glued to the end of its text — a quiet "at rest" mark
+              // that hides the instant a new send starts thinking and
+              // reappears once the fresh reply settles (2026-07-16,
+              // "문장 끝에마다 붙여줘... 시작하면 사라지고 다시 활성화")
+              const isLastAgentMessage =
+                m.from === 'agent' &&
+                !thread.messages.slice(mi + 1).some((later) => later.from === 'agent');
+              return (
               <View key={m.id}>
                 {/* the task tick experiment is retired ("이 흰색 바는
                     지워") — the chop divider + console task line carry
@@ -730,19 +721,23 @@ export function ChatThreadView({
                       gap: 10,
                       marginVertical: spacing.lg,
                     }}>
-                    <View style={{ flex: 1, height: 1, backgroundColor: 'rgba(255,255,255,0.22)' }} />
+                    {/* readable + navy (2026-07-16, "읽을 수 있는
+                        사이즈야? 폰트를 남색으로") — 10→12pt, and the
+                        divider's own line/text now track darkChat's
+                        navy tokens instead of hardcoded white */}
+                    <View style={{ flex: 1, height: 1, backgroundColor: darkChat.divider }} />
                     <Text
                       numberOfLines={1}
                       style={{
                         maxWidth: '60%',
                         fontFamily: fontFamily.mono,
-                        fontSize: 10,
+                        fontSize: 12,
                         letterSpacing: 0.3,
-                        color: 'rgba(255,255,255,0.6)',
+                        color: darkChat.textTertiary,
                       }}>
                       {`task  ${m.taskDivider}`}
                     </Text>
-                    <View style={{ flex: 1, height: 1, backgroundColor: 'rgba(255,255,255,0.22)' }} />
+                    <View style={{ flex: 1, height: 1, backgroundColor: darkChat.divider }} />
                   </View>
                 ) : null}
                 {/* terminalLog no longer renders here — those boot
@@ -752,7 +747,8 @@ export function ChatThreadView({
                   from={m.from}
                   text={m.text}
                   proactive={m.proactive}
-                  caption={m.caption}>
+                  caption={m.caption}
+                  showBlob={isLastAgentMessage && !isTyping}>
                 {m.approval ? (
                   <ApprovalCard
                     compact
@@ -790,8 +786,8 @@ export function ChatThreadView({
                 </MessageBubble>
                 )}
               </View>
-            ))}
-            {isTyping ? <TypingIndicator /> : null}
+              );
+            })}
           </ScrollView>
 
           {/* The week strip retired from this flow: the thinking console
@@ -1017,12 +1013,15 @@ export function ChatThreadView({
                     paddingHorizontal: spacing.lg,
                     opacity: pressed ? 0.5 : 1,
                   })}>
-                  <Ionicons name={item.icon} size={18} color={darkChat.text} />
+                  {/* fixed light ink (2026-07-16 fix): the popover's
+                      own solidSurface is dark navy regardless of the
+                      desk's text color */}
+                  <Ionicons name={item.icon} size={18} color="#EAF4FF" />
                   <Text
                     style={{
                       fontSize: fontSize.body,
                       fontFamily: fontFamily.regular,
-                      color: darkChat.text,
+                      color: '#EAF4FF',
                     }}>
                     {item.label}
                   </Text>

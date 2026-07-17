@@ -38,7 +38,7 @@ function SettingsWindow({ title, children }: { title: string; children: ReactNod
         elevation: 5,
       }}>
       <AcidGlassFill effect="clear" tone="gray" />
-      <View style={{ height: 30, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18 }}>
+      <View style={{ height: 26, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18 }}>
         <Text
           style={{ fontSize: 11, fontFamily: fontFamily.mono, letterSpacing: 0.3, color: DIM }}>
           {title}
@@ -122,7 +122,7 @@ export default function SettingsScreen() {
             hitSlop={10}
             style={({ pressed }) => ({
               width: 30,
-              height: 30,
+              height: 26,
               borderRadius: 15,
               backgroundColor: 'rgba(255,255,255,0.85)',
               alignItems: 'center',

@@ -60,7 +60,7 @@ export function AcidGlassFill({
             windows stop sinking next to the pure-white ask bar */}
         <Rect
           x="0"
-          y={dense ? 42 : 30}
+          y={dense ? 42 : 26}
           width="100%"
           height="100%"
           fill="#FFFFFF"
@@ -70,7 +70,7 @@ export function AcidGlassFill({
             pane (#B7D4EE, 2026-07-16 "one of the panel 컬러") — the
             title strip now carries a drop of the field's color instead
             of neutral chrome gray */}
-        <Rect x="0" y="0" width="100%" height={dense ? 42 : 30} fill="#B7D4EE" fillOpacity={0.6} />
+        <Rect x="0" y="0" width="100%" height={dense ? 42 : 26} fill="#B7D4EE" fillOpacity={0.6} />
         {accentBar ? (
           <Rect
             x="0"
@@ -83,7 +83,7 @@ export function AcidGlassFill({
         ) : null}
         <Rect
           x="0"
-          y={dense ? 42 : 30}
+          y={dense ? 42 : 26}
           width="100%"
           height={1}
           fill="#16181C"

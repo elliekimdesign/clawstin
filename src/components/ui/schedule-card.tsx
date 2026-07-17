@@ -123,7 +123,11 @@ export function ScheduleCard({
                 key={slot}
                 onPress={() => onBook(slot)}
                 style={({ pressed }) => ({
-                  backgroundColor: darkChat.text,
+                  // fixed white pill (2026-07-16 fix): this exploited
+                  // darkChat.text's OLD white value as a solid button
+                  // fill — now that token means "body ink," not "light
+                  // surface," so the pill needs its own explicit color
+                  backgroundColor: '#FFFFFF',
                   borderRadius: radius.pill,
                   paddingVertical: 7,
                   paddingHorizontal: spacing.md,

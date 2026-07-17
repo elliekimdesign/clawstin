@@ -33,7 +33,10 @@ export function ScheduleProposalCard({ proposal, onRunOnce, onSchedule }: Props)
     secondary: darkChat.textSecondary,
     tertiary: darkChat.textTertiary,
     ok: darkChat.success,
-    btnBg: darkChat.text,
+    // fixed white pill (2026-07-16 fix): this exploited darkChat.text's
+    // OLD white value as a solid button fill — that token now means
+    // "body ink," not "light surface"
+    btnBg: '#FFFFFF',
     btnText: darkChat.onLight,
   };
   const scope = proposal.permissionKey

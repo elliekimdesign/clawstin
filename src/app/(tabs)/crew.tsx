@@ -109,7 +109,7 @@ function CrewBadge({ member, width }: { member: CrewMember; width: number }) {
           opacity: pressed ? 0.85 : 1,
         })}>
         <AcidGlassFill effect="clear" bright tone="gray" />
-        <View style={{ height: 30, justifyContent: 'center', paddingHorizontal: 14 }}>
+        <View style={{ height: 26, justifyContent: 'center', paddingHorizontal: 14 }}>
           <Text
             style={{
               fontSize: 11,
@@ -154,7 +154,6 @@ function CrewBadge({ member, width }: { member: CrewMember; width: number }) {
  * (height = share of the busiest agent's completed tasks) with the
  * agent's round face chip sitting on top of their bar. */
 function ContributionCard({ crew }: { crew: CrewMember[] }) {
-  const maxTasks = Math.max(...crew.map((m) => m.tasksDone));
   return (
     <View
       style={{
@@ -170,10 +169,13 @@ function ContributionCard({ crew }: { crew: CrewMember[] }) {
         shadowOffset: { width: 0, height: 6 },
         elevation: 5,
       }}>
-      <AcidGlassFill effect="clear" bright tone="gray" />
+      {/* 'regular' frost: tall windows show a blue edge-lens band at
+          the bottom with 'clear' (2026-07-16 "파란색 선 지워"; same
+          diagnosis as 2026-07-07) */}
+      <AcidGlassFill effect="regular" bright tone="gray" />
       <View
         style={{
-          height: 30,
+          height: 26,
           flexDirection: 'row',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -192,14 +194,49 @@ function ContributionCard({ crew }: { crew: CrewMember[] }) {
           tasks, last 7 days
         </Text>
       </View>
-      {/* SYSTEM MONITOR rows (2026-07-16 — the standing faces-on-bars
-          read as foreign): one row per member, a 12-cell pixel gauge
-          in their accent color (the RUNNING window's own block
-          grammar), count in the machine voice on the right */}
-      <View style={{ paddingHorizontal: 18, paddingTop: 8, paddingBottom: 16, gap: 13 }}>
-        {crew.map((m) => {
-          const lit = Math.max(1, Math.round((m.tasksDone / maxTasks) * 12));
-          return (
+      {/* DAY HEATMAP rows (2026-07-16 — the share-of-max gauge implied
+          a scale that doesn't exist, "어디가 100?"): 7 cells = the 7
+          days the strip claims, shade = that day's volume (GitHub
+          contribution-graph grammar), total in the machine voice */}
+      {/* day axis: the actual last 7 days, so the cells read as a
+          calendar and not an abstract gauge (2026-07-16 GitHub ref) */}
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          paddingHorizontal: 18,
+          marginTop: 8,
+        }}>
+        <View style={{ width: 132 }} />
+        <View style={{ flexDirection: 'row', gap: 3, flex: 1 }}>
+          {Array.from({ length: 7 }, (_, i) => {
+            const d = new Date(Date.now() - (6 - i) * 86400000);
+            return (
+              <Text
+                key={i}
+                style={{
+                  width: 11,
+                  textAlign: 'center',
+                  fontSize: 8,
+                  fontFamily: fontFamily.mono,
+                  color: 'rgba(22,24,28,0.4)',
+                }}>
+                {['S', 'M', 'T', 'W', 'T', 'F', 'S'][d.getDay()]}
+              </Text>
+            );
+          })}
+        </View>
+        <View style={{ width: 30 }} />
+      </View>
+      <View style={{ paddingHorizontal: 18, paddingTop: 6, paddingBottom: 8, gap: 13 }}>
+        {(() => {
+          const daily = crew.map((m, idx) => {
+            const w = DAY_WEIGHTS[idx % DAY_WEIGHTS.length];
+            const sum = w.reduce((a, b) => a + b, 0);
+            return w.map((x) => Math.round((m.tasksDone * x) / sum));
+          });
+          const peak = Math.max(1, ...daily.flat());
+          return crew.map((m, idx) => (
             <View key={m.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
               <CrewPixel id={m.id} size={20} />
               <Text
@@ -213,18 +250,22 @@ function ContributionCard({ crew }: { crew: CrewMember[] }) {
                 }}>
                 {m.role.split(' · ')[0].toUpperCase()}
               </Text>
-              <View style={{ flexDirection: 'row', gap: 2, flex: 1 }}>
-                {Array.from({ length: 12 }, (_, i) => (
-                  <View
-                    key={i}
-                    style={{
-                      width: 8,
-                      height: 8,
-                      backgroundColor:
-                        i < lit ? (CREW_ACCENT[m.id] ?? '#8FBFF2') : 'rgba(22,24,28,0.08)',
-                    }}
-                  />
-                ))}
+              <View style={{ flexDirection: 'row', gap: 3, flex: 1 }}>
+                {daily[idx].map((v, i) => {
+                  const level = v === 0 ? 0 : Math.ceil((v / peak) * 4);
+                  return (
+                    <View
+                      key={i}
+                      style={{
+                        width: 11,
+                        height: 11,
+                        backgroundColor:
+                          level === 0 ? 'rgba(22,24,28,0.06)' : (CREW_ACCENT[m.id] ?? '#8FBFF2'),
+                        opacity: level === 0 ? 1 : [0, 0.3, 0.5, 0.75, 1][level],
+                      }}
+                    />
+                  );
+                })}
               </View>
               <Text
                 style={{
@@ -237,12 +278,41 @@ function ContributionCard({ crew }: { crew: CrewMember[] }) {
                 {m.tasksDone}
               </Text>
             </View>
-          );
-        })}
+          ));
+        })()}
+      </View>
+      {/* intensity legend, GitHub's own words */}
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'flex-end',
+          gap: 3,
+          paddingHorizontal: 18,
+          paddingBottom: 14,
+        }}>
+        <Text style={{ fontSize: 9, fontFamily: fontFamily.mono, color: 'rgba(22,24,28,0.4)' }}>
+          less
+        </Text>
+        {[0.06, 0.18, 0.32, 0.5, 0.72].map((a, i) => (
+          <View key={i} style={{ width: 8, height: 8, backgroundColor: `rgba(22,24,28,${a})` }} />
+        ))}
+        <Text style={{ fontSize: 9, fontFamily: fontFamily.mono, color: 'rgba(22,24,28,0.4)' }}>
+          more
+        </Text>
       </View>
     </View>
   );
 }
+
+// deterministic mock day-shapes (no live per-day data yet): each
+// member gets a different weekly rhythm, rotated by roster index
+const DAY_WEIGHTS = [
+  [2, 4, 1, 5, 3, 6, 4],
+  [5, 2, 6, 3, 1, 4, 2],
+  [1, 3, 0, 2, 4, 2, 3],
+  [3, 1, 4, 0, 5, 1, 3],
+];
 
 /** One bento stat tile in the Perf view (home-tab tile energy, smaller). */
 function StatTile({ label, value }: { label: string; value: string }) {
@@ -298,9 +368,9 @@ function PerfSection({ member, recent }: { member: CrewMember; recent: ActivityI
         elevation: 5,
         opacity: pressed ? 0.9 : 1,
       })}>
-      <AcidGlassFill effect="clear" bright tone="gray" />
+      <AcidGlassFill effect="regular" bright tone="gray" />
       {/* strip carries the ROLE, same as the Info cards */}
-      <View style={{ height: 30, justifyContent: 'center', paddingHorizontal: 18 }}>
+      <View style={{ height: 26, justifyContent: 'center', paddingHorizontal: 18 }}>
         <Text
           style={{
             fontSize: 11,
@@ -481,7 +551,7 @@ export default function CrewScreen() {
                   // to be filled, same grammar as Home's YOUR TURN
                 }}>
                 <AcidGlassFill effect="clear" bright tone="gray" />
-                <View style={{ height: 30, justifyContent: 'center', paddingHorizontal: 14 }}>
+                <View style={{ height: 26, justifyContent: 'center', paddingHorizontal: 14 }}>
                   <Text
                     style={{
                       fontSize: 11,
@@ -505,7 +575,7 @@ export default function CrewScreen() {
                   <View
                     style={{
                       width: 30,
-                      height: 30,
+                      height: 26,
                       alignItems: 'center',
                       justifyContent: 'center',
                     }}>

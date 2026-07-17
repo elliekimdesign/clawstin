@@ -280,13 +280,16 @@ export function CrewSwitch({
             height: PILL_H,
             // SYSTEM READOUT window (2026-07-16 "사인이 들어오는 곳"):
             // not a keycap — this is where the machine's routing signal
-            // ARRIVES, so it wears a dark display face (desk-night) with
-            // a faintly lit rim, like a powered readout on the desk.
-            // The picker mechanics are untouched.
+            // ARRIVES, so it wears a dark display face with a faintly
+            // lit rim, like a powered readout on the desk. v2 same day
+            // ("여기도 컬러바꾸기" — near-white desk pass): the generic
+            // navy swapped for a deepened cut of the app's own
+            // accent-blue (#3B76C4 family), tying the readout to the
+            // same identity color as the top rule/history key.
             borderRadius: 0,
-            backgroundColor: 'rgba(20,36,56,0.88)',
+            backgroundColor: 'rgba(30,58,110,0.9)',
             borderWidth: 1,
-            borderColor: 'rgba(143,191,242,0.22)',
+            borderColor: 'rgba(143,191,242,0.35)',
             overflow: 'hidden',
           }}>
           {/* Collapsed layer: fixed centered capsule + picker-wheel strip.

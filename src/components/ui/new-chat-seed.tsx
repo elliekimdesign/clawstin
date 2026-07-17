@@ -63,46 +63,40 @@ export function NewChatSeed({ phase }: { phase: SeedPhase }) {
     transform: [{ translateY: -36 * lift.value }],
   }));
 
+  // idle "new chat" label + resting gauge RETIRED (2026-07-16, "로그
+  // 지우고") — the idle screen shows nothing here now; only once
+  // routing actually starts does the "routing" ripple lockup appear.
+  if (phase === 'idle') return null;
+
   return (
     <Animated.View style={[{ alignItems: 'center', gap: 10 }, liftStyle]}>
-      {/* the ref's italic CRT voice: lowercase, gently skewed */}
+      {/* v2 (2026-07-16, "near white" desk): ink instead of white —
+          same as every other white-on-blue token flipped this pass */}
       <Text
         style={{
           fontFamily: fontFamily.mono,
           fontSize: 11,
           letterSpacing: 1,
-          color: 'rgba(255,255,255,0.6)',
+          color: 'rgba(22,24,28,0.55)',
           transform: [{ skewX: '-8deg' }],
         }}>
-        {phase === 'idle' ? 'new chat' : 'routing'}
+        routing
       </Text>
-      {/* outlined gauge: ornament at rest, indicator once sent */}
       <View
         style={{
           width: 64,
           height: 8,
           borderRadius: 3,
           borderWidth: 1,
-          borderColor: 'rgba(255,255,255,0.5)',
+          borderColor: 'rgba(22,24,28,0.35)',
           padding: 1.5,
           marginBottom: 14,
         }}>
-        {phase === 'idle' ? (
-          <View
-            style={{
-              width: '40%',
-              height: '100%',
-              borderRadius: 1.5,
-              backgroundColor: 'rgba(255,255,255,0.65)',
-            }}
-          />
-        ) : (
-          <View style={{ flex: 1, flexDirection: 'row', gap: 1.5 }}>
-            {ORDER.map((id, i) => (
-              <RippleSegment key={id} color={CREW_ACCENT[id]} delayMs={i * 110} on />
-            ))}
-          </View>
-        )}
+        <View style={{ flex: 1, flexDirection: 'row', gap: 1.5 }}>
+          {ORDER.map((id, i) => (
+            <RippleSegment key={id} color={CREW_ACCENT[id]} delayMs={i * 110} on />
+          ))}
+        </View>
       </View>
     </Animated.View>
   );

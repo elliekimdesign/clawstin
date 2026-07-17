@@ -1,15 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
-import { useEffect, useRef, useState } from 'react';
-import { LayoutAnimation, Pressable, View } from 'react-native';
-
-import { darkChat } from '@/theme/theme';
+import { Pressable } from 'react-native';
 
 /**
- * Tool switch (2026-07-12): the chat header's tool circle unfolds
- * LEFTWARD into the tool row — connected tools bright and pickable,
- * the rest asleep in gray. Picking one pins the conversation's tool
- * context ("pr 내일꺼 체크" without saying GitHub). Same grammar as
- * the crew pill: the system guesses, one tap pins.
+ * Tool switch (2026-07-12; row unfold retired 2026-07-16): the chat
+ * header's tool circle — a single system readout showing whichever
+ * tool the conversation is using. Picking a different tool happens
+ * through the vertical corner stack, not by unfolding this circle.
  */
 
 // READOUT register (2026-07-16): tools are INSTRUMENTS — they change
@@ -35,132 +31,42 @@ export const TOOL_DEFS: ToolDef[] = [
 
 export function ToolSwitch({
   tool,
-  onPick,
   onCalendarTap,
   calOpen,
-  directCalendar = false,
-  onExpandChange,
 }: {
   /** the active tool key (pinned override or the thread's own) */
   tool: string;
-  onPick: (key: string) => void;
   /** tapping the already-active calendar keeps its month-view door */
   onCalendarTap: () => void;
   calOpen: boolean;
-  /** a calendar moment is live on screen (week strip): the circle tap
-   * goes straight to the calendar action instead of the tool row */
-  directCalendar?: boolean;
-  /** fires on expand/collapse so the header can clear the center pill */
-  onExpandChange?: (open: boolean) => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const clearClose = () => {
-    if (closeTimer.current) {
-      clearTimeout(closeTimer.current);
-      closeTimer.current = null;
-    }
-  };
-  useEffect(() => clearClose, []);
-  const scheduleClose = () => {
-    clearClose();
-    // MUST go through flip(): closing with bare setOpen left the header
-    // stuck on toolExpanded=true — the crew pill never came back
-    closeTimer.current = setTimeout(() => flip(false), 2500);
-  };
-  const flip = (v: boolean) => {
-    LayoutAnimation.configureNext(LayoutAnimation.create(200, 'easeInEaseOut', 'opacity'));
-    setOpen(v);
-    onExpandChange?.(v);
-    if (v) scheduleClose();
-  };
-
+  // the unfold-into-a-row behavior is RETIRED (2026-07-16, "이 디자인은
+  // 다 지우면 돼... 첫화면에서는 동그라미 부분이 툴 아이콘이야") — this
+  // is now ALWAYS the single collapsed circle, always showing the
+  // active tool's own icon. Picking a different tool happens through
+  // the vertical corner stack elsewhere in the header, not here.
   const active = TOOL_DEFS.find((t) => t.key === tool) ?? TOOL_DEFS[0];
 
-  if (!open) {
-    return (
-      <Pressable
-        // while the month view is up this button IS its close (✕);
-        // otherwise it unfolds the tool row
-        onPress={() =>
-          calOpen || (directCalendar && tool === 'calendar') ? onCalendarTap() : flip(true)
-        }
-        hitSlop={8}
-        style={({ pressed }) => ({
-          width: 40,
-          height: 40,
-          borderRadius: 0,
-          backgroundColor: DISPLAY_FACE,
-          borderWidth: 1,
-          borderColor: calOpen ? DISPLAY_RIM_LIT : DISPLAY_RIM,
-          alignItems: 'center',
-          justifyContent: 'center',
-          opacity: pressed ? 0.7 : 1,
-        })}>
-        <Ionicons
-          name={calOpen ? 'close' : active.icon}
-          size={19}
-          color={calOpen ? '#EAF4FF' : darkChat.text}
-        />
-      </Pressable>
-    );
-  }
-
   return (
-    <>
-      {/* outside tap folds the row back */}
-      <Pressable
-        onPress={() => flip(false)}
-        style={{ position: 'absolute', top: -1000, right: -1000, width: 3000, height: 3000 }}
-      />
-      <View
-        style={{
-          // unfolded, the row owns the header line ("한 라인을 다
-          // 차지해도 돼") — the display strip, wider targets
-          height: 48,
-          borderRadius: 0,
-          backgroundColor: DISPLAY_FACE,
-          borderWidth: 1,
-          borderColor: DISPLAY_RIM,
-          flexDirection: 'row',
-          alignItems: 'center',
-          paddingHorizontal: 7,
-          gap: 2,
-        }}>
-        {TOOL_DEFS.map((t) => (
-          <Pressable
-            key={t.key}
-            disabled={!t.connected}
-            onPress={() => {
-              if (t.key === 'calendar' && t.key === tool) {
-                flip(false);
-                onCalendarTap();
-                return;
-              }
-              onPick(t.key);
-              flip(false);
-            }}
-            hitSlop={4}
-            style={({ pressed }) => ({
-              width: 38,
-              height: 38,
-              borderRadius: 0,
-              alignItems: 'center',
-              justifyContent: 'center',
-              // the active tool is the LIT indicator on the strip
-              backgroundColor: t.key === tool ? 'rgba(143,191,242,0.22)' : 'transparent',
-              opacity: pressed ? 0.6 : 1,
-            })}>
-            <Ionicons
-              name={t.icon}
-              size={22}
-              // asleep tools are shadows: visible as POSSIBLE, not active
-              color={t.connected ? 'rgba(255,255,255,0.92)' : 'rgba(255,255,255,0.32)'}
-            />
-          </Pressable>
-        ))}
-      </View>
-    </>
+    <Pressable
+      onPress={onCalendarTap}
+      hitSlop={8}
+      style={({ pressed }) => ({
+        width: 40,
+        height: 40,
+        borderRadius: 999,
+        backgroundColor: DISPLAY_FACE,
+        borderWidth: 1,
+        borderColor: calOpen ? DISPLAY_RIM_LIT : DISPLAY_RIM,
+        alignItems: 'center',
+        justifyContent: 'center',
+        opacity: pressed ? 0.7 : 1,
+      })}>
+      {/* always the TOOL icon, never a ✕ (2026-07-16, "항상 툴모양
+          아이콘으로") — this circle IS the tool; the month view's own
+          close lives with the month view, not stolen from here */}
+      <Ionicons name={active.icon} size={19} color="#EAF4FF" />
+    </Pressable>
   );
 }
 

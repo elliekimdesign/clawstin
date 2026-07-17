@@ -4,20 +4,25 @@ import { StatusBar } from 'expo-status-bar';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { BlissSwooshBg } from '@/components/ui/bliss-swoosh-bg';
-import { CrewPixel } from '@/components/ui/crew-pixel';
+import { ColorPanelsBg } from '@/components/ui/color-panels-bg';
+import { CREW_ACCENT, CrewPixel } from '@/components/ui/crew-pixel';
+import { PixelText } from '@/components/ui/pixel-text';
+import { AcidGlassFill } from '@/components/ui/window-fill';
 import { useAppStore } from '@/store/app-store';
-import { fontSize, fontWeight, spacing } from '@/theme/theme';
+import { fontFamily, fontSize, spacing } from '@/theme/theme';
 
-// blissxp ink tones (see the GLASS palette in the home tab).
-const INK = '#1F3A57';
-const INK_DIM = 'rgba(31,58,87,0.6)';
-const INK_SOFT = 'rgba(31,58,87,0.06)';
-
+const INK = '#16181C';
+const INK_DIM = 'rgba(22,24,28,0.55)';
+const DIVIDER = 'rgba(22,24,28,0.08)';
 
 /** Every prompt one agent has handled, newest first. Tapping a row opens
  * the real conversation it came from (the chat lands on its last line),
- * so the full prompt history is always reachable from here. */
+ * so the full prompt history is always reachable from here.
+ * REBUILT 2026-07-16 ("과거버전이네, 현재 스타일로 다 바꿔줘") — this
+ * screen still carried the blissxp era's own ink palette, fontWeight
+ * tokens, BlissSwooshBg, and round chevron chips; now the desk +
+ * window system, terminal-bitmap registry name, and pixel state cells
+ * used everywhere else. */
 export default function CrewHistoryScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { crew, activity } = useAppStore();
@@ -26,79 +31,94 @@ export default function CrewHistoryScreen() {
   const entries = activity.filter((a) => a.agentId === id);
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: '#8EC9F0' }} edges={['top']}>
-      <StatusBar style="dark" />
-      <BlissSwooshBg />
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#4E83B8' }} edges={['top']}>
+      <StatusBar style="light" />
+      <ColorPanelsBg />
       <ScrollView
         contentContainerStyle={{ padding: spacing.lg, paddingBottom: 40 }}
         showsVerticalScrollIndicator={false}>
-        {/* Header: back, face + name + role, count */}
+        {/* header: Apple-native back circle (kept, matches app-wide
+            rule) + the crew registry anatomy — bare face, bitmap name,
+            swatch — + prompt count in the plain machine voice */}
         <View
           style={{
             flexDirection: 'row',
             alignItems: 'center',
             gap: spacing.md,
             marginTop: spacing.md,
-            marginBottom: spacing.lg,
+            marginBottom: 28,
           }}>
           <Pressable
             onPress={() => router.back()}
+            hitSlop={10}
             style={({ pressed }) => ({
-              width: 34,
-              height: 34,
+              width: 40,
+              height: 40,
               borderRadius: 999,
-              backgroundColor: 'rgba(255,255,255,0.7)',
+              backgroundColor: 'rgba(255,255,255,0.85)',
               alignItems: 'center',
               justifyContent: 'center',
               opacity: pressed ? 0.6 : 1,
             })}>
-            <Ionicons name="chevron-back" size={18} color={INK} />
+            <Ionicons name="chevron-back" size={19} color={INK} />
           </Pressable>
-          {id ? (
-            <View
-              style={{
-                width: 34,
-                height: 34,
-                borderRadius: 999,
-                backgroundColor: '#F5F6F4',
-                alignItems: 'center',
-                justifyContent: 'center',
-                borderWidth: 1,
-                borderColor: 'rgba(22,24,28,0.1)',
-              }}>
-              <CrewPixel id={id} size={24} />
+          {id ? <CrewPixel id={id} size={28} /> : null}
+          <View style={{ flex: 1, gap: 6 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <PixelText
+                text={(member?.name ?? 'CREW').toUpperCase()}
+                cell={1.6}
+                color="#FFFFFF"
+                led
+              />
+              <View
+                style={{
+                  width: 6,
+                  height: 6,
+                  backgroundColor: id ? (CREW_ACCENT[id] ?? 'transparent') : 'transparent',
+                }}
+              />
             </View>
-          ) : null}
-          <View style={{ flex: 1 }}>
             <Text
               style={{
-                color: INK,
-                fontSize: fontSize.title,
-                fontWeight: fontWeight.bold,
-                letterSpacing: -0.3,
+                color: 'rgba(255,255,255,0.72)',
+                fontSize: fontSize.small,
+                fontFamily: fontFamily.medium,
               }}>
-              {member?.name ?? 'Crew'}
-            </Text>
-            <Text style={{ color: INK_DIM, fontSize: fontSize.small }}>
               {member?.role.split(' · ')[0] ?? ''}
             </Text>
           </View>
-          <Text style={{ color: INK_DIM, fontSize: fontSize.small }}>
-            {entries.length} prompts
+          <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 10, fontFamily: fontFamily.mono }}>
+            {`${entries.length} PROMPTS`}
           </Text>
         </View>
 
-        {/* Every conversation this agent handled, newest first */}
+        {/* the board's own window: glass fill + tinted title strip,
+            square corners, no rounded card */}
         <View
           style={{
-            borderRadius: 22,
-            backgroundColor: '#FFFFFF',
-            shadowColor: '#2E3252',
-            shadowOpacity: 0.13,
+            borderRadius: 0,
+            overflow: 'hidden',
+            borderWidth: 1,
+            borderColor: 'rgba(255,255,255,0.55)',
+            shadowColor: '#16181C',
+            shadowOpacity: 0.07,
             shadowRadius: 16,
-            shadowOffset: { width: 0, height: 8 },
-            elevation: 6,
+            shadowOffset: { width: 0, height: 6 },
+            elevation: 5,
           }}>
+          <AcidGlassFill effect="regular" bright tone="gray" />
+          <View style={{ height: 26, justifyContent: 'center', paddingHorizontal: 18 }}>
+            <Text
+              style={{
+                fontSize: 11,
+                fontFamily: fontFamily.mono,
+                letterSpacing: 0.3,
+                color: INK_DIM,
+              }}>
+              ALL PROMPTS
+            </Text>
+          </View>
           {entries.length === 0 ? (
             <Text
               style={{
@@ -115,23 +135,18 @@ export default function CrewHistoryScreen() {
                 onPress={() => router.push(`/chat/${entry.threadId}`)}
                 style={({ pressed }) => ({
                   paddingVertical: 13,
-                  paddingHorizontal: spacing.lg,
+                  paddingHorizontal: 18,
                   borderTopWidth: i === 0 ? 0 : 1,
-                  borderTopColor: 'rgba(31,58,87,0.08)',
-                  opacity: pressed ? 0.6 : 1,
+                  borderTopColor: DIVIDER,
+                  opacity: pressed ? 0.5 : 1,
                 })}>
-                <View
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: spacing.md,
-                  }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
                   <View style={{ flex: 1 }}>
                     <Text
                       style={{
                         color: INK,
                         fontSize: fontSize.body,
-                        fontWeight: fontWeight.semibold,
+                        fontFamily: fontFamily.semibold,
                       }}
                       numberOfLines={2}>
                       {entry.prompt}
@@ -143,25 +158,18 @@ export default function CrewHistoryScreen() {
                         gap: 6,
                         marginTop: 4,
                       }}>
-                      <Text style={{ color: 'rgba(31,58,87,0.35)', fontSize: 12 }}>
-                        {'↳'}
-                      </Text>
-                      <Text style={{ color: INK_DIM, fontSize: fontSize.small }}>
+                      <Text style={{ color: 'rgba(22,24,28,0.35)', fontSize: 12 }}>{'↳'}</Text>
+                      <Text
+                        style={{
+                          color: INK_DIM,
+                          fontSize: 10,
+                          fontFamily: fontFamily.mono,
+                        }}>
                         {entry.day === 'today' ? entry.time : 'Yesterday'} · {entry.ago}
                       </Text>
                     </View>
                   </View>
-                  <View
-                    style={{
-                      width: 26,
-                      height: 26,
-                      borderRadius: 999,
-                      backgroundColor: INK_SOFT,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}>
-                    <Ionicons name="chevron-forward" size={14} color={INK_DIM} />
-                  </View>
+                  <Ionicons name="chevron-forward" size={14} color={INK_DIM} />
                 </View>
               </Pressable>
             ))

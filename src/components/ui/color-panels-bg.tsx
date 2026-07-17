@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { StyleSheet, View, useWindowDimensions } from 'react-native';
-import { Canvas, Fill, Shader, Skia, useClock } from '@shopify/react-native-skia';
+import { Blur, Canvas, Fill, Group, Shader, Skia, useClock } from '@shopify/react-native-skia';
 import { useDerivedValue, useSharedValue } from 'react-native-reanimated';
 import { useIsFocused } from 'expo-router';
 import { AcidSwooshBg } from './acid-swoosh-bg';
@@ -236,6 +236,23 @@ const PALETTES = {
       vec4('#4A7FB5'), // dusty deep
     ],
   },
+  // the individual CHAT screen's own wash (2026-07-16, "채팅창만 밝은
+  // 파랑으로... 디자인 패턴은 그대로") — same gradient pattern/pane
+  // structure as deskWash, split into its own variant so Home's blue
+  // stays untouched: lifted lighter, a clear midday sky instead of the
+  // deeper ocean blue. Stays vivid, not desaturated.
+  chatWash: {
+    back: vec4('#6FA3DC'),
+    panes: [
+      vec4('#B0D6F5'), // light sky glow, lifted
+      vec4('#F0F7FC'), // palest blue, lifted
+      vec4('#87BCE9'), // clear mid blue, lifted
+      vec4('#5590C7'), // deep blue anchor, lifted
+      vec4('#A0CCF0'), // cerulean, lifted
+      vec4('#DCEDFA'), // pale silver-blue, lifted
+      vec4('#6FA0D0'), // dusty deep, lifted
+    ],
+  },
   paper: {
     // full-bright by request (2026-07-16): pure white field, the fan's
     // own blues carry all the color
@@ -303,13 +320,24 @@ export function ColorPanelsBg({
   variant = 'desk',
   animated = true,
   preset = 'fan',
+  speed = SPEED,
+  seamSoften = 0,
 }: {
   variant?: ColorPanelsVariant;
-  /** false = one frozen frame (the start screen); no clock work runs. */
+  /** false = one frozen frame; true = live motion at `speed`. */
   animated?: boolean;
   /** 'fan' = the 3D mid-screen fan; 'wash' = the flattened full-screen
    * light sweep (Home board). */
   preset?: ColorPanelsPreset;
+  /** u_time multiplier — defaults to the shared SPEED (0.5); the start
+   * screen runs slower (2026-07-16, "slowly moving") for a calmer
+   * first impression than the board's own motion. */
+  speed?: number;
+  /** a very light post-blur (px) to soften visible panel-to-panel
+   * seams on a FROZEN frame (2026-07-16, "선이 좀 보이는데 아주 약간
+   * 블랜딩") — 0 = off, the shader's own dither is usually enough;
+   * only the chat screen's static wash needed a touch more. */
+  seamSoften?: number;
 }) {
   const { width, height } = useWindowDimensions();
   const clock = useClock();
@@ -332,7 +360,7 @@ export function ColorPanelsBg({
         ms = clock.value;
         frozenMs.value = ms;
       }
-      time = (ms / 1000) * SPEED;
+      time = (ms / 1000) * speed;
     }
     return {
       u_resolution: [width, height],
@@ -347,16 +375,25 @@ export function ColorPanelsBg({
       u_colorBack: palette.back,
       ...PRESETS[preset],
     };
-  }, [width, height, palette, animated, preset]);
+  }, [width, height, palette, animated, preset, speed]);
 
   if (!effect) return <AcidSwooshBg />;
 
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
       <Canvas style={{ flex: 1 }}>
-        <Fill>
-          <Shader source={effect} uniforms={uniforms} />
-        </Fill>
+        {seamSoften > 0 ? (
+          <Group layer>
+            <Fill>
+              <Shader source={effect} uniforms={uniforms} />
+            </Fill>
+            <Blur blur={seamSoften} />
+          </Group>
+        ) : (
+          <Fill>
+            <Shader source={effect} uniforms={uniforms} />
+          </Fill>
+        )}
       </Canvas>
     </View>
   );

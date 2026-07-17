@@ -1,46 +1,23 @@
-import { useEffect } from 'react';
-import { View } from 'react-native';
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withDelay,
-  withRepeat,
-  withSequence,
-  withTiming,
-} from 'react-native-reanimated';
-import { darkChat, spacing } from '@/theme/theme';
+import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
+import { spacing } from '@/theme/theme';
+import { ThinkingBlob } from './thinking-blob';
 
-function Dot({ delay }: { delay: number }) {
-  const o = useSharedValue(0.3);
-  useEffect(() => {
-    o.value = withDelay(
-      delay,
-      withRepeat(withSequence(withTiming(1, { duration: 350 }), withTiming(0.3, { duration: 350 })), -1)
-    );
-  }, [delay, o]);
-  const style = useAnimatedStyle(() => ({ opacity: o.value }));
-  return (
-    <Animated.View
-      style={[{ width: 7, height: 7, borderRadius: 999, backgroundColor: darkChat.textSecondary }, style]}
-    />
-  );
-}
-
-/** Three pulsing dots — borderless, straight on the gradient background. */
+/** The "thinking" beat between a sent message and its reply (2026-07-16,
+ * three dots retired for a real metaballs-style blob — see
+ * thinking-blob.tsx). Fades in/out so it never just snaps on/off. */
 export function TypingIndicator() {
   return (
-    <View
+    <Animated.View
+      entering={FadeIn.duration(200)}
+      exiting={FadeOut.duration(150)}
       style={{
         alignSelf: 'flex-start',
         paddingVertical: spacing.md,
         marginBottom: spacing.md,
-        flexDirection: 'row',
-        gap: spacing.xs + 1,
       }}>
-      <Dot delay={0} />
-      <Dot delay={150} />
-      <Dot delay={300} />
-    </View>
+      {/* bigger (2026-07-16, "이거 더 크게해줘") — was 34, the default */}
+      <ThinkingBlob size={64} />
+    </Animated.View>
   );
 }
 
