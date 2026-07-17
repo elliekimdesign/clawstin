@@ -6,21 +6,15 @@
 // goes back to the original executor in the original thread.
 export const UNDOABLES = [
   {
-    label: 'Archived 12 newsletter emails',
+    label: 'Booked dinner with Jenna',
     threadId: 't1',
-    ask: 'Undo this: archived 12 newsletter emails',
-    re: /archiv|email|newsletter/i,
+    ask: 'Undo this: dinner with Jenna',
+    re: /dinner|jenna|reservation/i,
   },
   {
-    label: 'Held 2 dinner slots for Friday',
-    threadId: 't5',
-    ask: 'Undo this: held 2 dinner slots',
-    re: /dinner|slot|hold/i,
-  },
-  {
-    label: 'Labeled 6 GitHub notifications',
-    threadId: 't4',
-    ask: 'Undo this: labeled 6 GitHub notifications',
-    re: /github|label|notification/i,
+    label: 'Blocked 10:00–10:30 for PR review',
+    threadId: 't2',
+    ask: 'Undo this: PR review block',
+    re: /pr|review|auth-service/i,
   },
 ];

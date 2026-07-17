@@ -15,49 +15,18 @@ export type AutopilotRule = {
   recent: { label: string; ago: string; undone?: boolean }[];
 };
 
+// Use Case B's standing rule: "When a PR is ready for my review, block
+// time on my calendar for it." Event-triggered (a PR arrives), not
+// schedule-based — the one rule that exists in this build.
 export const AUTOPILOT_RULES: AutopilotRule[] = [
   {
-    key: 'email-cleanup',
-    app: 'gmail',
-    name: 'Email cleanup',
-    runs: 47,
-    undone: 0,
-    threadId: 't1',
-    recent: [
-      { label: 'Flagged 2 for reply', ago: '2m' },
-      { label: 'Archived 3 stale drafts', ago: '1d' },
-    ],
-  },
-  {
-    key: 'newsletter-archiving',
-    app: 'gmail',
-    name: 'Newsletter archiving',
-    runs: 31,
-    undone: 1,
-    threadId: 't1',
-    recent: [
-      { label: 'Archived 12 emails', ago: '2m' },
-      { label: 'Archived 8 emails', ago: '1d', undone: true },
-    ],
-  },
-  {
-    key: 'github-labeling',
+    key: 'github-pr-review',
     app: 'github',
-    name: 'GitHub labeling',
-    runs: 12,
+    name: 'PR review time',
+    runs: 1,
     undone: 0,
-    threadId: 't4',
-    recent: [{ label: 'Sorted 6 GitHub alerts', ago: '4m' }],
-  },
-  {
-    // stale on purpose: exercises the sheet's collapsed Inactive group
-    key: 'receipt-filing',
-    app: 'drive',
-    name: 'Receipt filing',
-    runs: 5,
-    undone: 0,
-    threadId: 't1',
-    recent: [{ label: 'Filed 3 receipts to Drive', ago: '12d' }],
+    threadId: 't2',
+    recent: [{ label: 'Blocked 10:00–10:30 for auth-service #482', ago: '2m' }],
   },
 ];
 

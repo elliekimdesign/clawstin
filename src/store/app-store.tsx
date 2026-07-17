@@ -12,7 +12,7 @@ import * as Notifications from 'expo-notifications';
 
 import type { Approval } from '@/components/ui/approval-card';
 import { ActivityItem, initialActivity } from '@/mock/activity';
-import { initialApprovals, landedApproval } from '@/mock/approvals';
+import { initialApprovals } from '@/mock/approvals';
 import {
   CalendarDay,
   CalendarEvent,
@@ -105,39 +105,8 @@ export const TOOL_ACTION_PHRASE: Record<string, string> = {
   health: 'Check my sleep score from last night',
 };
 
-// ── Failure edge cases ──────────────────────────────────────────────────
-// Two DIFFERENT kinds of failure, designed differently:
-// - technical (GitHub 502): retry with backoff, STOP, preserve the
-//   approval, offer keep-retrying vs drop. No alternative service exists,
-//   so only two choices.
-// - logical (calendar conflict): the world changed under the plan; no
-//   retry can fix it, the agent REPLANS and proposes the new answer.
-const GITHUB_FAIL = {
-  lines: [
-    'execute  github.merge chore/log-json',
-    'retry 1/3  after 10s  502',
-    'retry 2/3  after 22s  502',
-    'retry 3/3  after 44s  502',
-  ],
-  msg: {
-    caption: 'TASK PAUSED',
-    text: "GitHub is returning errors, so the merge didn't go through. Your approval is saved; I'll retry and merge as soon as it's back. Checks were green, so no re-review is needed unless the branch changes.",
-    suggestions: ['Keep retrying', 'Drop it'],
-  },
-};
-const CALENDAR_CONFLICT = {
-  lines: [
-    'execute  calendar.move standup 10:30',
-    'check  10:30 taken 5m ago by Priya',
-    'replan  11:00 open for all 5  0.4s',
-  ],
-  msg: {
-    caption: 'TASK PAUSED',
-    text: "10:30 just got taken. Priya booked a pairing session there 5 minutes ago, so standup stays at 10:00 for now. Want 11:00 instead? It's open for everyone.",
-    suggestions: ['Move to 11:00', 'Keep 10:00'],
-  },
-};
-/** Follow-up chips from the paused cards resolve as quick scripted runs. */
+/** Follow-up chips / free-form undo asks resolve as quick scripted runs.
+ * Two use cases only now: A's dinner booking, B's PR-review block. */
 const EDGE_FOLLOWUPS: {
   re: RegExp;
   tool: 'calendar' | 'github';
@@ -151,60 +120,23 @@ const EDGE_FOLLOWUPS: {
   // one story. The thinking lines double as the audit trail. Specific
   // matches first; the bare "undo" fallback asks back with chips.
   {
-    re: /(undo|revert)[\s\S]*(archiv|email|newsletter)|(archiv|email|newsletter)[\s\S]*(undo|revert)/i,
+    re: /(undo|revert)[\s\S]*(dinner|jenna|reservation)|(dinner|jenna|reservation)[\s\S]*(undo|revert)/i,
     tool: 'calendar',
-    lines: ['undo requested  archived 12 emails', 'execute  mail.unarchive 12  0.6s'],
-    text: 'Undone. All 12 newsletter emails are back in your inbox. The undo window for this action is closed out.',
+    lines: ['undo requested  dinner with Jenna', 'execute  calendar.event.delete  0.4s'],
+    text: 'Undone. The dinner reservation is cancelled and Jenna was notified.',
   },
   {
-    re: /(undo|revert|release)[\s\S]*(dinner|slot|hold)|(dinner|slot|hold)[\s\S]*(undo|revert)/i,
+    re: /(undo|revert)[\s\S]*(pr|review|auth-service)|(pr|review|auth-service)[\s\S]*(undo|revert)/i,
     tool: 'calendar',
-    lines: ['undo requested  held dinner slots', 'execute  opentable.release 2 holds  0.4s'],
-    text: 'Released both held slots. Nothing is booked for Friday anymore; say the word if you want them back.',
-  },
-  {
-    re: /(undo|revert)[\s\S]*(github|label|notification)|(github|label|notification)[\s\S]*(undo|revert)/i,
-    tool: 'github',
-    lines: ['undo requested  labeled notifications', 'execute  github.unlabel 6  0.5s'],
-    text: 'Removed the 6 labels. Your GitHub notifications are back exactly as they were.',
+    lines: ['undo requested  PR review block', 'execute  calendar.event.delete  0.4s'],
+    text: 'Undone. Tomorrow 10:00–10:30 is open again; the review is still waiting whenever you want it.',
   },
   {
     re: /undo|revert/i,
     tool: 'calendar',
     lines: ['undo requested  no target named', 'route  matching recent undoable actions'],
     text: 'Which one? These are still inside their undo window:',
-    suggestions: [
-      'Undo: archived 12 newsletter emails',
-      'Undo: held 2 dinner slots',
-      'Undo: labeled 6 GitHub notifications',
-    ],
-  },
-  {
-    re: /keep retrying/i,
-    tool: 'github',
-    lines: ['execute  retry queue armed  0.2s', 'synthesize  merge on recovery  0.3s'],
-    text: "On it. I'll keep retrying in the background and merge the moment GitHub answers.",
-  },
-  {
-    re: /drop it/i,
-    tool: 'github',
-    lines: ['execute  retry queue cleared  0.2s'],
-    text: "Dropped. chore/log-json stays unmerged; say the word and I'll queue it again.",
-  },
-  {
-    re: /move to 11/i,
-    tool: 'calendar',
-    lines: [
-      'execute  calendar.move standup 11:00  0.8s',
-      'synthesize  notifying 5 attendees  0.3s',
-    ],
-    text: 'Done. Standup is at 11:00; all 5 attendees got the update.',
-  },
-  {
-    re: /keep 10/i,
-    tool: 'calendar',
-    lines: ['execute  move request closed  0.2s'],
-    text: 'Kept. Standup stays at 10:00 and I closed the move request.',
+    suggestions: ['Undo: dinner with Jenna', 'Undo: PR review block'],
   },
 ];
 
@@ -590,31 +522,38 @@ export function AppProvider({ children }: { children: ReactNode }) {
     );
   }, []);
 
-  // Staged nudge: a while after the board comes up, the crew's CI watch
-  // finishes and the ask lands IN ITS CHAT THREAD (ta4) — the floating
-  // pill only announces it and links there.
+  // Staged nudge: Use Case B, beats 3-4. A while after the board comes
+  // up, the crew's standing GitHub watch actually finds something — the
+  // work-log line (beat 3) then the proactive, permission-scoped
+  // approval (beat 4) land IN THE THREAD (t2) live, unprompted. The
+  // floating pill only announces it and links there.
   useEffect(() => {
     if (!connected || nudgeFired.current) return;
     nudgeFired.current = true;
     const t = setTimeout(() => {
-      setApprovals((prev) =>
-        prev.some((a) => a.id === landedApproval.id) ? prev : [...prev, landedApproval]
-      );
-      appendToThread(landedApproval.threadId!, {
+      const ap1 = initialApprovals.find((a) => a.id === 'ap1')!;
+      appendToThread('t2', {
         id: nextId('c'),
         from: 'agent',
         proactive: true,
-        text: 'chore/log-json passed every check. Merge it into main?',
-        approval: landedApproval,
+        terminalLog: ['github.pulls.list · 2 waiting'],
+      });
+      setApprovals((prev) => (prev.some((a) => a.id === ap1.id) ? prev : [...prev, ap1]));
+      appendToThread('t2', {
+        id: nextId('c'),
+        from: 'agent',
+        proactive: true,
+        text: "auth-service #482 has been waiting on your review since 9:40 — Priya's release is behind it. You're free 2:00–2:30, block it?",
+        approval: ap1,
       });
     }, 6000);
-    // Nudge #3, OUTSIDE the app: the Friday-dinner deadline escalation
-    // lands as a real OS notification (lock screen / banner) ~20s in —
-    // the agent's voice, not system language.
+    // Nudge, OUTSIDE the app: the same PR-review ask lands as a real OS
+    // notification (lock screen / banner) ~20s in — the agent's voice,
+    // not system language.
     Notifications.scheduleNotificationAsync({
       content: {
-        title: 'Pilot from your crew',
-        body: 'Ellie, Friday tables are filling up. Want me to lock one in?',
+        title: 'Muppet from your crew',
+        body: 'auth-service #482 has been waiting since 9:40 — want me to block review time?',
       },
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
@@ -1078,18 +1017,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const resolveChatApproval = useCallback(
     (threadId: string, messageId: string, a: Approval, approved: boolean) => {
       const stamped: Approval = { ...a, resolved: approved ? 'approved' : 'denied' };
-      // Two staged edge cases run AFTER approval: execution fails, the
-      // approval stamp stays (never re-ask the user for the same yes),
-      // and the task PAUSES instead of closing.
-      const edge = approved && (a.id === 'ap1' || a.id === 'ap4');
       setThreads((prev) =>
         prev.map((t) =>
           t.id === threadId
             ? {
                 ...t,
-                outcome: edge ? undefined : ('delivered' as const),
+                outcome: !approved && a.id === 'ap1' ? undefined : ('delivered' as const),
                 updatedAt: 'now',
-                lastPreview: approved ? `✓ ${a.receipt ?? 'Approved'}` : '✗ Denied',
+                lastPreview: approved ? `✓ ${a.receipt ?? 'Approved'}` : '✗ Rejected',
                 messages: t.messages.map((m) =>
                   m.id === messageId ? { ...m, approval: stamped } : m
                 ),
@@ -1098,23 +1033,51 @@ export function AppProvider({ children }: { children: ReactNode }) {
         )
       );
       resolveApproval(a, approved);
-      if (!edge) return;
-      const isGithub = a.id === 'ap4';
-      const play = isGithub ? GITHUB_FAIL : CALENDAR_CONFLICT;
-      const stepMs = isGithub ? 1100 : 900;
-      setTypingThreadId(threadId);
-      setCrewBusy(true);
-      runThinking(threadId, play.lines, stepMs);
-      setTimeout(
-        () => {
+
+      // Use Case B's negotiation: rejecting the first slot (ap1) makes
+      // the agent RE-PROPOSE with a second approval card (ap2), rather
+      // than a system failure — this is the one deliberate pushback beat.
+      if (!approved && a.id === 'ap1') {
+        setTypingThreadId(threadId);
+        setCrewBusy(true);
+        runThinking(threadId, [
+          'replan  checking tomorrow morning  0.4s',
+          'synthesize  10:00 before standup is open  0.3s',
+        ]);
+        setTimeout(() => {
           setTypingThreadId(null);
           setCrewBusy(false);
-          // technical failure STOPS (amber); the logical one replans fine
-          finishThinking(threadId, isGithub);
-          appendToThread(threadId, { id: nextId('c'), from: 'agent', ...play.msg });
-        },
-        play.lines.length * stepMs + 700
-      );
+          finishThinking(threadId);
+          appendToThread(threadId, {
+            id: nextId('c'),
+            from: 'agent',
+            text: "Right, skipping today. Tomorrow 10:00 before standup — block that? I'll let Priya know it's coming.",
+            approval: initialApprovals.find((ap) => ap.id === 'ap2'),
+          });
+        }, 1400);
+        return;
+      }
+
+      // Approving the re-proposed slot (ap2) closes the loop with the
+      // final wrap-up report.
+      if (approved && a.id === 'ap2') {
+        setTypingThreadId(threadId);
+        setCrewBusy(true);
+        runThinking(threadId, [
+          'execute  calendar.block Thu 10:00-10:30  0.6s',
+          'notify  Priya, review incoming  0.3s',
+        ]);
+        setTimeout(() => {
+          setTypingThreadId(null);
+          setCrewBusy(false);
+          finishThinking(threadId);
+          appendToThread(threadId, {
+            id: nextId('c'),
+            from: 'agent',
+            text: 'Blocked 10:00–10:30 · "Review auth-service #482". Link\'s in the event.',
+          });
+        }, 1400);
+      }
     },
     [resolveApproval, appendToThread, runThinking, finishThinking]
   );
@@ -1130,16 +1093,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const confirmDinner = useCallback(
     (slot: string) => {
-      const threadId = 't5';
+      // Use Case A: the whole pull-direction round trip, thread t1.
+      const threadId = 't1';
       appendToThread(threadId, {
         id: nextId('c'),
         from: 'user',
-        text: `${slot} PM works, book it`,
+        text: `${slot} works, book it`,
       });
       setTypingThreadId(threadId);
       setCrewBusy(true);
       runThinking(threadId, [
-        `execute  Calendar, booking ${slot} PM Friday  0.8s`,
+        `execute  Calendar, booking ${slot} with Jenna  0.8s`,
         'execute  OpenTable, confirming the table  1.1s',
       ]);
       runCrewSequence(['triage'], setCrewSelected, () => {
@@ -1149,7 +1113,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         appendToThread(threadId, {
           id: nextId('c'),
           from: 'agent',
-          text: `Done. Friday dinner is booked for ${slot} PM and the invite went out.`,
+          text: `Done. Dinner with Jenna is booked for ${slot} and the invite went out.`,
         });
       });
     },

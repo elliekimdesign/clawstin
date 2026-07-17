@@ -36,17 +36,10 @@ export type ScheduleProposal = {
   testRan?: boolean;
 };
 
-export const initialSchedules: Schedule[] = [
-  // Weekly review reuses the existing t3 thread as its home: proof that
-  // runs accumulate in one thread instead of scattering across sessions.
-  {
-    id: 's1',
-    name: 'Weekly review',
-    cadence: 'Mon 9 AM',
-    threadId: 't3',
-    permissionKey: 'calendar',
-    scope: 'READ',
-    runs: 6,
-    lastRun: { ago: 'Mon', ok: true },
-  },
-];
+// Empty for now (2026-07-16 two-use-case rewrite): schedule-based
+// autonomy ("at time T, act") is a separate feature from Use Case B's
+// event-based rule ("when a PR arrives, act") and isn't part of either
+// storyboard. The old seed pointed at a retired thread; rather than
+// invent new scope, this list starts empty and fills in normally via
+// addRoutine() if a user accepts a routine suggestion in-app.
+export const initialSchedules: Schedule[] = [];

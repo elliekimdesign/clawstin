@@ -20,21 +20,17 @@ export type BackgroundTask = {
   progress?: string;
 };
 
+// Use Case A is the one open, blocking ask (waiting on a slot pick).
+// Use Case B's own "waiting on you" moment arrives live via the staged
+// nudge (see app-store.tsx) once the PR notification lands, so it isn't
+// seeded here — it appears the same way a real proactive ask would.
 export const initialBackground: BackgroundTask[] = [
   {
     id: 'b1',
-    agentId: 'scout',
-    label: 'Comparing flight prices to Seoul',
-    state: 'running',
-    threadId: 't1',
-    progress: '2 of 4 sites',
-  },
-  {
-    id: 'b2',
     agentId: 'pilot',
-    label: 'Pick a time for Friday dinner',
+    label: 'Pick a time for dinner with Jenna',
     state: 'waiting',
-    threadId: 't5',
-    deadline: 'Fri',
+    threadId: 't1',
+    age: '2m',
   },
 ];

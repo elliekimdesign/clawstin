@@ -15,7 +15,7 @@ import {
 import { GlassView, isGlassEffectAPIAvailable } from 'expo-glass-effect';
 import { StatusBar } from 'expo-status-bar';
 import { Platform } from 'react-native';
-import Svg, { Defs, LinearGradient as SvgGradient, Path, Polygon, RadialGradient, Rect, Stop, Text as SvgText } from 'react-native-svg';
+import Svg, { Defs, LinearGradient as SvgGradient, Path, RadialGradient, Rect, Stop, Text as SvgText } from 'react-native-svg';
 import Animated, {
   FadeInDown,
   interpolate,
@@ -38,7 +38,7 @@ import { ColorPanelsBg } from '@/components/ui/color-panels-bg';
 import { AutopilotSheet } from '@/components/ui/autopilot-sheet';
 import { CTA_SLAB_INK, CtaSlabFill } from '@/components/ui/cta-slab';
 import { AcidGlassFill } from '@/components/ui/window-fill';
-import { KeySheen } from '@/components/ui/analog-key';
+import { AnalogKey, KeySheen } from '@/components/ui/analog-key';
 import { PixelChrome } from '@/components/ui/pixel-chrome';
 import { PixelText } from '@/components/ui/pixel-text';
 import { StatusPopover, worstServiceState } from '@/components/ui/status-popover';
@@ -96,11 +96,11 @@ const GLASS_AVAILABLE = Platform.OS === 'ios' && isGlassEffectAPIAvailable();
 // Post-action control mock: the agent's most recent [WRITE] action and
 // its rollback window. Trust = approvals (before) + undo (after).
 const LAST_ACTION = {
-  label: 'Archived 12 newsletter emails',
+  label: 'Blocked 10:00–10:30 for PR review',
   ago: '2m ago',
-  // t1 = Inbox cleanup: the thread whose crew actually ran the action.
+  // t2 = the PR-review thread: the crew that actually ran the action.
   // Undo always routes back to its executor's thread.
-  threadId: 't1',
+  threadId: 't2',
 };
 
 // UNDOABLES moved to src/mock/undoables.ts (2026-07-12) so the
@@ -725,8 +725,11 @@ export default function HomeScreen() {
       <StatusBar style="dark" />
       {/* start field: the color-panels shader in its light "paper"
           colorway — silver-white and the old start-glow blues drifting
-          on pale paper gray, ink text stays legible */}
-      {!connected && <ColorPanelsBg variant="paper" animated={false} />}
+          on pale paper gray, ink text stays legible. Un-froze it
+          2026-07-16 ("slowly moving as it was but slowly") — quarter
+          speed keeps the fan a calm, ambient drift rather than the
+          board's own livelier motion. */}
+      {!connected && <ColorPanelsBg variant="paper" animated speed={0.125} />}
       {connected ? (
         // ───────────────────────── State board ─────────────────────────
         <>
@@ -836,7 +839,7 @@ export default function HomeScreen() {
                   entering={FadeInDown.duration(420)}
                   style={{ marginTop: 28 }}>
                 <Pressable
-                  onPress={() => router.push('/chat/t5')}
+                  onPress={() => router.push('/chat/t1')}
                   style={({ pressed }) => ({
                     borderRadius: 0,
                     overflow: 'hidden',
@@ -863,7 +866,7 @@ export default function HomeScreen() {
                   <PixelChrome />
                   <View
                     style={{
-                      height: 30,
+                      height: 26,
                       flexDirection: 'row',
                       justifyContent: 'space-between',
                       alignItems: 'center',
@@ -904,7 +907,7 @@ export default function HomeScreen() {
                       fontFamily: fontFamily.medium,
                       color: AINK.text,
                     }}>
-                    Friday dinner, 7:00 or 7:30?
+                    Dinner with Jenna — which time?
                   </Text>
                   {dinnerAnswered ? (
                     <Text
@@ -914,7 +917,7 @@ export default function HomeScreen() {
                         fontSize: 12,
                         color: AINK.dim,
                       }}>
-                      {`✓ Booked ${dinnerAnswered} PM`}
+                      {`✓ Booked ${dinnerAnswered}`}
                     </Text>
                   ) : (
                   <View
@@ -924,52 +927,30 @@ export default function HomeScreen() {
                       alignItems: 'center',
                       gap: 12,
                     }}>
-                    {/* one button size everywhere: 36pt visual pill
-                        + hitSlop reaching the 44pt HIG touch target */}
-                    {['7:00', '7:30'].map((slot) => (
-                      <Pressable
+                    {/* v4 (2026-07-16, "우리가 쓴것중에서 깔끔하고
+                        심플한걸로") — the app's ONE established simple
+                        button: the analog keycap (status bar / >_ /
+                        Info-Perf / chat +), not a new invented shape.
+                        Slots match Use Case A's script exactly: "Jenna
+                        is free at 5:00, 6:30, or 7:00." */}
+                    {['5:00', '6:30'].map((slot) => (
+                      <AnalogKey
                         key={slot}
                         onPress={() => {
                           // the tap IS the answer: it lands in the thread
                           // first, then we arrive to watch it confirm
                           setDinnerAnswered(slot);
                           confirmDinner(slot);
-                          router.push('/chat/t5');
+                          router.push('/chat/t1');
                         }}
-                        hitSlop={8}
-                        style={({ pressed }) => ({
-                          // TICKET STUB (2026-07-16, "알약말고"): the
-                          // pill retired — answer chips are tickets now,
-                          // top-right corner snipped, drawn in the CTA
-                          // slab's own flat blue-gray with a darker
-                          // fold-back triangle at the cut
-                          width: 66,
-                          height: 36,
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          opacity: pressed ? 0.7 : 1,
-                        })}>
-                        <Svg
-                          width={66}
-                          height={36}
-                          style={StyleSheet.absoluteFill}
-                          pointerEvents="none">
-                          <Polygon points="0,0 55,0 66,11 66,36 0,36" fill="#9FB6CD" />
-                          {/* the folded-back corner */}
-                          <Polygon points="55,0 66,11 55,11" fill="#8CA3BB" />
-                        </Svg>
-                        <Text
-                          style={{
-                            fontSize: 13,
-                            fontWeight: fontWeight.semibold,
-                            color: CTA_SLAB_INK,
-                          }}>
+                        style={{ paddingVertical: 9, paddingHorizontal: 17 }}>
+                        <Text style={{ fontSize: 13, fontWeight: fontWeight.semibold, color: CTA_SLAB_INK }}>
                           {slot}
                         </Text>
-                      </Pressable>
+                      </AnalogKey>
                     ))}
                     <Pressable
-                      onPress={() => router.push('/chat/t5')}
+                      onPress={() => router.push('/chat/t1')}
                       hitSlop={8}
                       style={({ pressed }) => ({
                         paddingVertical: 9,
@@ -1015,7 +996,7 @@ export default function HomeScreen() {
                   <AcidGlassFill effect="clear" bright tone="gray" />
                   <View
                     style={{
-                      height: 30,
+                      height: 26,
                       flexDirection: 'row',
                       justifyContent: 'space-between',
                       alignItems: 'center',
@@ -1116,7 +1097,7 @@ export default function HomeScreen() {
                       opacity: pressed ? 0.85 : 1,
                     })}>
                     <AcidGlassFill effect="clear" bright tone="gray" />
-                    <View style={{ height: 30, flexDirection: 'row', alignItems: 'center' }}>
+                    <View style={{ height: 26, flexDirection: 'row', alignItems: 'center' }}>
                       <Text
                         style={{
                           fontSize: 11,
@@ -1247,7 +1228,7 @@ export default function HomeScreen() {
                 />
                 <View
                   style={{
-                    height: 30,
+                    height: 26,
                     flexDirection: 'row',
                     justifyContent: 'space-between',
                     alignItems: 'center',
@@ -1382,7 +1363,7 @@ export default function HomeScreen() {
                   <View
                     style={{
                       // the Settings windows' 30pt title bar, everywhere
-                      height: 30,
+                      height: 26,
                       flexDirection: 'row',
                       gap: 18,
                       paddingHorizontal: 18,
@@ -1816,42 +1797,25 @@ export default function HomeScreen() {
           </View>
           <View style={{ flex: 1 }} />
 
-          {/* CTA → connect: sharp right-angle slab (no radius) in the
-              shared CTA slab material — Liquid Glass + symmetric
-              sky→#333AFF→sky wash (see cta-slab.tsx; the brief purple
-              era was cut, the no-purple rule holds). */}
+          {/* CTA → connect (v4, 2026-07-16 "그냥 버튼 배경없애기"):
+              no panel, no fill at all — just the text sitting directly
+              on the fan, the same weight as "Clawstin" above it. */}
           <Pressable
             onPress={() => setConnected(true)}
-            style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}>
-            <View
+            hitSlop={12}
+            style={({ pressed }) => ({
+              paddingVertical: spacing.lg,
+              alignItems: 'center',
+              opacity: pressed ? 0.55 : 1,
+            })}>
+            <Text
               style={{
-                // square here by explicit call — the round ring blobbed
-                // on the pale start field; small board buttons stay round
-                borderRadius: 0,
-                paddingVertical: spacing.lg,
-                alignItems: 'center',
-                overflow: 'hidden',
-                // the field went pure white (2026-07-16), so the white
-                // slab needs its own edge: ink hairline + a quiet lift,
-                // a white key resting on white paper
-                borderWidth: 1,
-                borderColor: 'rgba(22,24,28,0.16)',
-                shadowColor: '#16181C',
-                shadowOpacity: 0.1,
-                shadowRadius: 10,
-                shadowOffset: { width: 0, height: 4 },
-                elevation: 4,
+                color: CTA_SLAB_INK,
+                fontSize: fontSize.bodyLg,
+                fontFamily: fontFamily.semibold,
               }}>
-              <CtaSlabFill shape="square" tone="white" />
-              <Text
-                style={{
-                  color: CTA_SLAB_INK,
-                  fontSize: fontSize.bodyLg,
-                  fontFamily: fontFamily.semibold,
-                }}>
-                Get started
-              </Text>
-            </View>
+              Get started
+            </Text>
           </Pressable>
         </ScrollView>
       )}

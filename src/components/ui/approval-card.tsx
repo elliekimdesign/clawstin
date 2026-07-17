@@ -27,6 +27,13 @@ export type Approval = {
   items?: { label: string; detail?: string }[];
   /** approve button copy, action-specific ("Merge 3", "Move it") */
   actionLabel?: string;
+  /** reject button copy, action-specific ("Pick another time") — falls
+   * back to "Deny" when unset */
+  denyLabel?: string;
+  /** overrides the derived `permissionKey RISK` scope caption entirely,
+   * for asks that touch more than one tool at once ("GitHub READ ·
+   * Calendar WRITE") — SCOPE_NAME can only ever name one tool */
+  scopeOverride?: string;
   /** short receipt stamped on the card after approval ("Merged successfully") */
   receipt?: string;
   /** the chat thread that hosts this ask — approvals RESOLVE in chat */
@@ -67,9 +74,11 @@ type Props = {
  */
 export function ApprovalCard({ approval, onApprove, onDeny, compact, onDark }: Props) {
   const risk = approval.risk ?? 'read';
-  const scope = approval.permissionKey
-    ? `${SCOPE_NAME[approval.permissionKey] ?? approval.permissionKey}  ${risk.toUpperCase()}`
-    : null;
+  const scope =
+    approval.scopeOverride ??
+    (approval.permissionKey
+      ? `${SCOPE_NAME[approval.permissionKey] ?? approval.permissionKey}  ${risk.toUpperCase()}`
+      : null);
 
   // Palette flips as one unit so the card stays coherent on either background.
   const c = onDark
@@ -83,7 +92,10 @@ export function ApprovalCard({ approval, onApprove, onDeny, compact, onDark }: P
         // approval stamps speak OUR light blue (the crew's signature),
         // not the generic mint
         ok: brandBlue,
-        btnBg: darkChat.text,
+        // fixed white pill (2026-07-16 fix): this exploited
+        // darkChat.text's OLD white value as a solid button fill —
+        // that token now means "body ink," not "light surface"
+        btnBg: '#FFFFFF',
         btnText: darkChat.onLight,
       }
     : {
@@ -240,7 +252,7 @@ export function ApprovalCard({ approval, onApprove, onDeny, compact, onDark }: P
                   fontWeight: fontWeight.semibold,
                   opacity: pressed ? 0.5 : 1,
                 }}>
-                Deny
+                {approval.denyLabel ?? 'Deny'}
               </Text>
             )}
           </Pressable>
