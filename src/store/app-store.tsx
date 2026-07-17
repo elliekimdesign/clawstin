@@ -129,7 +129,9 @@ const EDGE_FOLLOWUPS: {
     re: /(undo|revert)[\s\S]*(pr|review|auth-service)|(pr|review|auth-service)[\s\S]*(undo|revert)/i,
     tool: 'calendar',
     lines: ['undo requested  PR review block', 'execute  calendar.event.delete  0.4s'],
-    text: 'Undone. Tomorrow 10:00–10:30 is open again; the review is still waiting whenever you want it.',
+    // reversibility honesty: the block reverts, the sent heads-up
+    // does not, and the crew says so in the receipt
+    text: "Reverted. Tomorrow 10:00–10:30 is open again; the review is still waiting whenever you want it. Priya's heads-up already went out, so she may still expect it.",
   },
   {
     re: /undo|revert/i,

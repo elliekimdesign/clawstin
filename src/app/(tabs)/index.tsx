@@ -18,8 +18,6 @@ import { Platform } from 'react-native';
 import Svg, { Defs, LinearGradient as SvgGradient, Path, RadialGradient, Rect, Stop, Text as SvgText } from 'react-native-svg';
 import Animated, {
   FadeInDown,
-  interpolate,
-  useAnimatedScrollHandler,
   useAnimatedStyle,
   useSharedValue,
   withRepeat,
@@ -37,9 +35,10 @@ import { BlissSwooshBg } from '@/components/ui/bliss-swoosh-bg';
 import { ColorPanelsBg } from '@/components/ui/color-panels-bg';
 import { AutopilotSheet } from '@/components/ui/autopilot-sheet';
 import { CTA_SLAB_INK, CtaSlabFill } from '@/components/ui/cta-slab';
-import { AcidGlassFill } from '@/components/ui/window-fill';
-import { AnalogKey, KeySheen } from '@/components/ui/analog-key';
-import { PixelChrome } from '@/components/ui/pixel-chrome';
+import { AnalogKey } from '@/components/ui/analog-key';
+import { FrostedGlassFill } from '@/components/ui/frosted-glass-fill';
+import { MosaicDot } from '@/components/ui/mosaic-dot';
+import { TaskSheet, type TaskSheetRow } from '@/components/ui/task-sheet';
 import { PixelText } from '@/components/ui/pixel-text';
 import { StatusPopover, worstServiceState } from '@/components/ui/status-popover';
 import { TOOL_ACTION_PHRASE, useAppStore } from '@/store/app-store';
@@ -553,8 +552,21 @@ export default function HomeScreen() {
 
   // Connection status popover (tap the "Online" label to inspect services).
   const [statusOpen, setStatusOpen] = useState(false);
-  // 3-state tabs on the dark board: which shelf is on screen
-  const [homeTab, setHomeTab] = useState<'all' | 'running' | 'needsYou' | 'done'>('all');
+  // folder flaps hug their titles (2026-07-17 "타이틀이랑 간격 맞춰"):
+  // each section's label is measured as it renders and the diagonal
+  // starts TAB_GAP after it; until measured, the component default holds
+  const TAB_GAP = 18;
+  const [titleW, setTitleW] = useState<Record<string, number>>({});
+  const measureTitle =
+    (key: string) => (e: { nativeEvent: { lines: { width: number }[] } }) => {
+      const w = Math.ceil(e.nativeEvent.lines[0]?.width ?? 0);
+      setTitleW((prev) => (prev[key] === w ? prev : { ...prev, [key]: w }));
+    };
+  const flapW = (key: string, fallback: number) =>
+    titleW[key] ? 18 + titleW[key] + TAB_GAP : fallback;
+  // "+N MORE" opens the queue as a RISING FOLDER (2026-07-17, replaces
+  // the teleport-scroll that remotely flipped a distant filter tab)
+  const [taskSheet, setTaskSheet] = useState<'needsYou' | 'running' | null>(null);
   const worst = worstServiceState(services);
   const statusDot: string =
     worst === 'down' ? sysColor.fail : worst === 'degraded' ? sysColor.degraded : sysColor.ready;
@@ -564,59 +576,8 @@ export default function HomeScreen() {
 
   // Scroll-to-approvals (the charcoal count tile jumps here).
   const scrollRef = useRef<ScrollView>(null);
-  // Ask bar shrinks to a mic circle while reading (scroll down),
-  // expands back on scroll-up or when the list comes to rest —
-  // present but out of the way, Gmail-compose style.
-  const askCollapse = useSharedValue(0);
-  const lastScrollY = useSharedValue(0);
-  const onBoardScroll = useAnimatedScrollHandler({
-    onScroll: (e) => {
-      const y = e.contentOffset.y;
-      const dy = y - lastScrollY.value;
-      if (y > 60 && dy > 4) {
-        askCollapse.value = withTiming(1, { duration: 220 });
-      } else if (dy < -4 || y <= 60) {
-        askCollapse.value = withTiming(0, { duration: 220 });
-      }
-      lastScrollY.value = y;
-    },
-    onEndDrag: (e) => {
-      // finger lifted with no fling to follow -> at rest, expand
-      if (Math.abs(e.velocity?.y ?? 0) < 0.3) {
-        askCollapse.value = withTiming(0, { duration: 220 });
-      }
-    },
-    onMomentumEnd: () => {
-      askCollapse.value = withTiming(0, { duration: 220 });
-    },
-  });
-  const askBarStyle = useAnimatedStyle(() => ({
-    // right edge stays anchored; the bar narrows into a 52pt key.
-    // NOT full-bleed (2026-07-16 "반보다는 길게"): it's a button, not
-    // a divider — anchored right at ~62% width so the list stays
-    // visible beside it
-    width: interpolate(askCollapse.value, [0, 1], [Math.round(screenW * 0.62), 52]),
-  }));
-  const askRowStyle = useAnimatedStyle(() => ({
-    paddingLeft: interpolate(askCollapse.value, [0, 1], [16, 7]),
-  }));
-  const askSlashStyle = useAnimatedStyle(() => ({
-    width: interpolate(askCollapse.value, [0, 1], [32, 0]),
-    opacity: interpolate(askCollapse.value, [0, 0.5], [1, 0]),
-  }));
-  // two skins crossfade with the collapse (2026-07-16 "펼쳐질때는
-  // 투명한, 접혔을땐 버튼"): expanded = the writable glass FIELD,
-  // collapsed = the analog KEYCAP
-  const askFieldSkin = useAnimatedStyle(() => ({
-    opacity: interpolate(askCollapse.value, [0, 1], [1, 0]),
-  }));
-  const askKeySkin = useAnimatedStyle(() => ({
-    opacity: askCollapse.value,
-  }));
-  const askHintStyle = useAnimatedStyle(() => ({
-    opacity: interpolate(askCollapse.value, [0, 0.5], [1, 0]),
-  }));
-  const [approvalsY, setApprovalsY] = useState(0);
+  // (2026-07-17: the floating ask bar left Home — the tab bar's
+  // detached "+" circle is the one chat entry now, see (tabs)/ask.tsx)
   // TRUST widget: calibration proposal -> autonomy summary. 'allowed'
   // promotes the pattern to auto-approve; 'kept' snoozes the proposal.
   const [trustHandled, setTrustHandled] = useState<null | 'allowed' | 'kept'>(null);
@@ -629,6 +590,10 @@ export default function HomeScreen() {
   // LAST ACTION expands in place: the card grows downward into the
   // full undoable queue instead of opening a separate sheet
   const [lastActionOpen, setLastActionOpen] = useState(false);
+  // partially-irreversible actions two-step their revert (2026-07-17):
+  // first tap ARMS the row (label of the armed row lives here) and
+  // surfaces what stays done; the second tap actually sends the ask
+  const [armedRevert, setArmedRevert] = useState<string | null>(null);
   const [autopilotOpen, setAutopilotOpen] = useState(false);
   // which dinner slot was answered from the hero card (receipt stamp)
   const [dinnerAnswered, setDinnerAnswered] = useState<string | null>(null);
@@ -647,10 +612,10 @@ export default function HomeScreen() {
   };
   const undoAction = (u: (typeof UNDOABLES)[number]) => {
     setLastActionOpen(false);
+    setArmedRevert(null);
     sendMessage(u.threadId, u.ask);
     router.push(`/chat/${u.threadId}`);
   };
-  const scrollToApprovals = () => scrollRef.current?.scrollTo({ y: approvalsY, animated: true });
 
   // The greeting speaks: the orchestrator's status line, terse and
   // count-first. A sentence, not a badge row.
@@ -661,42 +626,47 @@ export default function HomeScreen() {
   const doneThreads = threads.filter((t) => t.outcome);
 
   // Rows for the list container, priority top to bottom; stale asks
-  // (age in days) sink to the end. Approvals ARE "needs you".
-  const activeRows =
-    homeTab === 'done'
-      ? []
-      : [
-          ...background
-            .filter((t) =>
-              homeTab === 'all'
-                ? true
-                : homeTab === 'running'
-                  ? t.state === 'running'
-                  : t.state === 'waiting'
-            )
-            .map((t) => ({
-              key: t.id,
-              label: t.label,
-              waiting: t.state === 'waiting',
-              deadline: t.deadline,
-              age: t.age,
-              onPress: () => router.push(`/chat/${t.threadId}`),
-            })),
-          ...(homeTab === 'all' || homeTab === 'needsYou'
-            ? approvals.map((a) => ({
-                key: a.id,
-                label: a.title,
-                waiting: true,
-                deadline: undefined as string | undefined,
-                age: a.age,
-                onPress: () => a.threadId && router.push(`/chat/${a.threadId}`),
-              }))
-            : []),
-        ].sort(
-          (a, b) =>
-            Number(a.age?.endsWith('d') ?? false) - Number(b.age?.endsWith('d') ?? false)
-        );
-  const visibleDone = homeTab === 'all' || homeTab === 'done' ? doneThreads : [];
+  // (age in days) sink to the end. Approvals ARE "needs you". One
+  // list, no filters (2026-07-17): the state-specific views are the
+  // hero cards above and their rising folders.
+  const activeRows = [
+    ...background.map((t) => ({
+      key: t.id,
+      label: t.label,
+      waiting: t.state === 'waiting',
+      deadline: t.deadline,
+      age: t.age,
+      onPress: () => router.push(`/chat/${t.threadId}`),
+    })),
+    ...approvals.map((a) => ({
+      key: a.id,
+      label: a.title,
+      waiting: true,
+      deadline: undefined as string | undefined,
+      age: a.age,
+      onPress: () => a.threadId && router.push(`/chat/${a.threadId}`),
+    })),
+  ].sort(
+    (a, b) => Number(a.age?.endsWith('d') ?? false) - Number(b.age?.endsWith('d') ?? false)
+  );
+  const visibleDone = doneThreads;
+
+  // what each hero card's rising folder lists
+  const needsYouRows: TaskSheetRow[] = [
+    ...background
+      .filter((t) => t.state === 'waiting')
+      .map((t) => ({ key: t.id, label: t.label, age: t.age, threadId: t.threadId })),
+    ...approvals.map((a) => ({ key: a.id, label: a.title, age: a.age, threadId: a.threadId })),
+  ];
+  const runningRows: TaskSheetRow[] = background
+    .filter((t) => t.state === 'running')
+    .map((t) => ({
+      key: t.id,
+      label: t.label,
+      age: t.progress ?? t.age,
+      threadId: t.threadId,
+      running: true,
+    }));
 
   // Live focus for the dashboard widgets: the one running task (real-time
   // pulse) and the front of the needs-you queue (the next action).
@@ -733,20 +703,16 @@ export default function HomeScreen() {
       {connected ? (
         // ───────────────────────── State board ─────────────────────────
         <>
-          {/* wash preset (2026-07-16): the fan flattened full-screen so
-              every window — YOUR TURN at the top, the task list at the
-              bottom — gets the same subtle turning light behind its
-              glass; the mid-screen-only fan made outer sections read
-              opaque. Other tabs keep the fan for now. */}
-          <ColorPanelsBg variant="deskWash" preset="wash" />
+          {/* fan preset (2026-07-17, reverted back per request): back to
+              the same mid-screen 3D fan the other tabs use, for a
+              consistent motion language across Home/Activity/Crew. */}
+          <ColorPanelsBg variant="deskWash" preset="fan" />
           {/* no veil: the aqua desktop shows at full strength; the
               silver windows carry legibility (fullback: white 0.1) */}
           <View style={{ flex: 1 }}>
             <Animated.ScrollView
               ref={scrollRef}
-              onScroll={onBoardScroll}
-              scrollEventThrottle={16}
-              contentContainerStyle={{ padding: spacing.lg, paddingBottom: 190 }}
+              contentContainerStyle={{ padding: spacing.lg, paddingBottom: 140 }}
               showsVerticalScrollIndicator={false}>
               {/* top row: the wordmark left, gateway status right */}
               <View
@@ -841,29 +807,21 @@ export default function HomeScreen() {
                 <Pressable
                   onPress={() => router.push('/chat/t1')}
                   style={({ pressed }) => ({
-                    borderRadius: 0,
-                    overflow: 'hidden',
-                    // the pixel frame replaces the white hairline on
-                    // this ONE window — the ask wears the mascot's ink
                     paddingHorizontal: 18,
                     paddingBottom: 18,
                     shadowColor: '#16181C',
-                    shadowOpacity: 0.07,
-                    shadowRadius: 16,
-                    shadowOffset: { width: 0, height: 6 },
+                    shadowOpacity: 0.1,
+                    shadowRadius: 20,
+                    shadowOffset: { width: 0, height: 8 },
                     elevation: 5,
                     opacity: pressed ? 0.85 : 1,
                   })}>
-                  {/* keyed: this card also changes height when the
-                      proposal resolves or the window folds */}
-                  <AcidGlassFill
-                    key="yourturn"
-                    effect="clear"
-                    bright
-                    tone="gray"
-                    accentBar
-                  />
-                  <PixelChrome />
+                  {/* frosted glass folder (2026-07-17, "state of the
+                      art" reference, "폴더스타일" notch): the shape
+                      itself is drawn as one SVG path, so the outer box
+                      stays unclipped/radius-less — no overflow:hidden
+                      here, it would clip the notch off */}
+                  <FrostedGlassFill radius={16} tabWidth={flapW('yourturn', 132)} />
                   <View
                     style={{
                       height: 26,
@@ -873,6 +831,7 @@ export default function HomeScreen() {
                     }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                       <Text
+                        onTextLayout={measureTitle('yourturn')}
                         style={{
                           fontSize: 11,
                           fontFamily: fontFamily.mono,
@@ -883,12 +842,7 @@ export default function HomeScreen() {
                       </Text>
                     </View>
                     {needsYou - 1 > 0 ? (
-                      <Pressable
-                        onPress={() => {
-                          setHomeTab('needsYou');
-                          scrollRef.current?.scrollTo({ y: approvalsY, animated: true });
-                        }}
-                        hitSlop={16}>
+                      <Pressable onPress={() => setTaskSheet('needsYou')} hitSlop={16}>
                         <PixelText text={`+${needsYou - 1} MORE`} color={AINK.dim} />
                       </Pressable>
                     ) : null}
@@ -980,20 +934,20 @@ export default function HomeScreen() {
                   style={({ pressed }) => ({
                     flex: 1,
                     height: 124,
-                    borderRadius: 0,
-                    overflow: 'hidden',
-                    borderWidth: 1,
-                    borderColor: 'rgba(255,255,255,0.55)',
                     paddingHorizontal: 18,
                     paddingBottom: 18,
                     shadowColor: '#16181C',
-                    shadowOpacity: 0.07,
-                    shadowRadius: 16,
+                    shadowOpacity: 0.1,
+                    shadowRadius: 18,
                     shadowOffset: { width: 0, height: 6 },
                     elevation: 5,
                     opacity: pressed ? 0.85 : 1,
                   })}>
-                  <AcidGlassFill effect="clear" bright tone="gray" />
+                  <FrostedGlassFill
+                    radius={14}
+                    tabWidth={flapW('routines', 90)}
+                    tabHeight={22}
+                  />
                   <View
                     style={{
                       height: 26,
@@ -1003,6 +957,7 @@ export default function HomeScreen() {
                     }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                       <Text
+                        onTextLayout={measureTitle('routines')}
                         style={{
                           fontSize: 11,
                           fontFamily: fontFamily.mono,
@@ -1083,22 +1038,23 @@ export default function HomeScreen() {
                     style={({ pressed }) => ({
                       flex: 1,
                       height: 124,
-                      borderRadius: 0,
-                      overflow: 'hidden',
-                      borderWidth: 1,
-                      borderColor: 'rgba(255,255,255,0.55)',
                       paddingHorizontal: 18,
                       paddingBottom: 18,
                       shadowColor: '#16181C',
-                      shadowOpacity: 0.07,
-                      shadowRadius: 16,
+                      shadowOpacity: 0.1,
+                      shadowRadius: 18,
                       shadowOffset: { width: 0, height: 6 },
                       elevation: 5,
                       opacity: pressed ? 0.85 : 1,
                     })}>
-                    <AcidGlassFill effect="clear" bright tone="gray" />
+                    <FrostedGlassFill
+                      radius={14}
+                      tabWidth={flapW(w.key, 90)}
+                      tabHeight={22}
+                    />
                     <View style={{ height: 26, flexDirection: 'row', alignItems: 'center' }}>
                       <Text
+                        onTextLayout={measureTitle(w.key)}
                         style={{
                           fontSize: 11,
                           fontFamily: fontFamily.mono,
@@ -1111,10 +1067,7 @@ export default function HomeScreen() {
                     {w.more > 0 ? (
                       // "+N more": the rest of the queue, one tap away
                       <Pressable
-                        onPress={() => {
-                          setHomeTab(w.filter);
-                          scrollRef.current?.scrollTo({ y: approvalsY, animated: true });
-                        }}
+                        onPress={() => setTaskSheet('running')}
                         hitSlop={10}
                         style={({ pressed }) => ({
                           position: 'absolute',
@@ -1206,26 +1159,15 @@ export default function HomeScreen() {
                 entering={FadeInDown.duration(420).delay(240)}
                 style={{
                   marginTop: 28,
-                  borderRadius: 0,
-                  overflow: 'hidden',
-                  borderWidth: 1,
-                  borderColor: 'rgba(255,255,255,0.55)',
                   paddingHorizontal: 18,
                   paddingBottom: 18,
                   shadowColor: '#16181C',
-                  shadowOpacity: 0.07,
-                  shadowRadius: 16,
-                  shadowOffset: { width: 0, height: 6 },
+                  shadowOpacity: 0.1,
+                  shadowRadius: 20,
+                  shadowOffset: { width: 0, height: 8 },
                   elevation: 5,
                 }}>
-                {/* keyed so the native glass layer remounts at the new
-                    size when the card expands/collapses */}
-                <AcidGlassFill
-                  key={lastActionOpen ? 'expanded' : 'collapsed'}
-                  effect="clear"
-                  bright
-                  tone="gray"
-                />
+                <FrostedGlassFill radius={16} tabWidth={flapW('lastaction', 132)} />
                 <View
                   style={{
                     height: 26,
@@ -1235,6 +1177,7 @@ export default function HomeScreen() {
                   }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                     <Text
+                      onTextLayout={measureTitle('lastaction')}
                       style={{
                         fontSize: 11,
                         fontFamily: fontFamily.mono,
@@ -1245,7 +1188,12 @@ export default function HomeScreen() {
                     </Text>
                   </View>
                   {lastActionOpen ? (
-                    <Pressable hitSlop={16} onPress={() => setLastActionOpen(false)}>
+                    <Pressable
+                      hitSlop={16}
+                      onPress={() => {
+                        setLastActionOpen(false);
+                        setArmedRevert(null);
+                      }}>
                       <Ionicons name="close" size={15} color={AINK.dim} />
                     </Pressable>
                   ) : UNDOABLES.length > 1 ? (
@@ -1269,27 +1217,48 @@ export default function HomeScreen() {
                       alignItems: 'center',
                       gap: spacing.sm,
                     }}>
-                    <Text
-                      numberOfLines={1}
-                      style={{
-                        flex: 1,
-                        fontSize: fontSize.body,
-                        fontFamily: fontFamily.regular,
-                        color: AINK.text,
-                      }}>
-                      {u.label}
-                    </Text>
+                    <View style={{ flex: 1 }}>
+                      <Text
+                        numberOfLines={1}
+                        style={{
+                          fontSize: fontSize.body,
+                          fontFamily: fontFamily.regular,
+                          color: AINK.text,
+                        }}>
+                        {u.label}
+                      </Text>
+                      {/* the armed row states what stays done: the
+                          calendar frees, the sent heads-up does not.
+                          Reversibility honesty is provenance too. */}
+                      {armedRevert === u.label && u.irreversible ? (
+                        <Text
+                          style={{
+                            marginTop: 3,
+                            fontSize: fontSize.caption,
+                            color: AINK.dim,
+                          }}>
+                          {u.irreversible}
+                        </Text>
+                      ) : null}
+                    </View>
                     {/* secondary by design: undo is the rare path.
                         Pressing it speaks to the executor in the
-                        original thread. */}
+                        original thread. Actions with an irreversible
+                        part say "Revert…" and take TWO taps: arm with
+                        the warning first, fire second. */}
                     <Pressable
                       hitSlop={8}
-                      onPress={() => undoAction(u)}
+                      onPress={() => {
+                        if (u.irreversible && armedRevert !== u.label) {
+                          setArmedRevert(u.label);
+                          return;
+                        }
+                        undoAction(u);
+                      }}
                       style={({ pressed }) => ({
-                        // secondary by design: quiet gray, not accent —
-                        // undo is the rare path and should not compete
-                        // with the blue action slabs above (square like
-                        // the rest of the board, color unchanged)
+                        // quiet gray, not accent — undo never competes
+                        // with the blue action slabs above; the armed
+                        // state darkens only the TEXT
                         backgroundColor: 'rgba(22,24,28,0.06)',
                         borderRadius: 0,
                         paddingHorizontal: 16,
@@ -1300,9 +1269,16 @@ export default function HomeScreen() {
                         style={{
                           fontSize: 13,
                           fontWeight: fontWeight.semibold,
-                          color: 'rgba(22,24,28,0.65)',
+                          color:
+                            armedRevert === u.label && u.irreversible
+                              ? '#16181C'
+                              : 'rgba(22,24,28,0.65)',
                         }}>
-                        Undo
+                        {u.irreversible
+                          ? armedRevert === u.label
+                            ? 'Revert'
+                            : 'Revert…'
+                          : 'Undo'}
                       </Text>
                     </Pressable>
                   </View>
@@ -1327,92 +1303,39 @@ export default function HomeScreen() {
                 ) : null}
               </Animated.View>
 
-              {/* one glass section: filter chips as the header, then
-                  every chat hangs off the thread rail below. Priority
-                  reads top to bottom. */}
-              {activeRows.length + visibleDone.length > 0 ? (
+              {/* one glass section: EVERY task, chronological — the
+                  state-specific views live in the hero cards above and
+                  their rising folders, so this list carries no filters
+                  (2026-07-17). Priority reads top to bottom. */}
+              {background.length + approvals.length + doneThreads.length > 0 ? (
                 <Animated.View
                   entering={FadeInDown.duration(420).delay(360)}
-                  onLayout={(e) => setApprovalsY(e.nativeEvent.layout.y)}
                   style={{
                     marginTop: 28,
-                    borderRadius: 0,
-                    overflow: 'hidden',
-                    borderWidth: 1,
-                    borderColor: 'rgba(255,255,255,0.55)',
                     shadowColor: '#16181C',
-                    shadowOpacity: 0.07,
-                    shadowRadius: 16,
-                    shadowOffset: { width: 0, height: 6 },
+                    shadowOpacity: 0.1,
+                    shadowRadius: 20,
+                    shadowOffset: { width: 0, height: 8 },
                     elevation: 5,
                   }}>
-                  {/* tall card: 'regular' frost avoids clear-glass edge
-                      lensing showing as a dark band at the bottom;
-                      denser veil for the text-heavy list */}
-                  {/* keyed so the native glass layer remounts whenever
-                      the list's height changes (tab switch, rows aging
-                      in/out) — otherwise the fill keeps its old size
-                      and a hard edge shows near the bottom rows */}
-                  <AcidGlassFill
-                    key={`list-${homeTab}-${activeRows.length}-${visibleDone.length}`}
-                    effect="clear"
-                    tone="gray"
-                  />
-                  {/* filter chips: the section's own header, like a
-                      chat list's filter row */}
+                  <FrostedGlassFill radius={16} tabWidth={flapW('tasks', 100)} />
                   <View
                     style={{
-                      // the Settings windows' 30pt title bar, everywhere
                       height: 26,
-                      flexDirection: 'row',
-                      gap: 18,
+                      justifyContent: 'center',
                       paddingHorizontal: 18,
                     }}>
-                    {/* sorting = navigation, so it wears TAB grammar
-                        (text + underline), never the pill grammar that
-                        buttons own — the two must stay distinguishable */}
-                    {(
-                      [
-                        ['all', 'All', runningCount + needsYou + doneThreads.length],
-                        ['running', 'Running', runningCount],
-                        ['needsYou', 'Your turn', needsYou],
-                        ['done', 'Done', doneThreads.length],
-                      ] as const
-                    ).map(([key, label, count]) => (
-                      <Pressable
-                        key={key}
-                        onPress={() => setHomeTab(key)}
-                        hitSlop={12}
-                        style={({ pressed }) => ({
-                          justifyContent: 'center',
-                          opacity: pressed ? 0.6 : 1,
-                        })}>
-                        <Text
-                          style={{
-                            fontSize: 11,
-                            fontFamily: fontFamily.monoMedium,
-                            letterSpacing: 0.3,
-                            color: homeTab === key ? '#16181C' : 'rgba(22,24,28,0.5)',
-                          }}>
-                          {`${label.toUpperCase()} ${count}`}
-                        </Text>
-                        {/* the indicator IS the sill: a straight segment
-                            of the title bar's own bottom line lights up
-                            under the active tab (never a second line) */}
-                        {homeTab === key ? (
-                          <View
-                            style={{
-                              position: 'absolute',
-                              left: 0,
-                              right: 0,
-                              bottom: 0,
-                              height: 2,
-                              backgroundColor: sysColor.accent,
-                            }}
-                          />
-                        ) : null}
-                      </Pressable>
-                    ))}
+                    <Text
+                      onTextLayout={measureTitle('tasks')}
+                      style={{
+                        alignSelf: 'flex-start',
+                        fontSize: 11,
+                        fontFamily: fontFamily.mono,
+                        letterSpacing: 0.3,
+                        color: 'rgba(22,24,28,0.55)',
+                      }}>
+                      TASKS
+                    </Text>
                   </View>
                   {activeRows.map((row, idx) => {
                     const aged = row.age?.endsWith('d') ?? false;
@@ -1434,7 +1357,12 @@ export default function HomeScreen() {
                             alignItems: 'center',
                             gap: spacing.sm,
                             paddingHorizontal: 18,
-                            paddingVertical: 11,
+                            // the board's 14 rhythm (2026-07-17 "간격"):
+                            // rows breathe like every other section's
+                            // body; the first row clears the flap the
+                            // same 14+4 the YOUR TURN body text does
+                            paddingTop: idx === 0 ? 18 : 14,
+                            paddingBottom: 14,
                             opacity: pressed ? 0.5 : aged ? 0.5 : 1,
                           })}>
                           {/* state cell zone (2026-07-16 "픽셀스타일"):
@@ -1442,42 +1370,47 @@ export default function HomeScreen() {
                               same block the RUNNING gauge uses — teal =
                               your turn, pulse = running, dim = resting */}
                           <View
-                            style={{ width: 13, alignItems: 'flex-start', justifyContent: 'center' }}>
+                            style={{ width: 14, alignItems: 'flex-start', justifyContent: 'center' }}>
                             {row.waiting && !aged ? (
-                              <View
-                                style={{
-                                  width: 8,
-                                  height: 8,
-                                  backgroundColor: sysColor.action,
-                                }}
-                              />
+                              // mosaic cluster (2026-07-17): the state
+                              // cell speaks the crew-pixel voice
+                              <MosaicDot color={sysColor.action} />
                             ) : !row.waiting ? (
                               // every state cell shares the gauge's 8px
                               // body; only color and motion differ
                               <RunningDot color="rgba(22,24,28,0.35)" size={8} square />
                             ) : (
-                              <View
-                                style={{
-                                  width: 8,
-                                  height: 8,
-                                  backgroundColor: 'rgba(22,24,28,0.22)',
-                                }}
-                              />
+                              <MosaicDot color="rgba(22,24,28,0.4)" />
                             )}
                           </View>
-                          <Text
-                            numberOfLines={1}
-                            style={{
-                              flex: 1,
-                              color: AINK.text,
-                              fontSize: fontSize.body,
-                              // one flat weight: in the list only the
-                              // ACTIVE TAB gets emphasis; rows never
-                              // shout (user call 2026-07-14)
-                              fontFamily: fontFamily.regular,
-                            }}>
-                            {row.label}
-                          </Text>
+                          <View style={{ flex: 1 }}>
+                            <Text
+                              numberOfLines={1}
+                              style={{
+                                color: AINK.text,
+                                fontSize: fontSize.body,
+                                // one flat weight: rows never shout
+                                // (user call 2026-07-14)
+                                fontFamily: fontFamily.regular,
+                              }}>
+                              {row.label}
+                            </Text>
+                            {/* waiting rows name their state (2026-07-17):
+                                the same "Your turn" the hero card wears,
+                                so card = the front of THIS queue reads —
+                                the list is the ledger, the card is its
+                                promoted head */}
+                            {row.waiting ? (
+                              <Text
+                                style={{
+                                  marginTop: 3,
+                                  fontSize: fontSize.caption,
+                                  color: sysColor.action,
+                                }}>
+                                Your turn
+                              </Text>
+                            ) : null}
+                          </View>
                           {/* right column: always time, in every tab —
                               the list reads chronological at a glance */}
                           <Text
@@ -1506,7 +1439,9 @@ export default function HomeScreen() {
                           alignItems: 'center',
                           gap: spacing.sm,
                           paddingHorizontal: 18,
-                          paddingVertical: 11,
+                          // same 14 rhythm as the open rows above
+                          paddingTop: idx === 0 && activeRows.length === 0 ? 18 : 14,
+                          paddingBottom: 14,
                           opacity: pressed ? 0.5 : t.outcome === 'expired' ? 0.6 : 1,
                         })}>
                         {/* no state mark on closed rows, so no reserved
@@ -1589,151 +1524,6 @@ export default function HomeScreen() {
               />
             ) : null}
 
-            {/* floating ask bar: the one chat entry, pinned above the
-                tab bar. The section windows' own glass material with a
-                white hairline; no ring (2026-07-12). The slash chip
-                hints at commands (undo, pause, status) to come. */}
-            <Animated.View
-              pointerEvents="box-none"
-              style={[
-                {
-                  position: 'absolute',
-                  right: 10,
-                  bottom: 90,
-                  shadowColor: '#16181C',
-                  shadowOpacity: 0.18,
-                  shadowRadius: 10,
-                  shadowOffset: { width: 0, height: 3 },
-                  elevation: 8,
-                },
-                askBarStyle,
-              ]}>
-              <Pressable
-                onPress={() => openNewChat()}
-                style={({ pressed }) => ({
-                  height: 52,
-                  borderRadius: 0,
-                  overflow: 'hidden',
-                  opacity: pressed ? 0.85 : 1,
-                })}>
-                {/* blur under both skins: the bar floats over list
-                    text — without it the rows bleed through */}
-                {GLASS_AVAILABLE ? (
-                  <GlassView
-                    glassEffectStyle="clear"
-                    colorScheme="light"
-                    style={StyleSheet.absoluteFill}
-                    pointerEvents="none"
-                  />
-                ) : null}
-                {/* FIELD skin (expanded): the writable glass panel */}
-                <Animated.View
-                  pointerEvents="none"
-                  style={[
-                    StyleSheet.absoluteFill,
-                    {
-                      backgroundColor: 'rgba(255,255,255,0.62)',
-                      borderWidth: 1,
-                      borderColor: 'rgba(255,255,255,0.55)',
-                    },
-                    askFieldSkin,
-                  ]}
-                />
-                {/* KEYCAP skin (collapsed): bevel + sheen */}
-                <Animated.View
-                  pointerEvents="none"
-                  style={[
-                    StyleSheet.absoluteFill,
-                    {
-                      backgroundColor: 'rgba(255,255,255,0.62)',
-                      borderWidth: 1,
-                      borderTopColor: 'rgba(255,255,255,0.95)',
-                      borderLeftColor: 'rgba(255,255,255,0.8)',
-                      borderRightColor: 'rgba(255,255,255,0.6)',
-                      borderBottomColor: 'rgba(22,24,28,0.25)',
-                    },
-                    askKeySkin,
-                  ]}>
-                  <KeySheen />
-                </Animated.View>
-                <Animated.View
-                  style={[
-                    {
-                      flex: 1,
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      paddingRight: 7,
-                    },
-                    askRowStyle,
-                  ]}>
-                  {/* pill anatomy, app-wide: command on the LEFT ("/"
-                      here, "+" in chat), voice circle on the RIGHT that
-                      becomes send once you type — right thumb talks,
-                      left hand commands. Slash chip + hint melt away
-                      as the bar shrinks to its mic circle. */}
-                  <Animated.View
-                    style={[
-                      {
-                        overflow: 'hidden',
-                        justifyContent: 'center',
-                        alignItems: 'flex-start',
-                      },
-                      askSlashStyle,
-                    ]}>
-                    <Pressable
-                      hitSlop={14}
-                      onPress={() => openNewChat('undo ')}
-                      style={({ pressed }) => ({
-                        width: 22,
-                        height: 22,
-                        borderRadius: 6,
-                        backgroundColor: 'rgba(59,118,196,0.12)',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        opacity: pressed ? 0.6 : 1,
-                      })}>
-                      <Text
-                        style={{
-                          fontSize: 11,
-                          fontWeight: fontWeight.semibold,
-                          color: sysColor.accent,
-                        }}>
-                        /
-                      </Text>
-                    </Pressable>
-                  </Animated.View>
-                  <Animated.Text
-                    numberOfLines={1}
-                    style={[
-                      {
-                        flex: 1,
-                        fontSize: fontSize.body,
-                        fontFamily: fontFamily.regular,
-                        color: 'rgba(22,24,28,0.55)',
-                      },
-                      askHintStyle,
-                    ]}>
-                    What needs doing?
-                  </Animated.Text>
-                  <Pressable
-                    hitSlop={8}
-                    onPress={() => openNewChat()}
-                    style={({ pressed }) => ({
-                      // bare glyph, no chip — the filled cyan circle was
-                      // too bright for the quiet console; the mic itself
-                      // carries the color, same register as the rim light
-                      width: 38,
-                      height: 38,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      opacity: pressed ? 0.6 : 1,
-                    })}>
-                    <Ionicons name="mic" size={21} color={sysColor.accent} />
-                  </Pressable>
-                </Animated.View>
-              </Pressable>
-            </Animated.View>
-
 
           </View>
 
@@ -1746,6 +1536,13 @@ export default function HomeScreen() {
             onSetRoutine={acceptMorningRoutine}
             onNotNow={() => setTrustHandled('kept')}
             summary="Handled 17 things without you"
+          />
+          {/* +N MORE's rising folder: the hero card's queue, opened */}
+          <TaskSheet
+            visible={taskSheet !== null}
+            onClose={() => setTaskSheet(null)}
+            title={taskSheet === 'running' ? 'RUNNING' : 'YOUR TURN'}
+            rows={taskSheet === 'running' ? runningRows : needsYouRows}
           />
         </>
       ) : (

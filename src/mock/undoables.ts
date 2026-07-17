@@ -4,7 +4,19 @@
 // says so right there" (the past-undo ask will arrive as a popup later).
 // Shared by Home (LAST ACTION card) and the new-chat router: undo always
 // goes back to the original executor in the original thread.
-export const UNDOABLES = [
+export type Undoable = {
+  label: string;
+  threadId: string;
+  ask: string;
+  re: RegExp;
+  /** set when PART of the action can't come back (a notification
+   * already delivered, an email already read): the row's button says
+   * "Revert…" and arms a confirm step, and this line states exactly
+   * what stays done. Reversibility honesty is part of provenance. */
+  irreversible?: string;
+};
+
+export const UNDOABLES: Undoable[] = [
   {
     label: 'Booked dinner with Jenna',
     threadId: 't1',
@@ -16,5 +28,8 @@ export const UNDOABLES = [
     threadId: 't2',
     ask: 'Undo this: PR review block',
     re: /pr|review|auth-service/i,
+    // beat 7 told Priya the review is coming; that message is out in
+    // the world and no calendar delete brings it back
+    irreversible: "Frees the block. Priya's heads-up stays sent.",
   },
 ];
