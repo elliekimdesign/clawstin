@@ -1,12 +1,13 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { fontFamily, fontSize, spacing, sysColor } from '@/theme/theme';
 
 import { FrostedGlassFill } from './frosted-glass-fill';
 import { MosaicDot } from './mosaic-dot';
+import { RisingSheet } from './rising-sheet';
 
 const INK = '#16181C';
 const INK_DIM = 'rgba(22,24,28,0.55)';
@@ -53,10 +54,7 @@ export function TaskSheet({
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      {/* dim scrim full screen; tap anywhere above the folder closes */}
-      <View style={{ flex: 1, backgroundColor: 'rgba(22,24,28,0.2)' }}>
-        <Pressable onPress={onClose} style={{ flex: 1 }} />
+    <RisingSheet visible={visible} onClose={onClose}>
         <View
           style={{
             marginHorizontal: 10,
@@ -135,8 +133,7 @@ export function TaskSheet({
             ))}
           </ScrollView>
         </View>
-      </View>
-    </Modal>
+    </RisingSheet>
   );
 }
 

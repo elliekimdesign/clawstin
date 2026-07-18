@@ -1527,16 +1527,7 @@ export default function HomeScreen() {
 
           </View>
 
-          <AutopilotSheet
-            visible={autopilotOpen}
-            onClose={() => setAutopilotOpen(false)}
-            routine={
-              trustHandled === 'allowed' ? 'set' : trustHandled === 'kept' ? 'dismissed' : 'none'
-            }
-            onSetRoutine={acceptMorningRoutine}
-            onNotNow={() => setTrustHandled('kept')}
-            summary="Handled 17 things without you"
-          />
+          <AutopilotSheet visible={autopilotOpen} onClose={() => setAutopilotOpen(false)} />
           {/* +N MORE's rising folder: the hero card's queue, opened */}
           <TaskSheet
             visible={taskSheet !== null}

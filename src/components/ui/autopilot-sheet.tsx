@@ -1,22 +1,19 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { AUTOPILOT_RULES, isInactiveAgo } from '@/mock/autopilot';
+import { AUTOPILOT_RULES } from '@/mock/autopilot';
 import { useAppStore } from '@/store/app-store';
-import { fontFamily, fontSize, fontWeight, spacing, sysColor } from '@/theme/theme';
+import { fontFamily, fontSize } from '@/theme/theme';
 
-import { PixelChrome } from './pixel-chrome';
+import { FrostedGlassFill } from './frosted-glass-fill';
+import { RisingSheet } from './rising-sheet';
 
-// aquaos sheet tokens: this sheet is the ROUTINES window opened big,
-// so it wears the same silver pane + ink + mono system voice.
 const INK = '#16181C';
 const INK_DIM = 'rgba(22,24,28,0.55)';
 const DIVIDER = 'rgba(22,24,28,0.08)';
-const AMBER = '#9A6B1F';
-const AMBER_BG = 'rgba(199,126,34,0.16)';
 
 /** app slug -> monochrome Ionicon: the left slot answers "what does it
  * touch", so Gmail-ness / GitHub-ness scans instantly. */
@@ -27,179 +24,79 @@ const APP_ICON = {
   calendar: 'calendar-clear-outline',
 } as const;
 
-/** One unified row: rules and schedules share the exact same 2-line
- * anatomy so the list keeps its rhythm at any length. The left icon is
- * the APP the automation works in; scheduled-ness lives in the right
- * slot, where a small clock rides with the "Next ..." time. */
-function SheetRow({
-  app,
-  name,
-  right,
-  rightClock,
-  sub,
-  undone,
-  dimmed,
-  onPress,
-}: {
-  app: keyof typeof APP_ICON;
-  name: string;
-  /** right slot: last-run recency (rules) or next run time (schedules) */
-  right: string;
-  /** schedules only: a small clock glyph inline before the time */
-  rightClock?: boolean;
-  /** exactly one muted line: the latest action / last run receipt */
-  sub: string;
-  undone?: number;
-  dimmed?: boolean;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => ({
-        paddingVertical: 13,
-        paddingHorizontal: spacing.xl,
-        borderTopWidth: 1,
-        borderTopColor: DIVIDER,
-        opacity: pressed ? 0.6 : dimmed ? 0.55 : 1,
-      })}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-        <Ionicons name={APP_ICON[app]} size={14} color={INK_DIM} />
-        <Text
-          numberOfLines={1}
-          style={{
-            flex: 1,
-            fontSize: fontSize.body,
-            fontWeight: fontWeight.semibold,
-            color: INK,
-          }}>
-          {name}
-        </Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
-          {rightClock ? <Ionicons name="time-outline" size={11} color={INK_DIM} /> : null}
-          <Text style={{ fontSize: 10, fontFamily: fontFamily.mono, color: INK_DIM }}>
-            {right}
-          </Text>
-        </View>
-      </View>
-      {/* the exception chip lives at the end of the sub line so long
-          names never collide with it up top */}
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: 8,
-          marginTop: 4,
-          paddingLeft: 21,
-        }}>
-        <Text numberOfLines={1} style={{ flex: 1, fontSize: 12, color: INK_DIM }}>
-          {sub}
-        </Text>
-        {undone ? (
-          // quiet meta text, no badge — the amber pill read as a
-          // foreign voice on this sheet ("이 마크 너무 뜬금없어")
-          <Text
-            style={{
-              fontSize: 10,
-              fontFamily: fontFamily.mono,
-              letterSpacing: 0.3,
-              color: INK_DIM,
-            }}>
-            {undone === 1 ? 'undid 1' : `undid ${undone}`}
-          </Text>
-        ) : null}
-      </View>
-    </Pressable>
-  );
-}
-
 /**
- * The AUTOPILOT ledger as a bottom sheet: the board never reflows; the
- * sheet brings its own scroll. Pinned summary header up top, then ONE
- * list for both kinds of autonomy. Full history is never rendered here —
- * every row opens the conversation it was born in, and the footer hands
- * off to the Logs tab.
+ * The ROUTINES folder, opened (SIMPLIFIED 2026-07-17 "그냥 루틴되고
+ * 있는 리스트들만"): no summary metrics, no proposal buttons, no run
+ * counts — the sheet is nothing but the list of standing routines,
+ * each row the app's logo and exactly what runs. Every row is a door
+ * back to the conversation the routine lives in; pausing or changing
+ * it happens THERE by just asking (conversation is the universal
+ * fallback), so the sheet carries no controls of its own.
  */
 export function AutopilotSheet({
   visible,
   onClose,
-  summary,
-  routine,
-  onSetRoutine,
-  onNotNow,
 }: {
   visible: boolean;
   onClose: () => void;
-  /** the human trust line, e.g. "Handled 17 things without you" */
-  summary: string;
-  /** the inbox-summary pattern: suggested, accepted, or waved off */
-  routine: 'none' | 'set' | 'dismissed';
-  /** same state as YOUR TURN's Set it up; accepting anywhere resolves both */
-  onSetRoutine: () => void;
-  onNotNow: () => void;
 }) {
-  const { schedules, setLogsFilter } = useAppStore();
+  const { schedules } = useAppStore();
   const insets = useSafeAreaInsets();
-  const [inactiveOpen, setInactiveOpen] = useState(false);
+  // the folder flap hugs the ROUTINES label (2026-07-17 folder sweep)
+  const [titleW, setTitleW] = useState(0);
 
-  const activeRules = AUTOPILOT_RULES.filter((r) => !isInactiveAgo(r.recent[0]?.ago));
-  const inactiveRules = AUTOPILOT_RULES.filter((r) => isInactiveAgo(r.recent[0]?.ago));
-
-  /** schedules drill into their one thread (deliveries live there) */
   const openThread = (threadId: string) => {
     onClose();
     router.push(`/chat/${threadId}`);
   };
-  /** rules drill into Logs, pre-filtered — one screen for all history */
-  const openRuleLogs = (ruleKey: string) => {
-    setLogsFilter({ kind: 'rule', value: ruleKey });
-    onClose();
-    router.push('/activity');
-  };
+
+  // rules (event-triggered) and schedules (time-triggered) are both
+  // just "the agent working without you" — one flat list
+  const rows = [
+    ...AUTOPILOT_RULES.map((r) => ({
+      key: r.key,
+      app: r.app as string,
+      name: r.name,
+      sub: r.recent[0]?.label ?? '',
+      threadId: r.threadId,
+    })),
+    ...schedules.map((s) => ({
+      key: s.id,
+      app: s.permissionKey ?? 'calendar',
+      name: s.name,
+      sub: s.cadence,
+      threadId: s.threadId,
+    })),
+  ];
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      {/* dim scrim as a full-screen layer, so the corners of the
-          rounded sheet sit on dimmed board, not raw board */}
-      <View style={{ flex: 1, backgroundColor: 'rgba(22,24,28,0.2)' }}>
-      <Pressable onPress={onClose} style={{ flex: 1 }} />
+    <RisingSheet visible={visible} onClose={onClose}>
       <View
         style={{
-          // pale BLUE, not gray — the sheet floats over the blue desk
-          // and should belong to it (deepened a step; the first #E6EFF8
-          // was too shy to register as a change)
-          backgroundColor: '#DCE9F6',
-          // REDESIGN 2026-07-16 ("픽셀스타일 아웃라인 섹션에 한거처럼"):
-          // the rounded transient sheet became a floating BOARD WINDOW —
-          // square corners, the sections' stepped-ink pixel frame, and
-          // side/bottom margins so the frame reads all the way around
-          borderRadius: 0,
           marginHorizontal: 10,
           marginBottom: Math.max(insets.bottom, 10),
-          overflow: 'hidden',
           maxHeight: '78%',
-          paddingBottom: 12,
+          paddingBottom: 14,
           shadowColor: '#16181C',
           shadowOpacity: 0.2,
           shadowRadius: 24,
           shadowOffset: { width: 0, height: -8 },
           elevation: 16,
         }}>
-        {/* no grabber — it doubled up oddly above the title strip
-            ("띠 위에 또 저게 있으니까 이상해"); the strip IS the handle */}
-        {/* title bar: the section-window grammar — fold dots + mono
-            label on the board's tinted strip (#B7D4EE, same pane color
-            the section windows wear), full bleed */}
-        <View
-          style={{
-            height: 34,
-            flexDirection: 'row',
-            alignItems: 'center',
-            paddingHorizontal: 18,
-            backgroundColor: 'rgba(183,212,238,0.6)',
-          }}>
+        <FrostedGlassFill
+          radius={16}
+          tint="rgba(255,255,255,0.8)"
+          tabWidth={titleW ? 18 + titleW + 18 : 110}
+        />
+        {/* the flap names the opened folder; the strip IS the handle */}
+        <View style={{ height: 26, justifyContent: 'center', paddingHorizontal: 18 }}>
           <Text
+            onTextLayout={(e) => {
+              const w = Math.ceil(e.nativeEvent.lines[0]?.width ?? 0);
+              if (w !== titleW) setTitleW(w);
+            }}
             style={{
+              alignSelf: 'flex-start',
               fontSize: 11,
               fontFamily: fontFamily.mono,
               letterSpacing: 0.3,
@@ -208,169 +105,67 @@ export function AutopilotSheet({
             ROUTINES
           </Text>
         </View>
-        {/* pinned header: the week at a glance, then the list scrolls */}
-        <View style={{ paddingHorizontal: spacing.xl, paddingTop: spacing.md }}>
-          <Text
-            style={{
-              marginTop: 2,
-              fontSize: fontSize.body,
-              fontWeight: fontWeight.semibold,
-              color: INK,
-            }}>
-            {summary}
-          </Text>
-          {/* pattern -> proposal, question-and-answer shaped: the app
-              noticed a habit and offers to take it over. Read work gets
-              a routine suggestion, never a permission question. */}
-          {routine === 'dismissed' ? (
-            <View style={{ height: 14 }} />
-          ) : routine === 'set' ? (
-            <Text style={{ fontSize: 12, color: INK_DIM, marginTop: 10, marginBottom: 14 }}>
-              Morning briefing runs daily at 8 AM ✓
-            </Text>
-          ) : (
-            <View style={{ marginTop: 10, marginBottom: 14, gap: 9 }}>
-              <Text style={{ fontSize: 12, color: INK_DIM }}>
-                You asked for inbox summaries 3 times this week
-              </Text>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 18 }}>
-                <Pressable
-                  onPress={onSetRoutine}
-                  hitSlop={8}
-                  style={({ pressed }) => ({
-                    // PRIMARY = the flat title-strip blue (button
-                    // system v3, same as the board's answer capsules)
-                    backgroundColor: '#9FB6CD',
-                    borderRadius: 999,
-                    paddingVertical: 6,
-                    paddingHorizontal: 12,
-                    opacity: pressed ? 0.85 : 1,
-                  })}>
-                  <Text
-                    style={{ fontSize: 12, fontWeight: fontWeight.semibold, color: '#16181C' }}>
-                    Make it a routine
-                  </Text>
-                </Pressable>
-                <Pressable onPress={onNotNow} hitSlop={8}>
-                  {({ pressed }) => (
-                    <Text
-                      style={{
-                        fontSize: 12,
-                        fontWeight: fontWeight.semibold,
-                        color: INK_DIM,
-                        opacity: pressed ? 0.5 : 1,
-                      }}>
-                      Not now
-                    </Text>
-                  )}
-                </Pressable>
-              </View>
-            </View>
-          )}
-        </View>
-
-        <ScrollView showsVerticalScrollIndicator={false}>
-          {activeRules.map((rule) => (
-            <SheetRow
-              key={rule.name}
-              app={rule.app}
-              name={rule.name}
-              right={`${rule.recent[0]?.ago ?? ''} ago`}
-              sub={rule.recent[0]?.label ?? ''}
-              undone={rule.undone}
-              onPress={() => openRuleLogs(rule.key)}
-            />
-          ))}
-          {schedules.map((sch) => (
-            <SheetRow
-              key={sch.id}
-              app={(sch.permissionKey as keyof typeof APP_ICON) ?? 'calendar'}
-              name={sch.name}
-              right={`Next ${sch.cadence}`}
-              rightClock
-              sub={
-                sch.lastRun
-                  ? `Last run ${sch.lastRun.ago} ${sch.lastRun.ok ? '✓' : '✗'}`
-                  : 'First run coming up'
-              }
-              onPress={() => openThread(sch.threadId)}
-            />
-          ))}
-
-          {inactiveRules.length > 0 ? (
-            <>
-              <Pressable
-                onPress={() => setInactiveOpen((v) => !v)}
-                style={({ pressed }) => ({
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 4,
-                  paddingVertical: 13,
-                  paddingHorizontal: spacing.xl,
-                  borderTopWidth: 1,
-                  borderTopColor: DIVIDER,
-                  opacity: pressed ? 0.6 : 1,
-                })}>
-                <Text style={{ flex: 1, fontSize: fontSize.small, color: INK_DIM }}>
-                  {`Paused (${inactiveRules.length})`}
-                </Text>
-                <Ionicons
-                  name={inactiveOpen ? 'chevron-up' : 'chevron-down'}
-                  size={13}
-                  color={INK_DIM}
-                />
-              </Pressable>
-              {inactiveOpen
-                ? inactiveRules.map((rule) => (
-                    <SheetRow
-                      key={rule.name}
-                      app={rule.app}
-                      name={rule.name}
-                      right={`${rule.recent[0]?.ago ?? ''} ago`}
-                      sub={rule.recent[0]?.label ?? ''}
-                      undone={rule.undone}
-                      dimmed
-                      onPress={() => openRuleLogs(rule.key)}
-                    />
-                  ))
-                : null}
-            </>
-          ) : null}
-
-          {/* hand-off: the sheet is a ledger, not a log viewer */}
-          <Pressable
-            onPress={() => {
-              setLogsFilter({ kind: 'source', value: 'autopilot' });
-              onClose();
-              router.push('/activity');
-            }}
-            style={({ pressed }) => ({
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: 4,
-              paddingVertical: 14,
-              paddingHorizontal: spacing.xl,
-              borderTopWidth: 1,
-              borderTopColor: DIVIDER,
-              opacity: pressed ? 0.6 : 1,
-            })}>
+        <ScrollView style={{ flexGrow: 0 }}>
+          {rows.length === 0 ? (
             <Text
               style={{
-                flex: 1,
-                fontSize: fontSize.small,
-                fontWeight: fontWeight.semibold,
-                color: INK,
+                paddingHorizontal: 18,
+                paddingVertical: 16,
+                fontSize: 13,
+                color: INK_DIM,
               }}>
-              All activity
+              No routines yet
             </Text>
-            <Ionicons name="chevron-forward" size={13} color={INK_DIM} />
-          </Pressable>
+          ) : (
+            rows.map((row, idx) => (
+              <View key={row.key}>
+                {idx > 0 ? (
+                  <View
+                    style={{ height: 1, marginHorizontal: 18, backgroundColor: DIVIDER }}
+                  />
+                ) : null}
+                <Pressable
+                  onPress={() => openThread(row.threadId)}
+                  style={({ pressed }) => ({
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 12,
+                    paddingHorizontal: 18,
+                    paddingTop: idx === 0 ? 18 : 14,
+                    paddingBottom: 14,
+                    opacity: pressed ? 0.5 : 1,
+                  })}>
+                  <Ionicons
+                    name={APP_ICON[row.app as keyof typeof APP_ICON] ?? 'apps-outline'}
+                    size={16}
+                    color={INK_DIM}
+                  />
+                  <View style={{ flex: 1 }}>
+                    <Text
+                      numberOfLines={1}
+                      style={{
+                        color: INK,
+                        fontSize: fontSize.body,
+                        fontFamily: fontFamily.regular,
+                      }}>
+                      {row.name}
+                    </Text>
+                    {row.sub ? (
+                      <Text
+                        numberOfLines={1}
+                        style={{ marginTop: 3, fontSize: 12, color: INK_DIM }}>
+                        {row.sub}
+                      </Text>
+                    ) : null}
+                  </View>
+                  <Ionicons name="chevron-forward" size={13} color={INK_DIM} />
+                </Pressable>
+              </View>
+            ))
+          )}
         </ScrollView>
-        {/* drawn last so the frame rides over the strip and rows */}
-        <PixelChrome />
       </View>
-      </View>
-    </Modal>
+    </RisingSheet>
   );
 }
 
