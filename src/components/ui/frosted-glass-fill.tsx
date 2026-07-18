@@ -127,6 +127,7 @@ export function FrostedGlassFill({
   tabHeight = 26,
   tabStart = 0,
   slant,
+  flat = false,
   tint = 'rgba(255,255,255,0.55)',
   ghostTint = 'rgba(173,208,240,0.42)',
 }: {
@@ -142,6 +143,11 @@ export function FrostedGlassFill({
   /** horizontal run of the flap's diagonal edge — defaults to
    * tabHeight so the cut stays 45° at any flap height */
   slant?: number;
+  /** FLAT variant (2026-07-17 compose v2): a plain rounded rect that
+   * still wears the folder's full glass skin — veil, sheen, grain,
+   * rim — for surfaces that aren't folders (chips, composer,
+   * popovers). No flap, no ghost layer. */
+  flat?: boolean;
   /** front plate veil — lower alpha = more field bleeds through */
   tint?: string;
   /** the see-through blue box layer behind the flap notch */
@@ -158,9 +164,11 @@ export function FrostedGlassFill({
   const maxTabW = Math.max(40, w - radius - cut - 24 - tabStart);
   const tabW = Math.min(tabWidth, maxTabW);
   const front = ready
-    ? tabStart > 0
-      ? midTabPath(w, h, radius, tabStart, tabW, tabHeight, cut)
-      : folderPath(w, h, radius, tabW, tabHeight, cut)
+    ? flat
+      ? boxPath(w, h, radius)
+      : tabStart > 0
+        ? midTabPath(w, h, radius, tabStart, tabW, tabHeight, cut)
+        : folderPath(w, h, radius, tabW, tabHeight, cut)
     : '';
   const back = ready ? boxPath(w, h, radius) : '';
 
@@ -179,9 +187,14 @@ export function FrostedGlassFill({
             </ClipPath>
           </Defs>
           {/* GHOST: the full box behind — visible only where the front
-              flap cuts away, so the folder still completes its shape */}
-          <Path d={back} fill={ghostTint} />
-          <Path d={back} fill="none" stroke="rgba(255,255,255,0.45)" strokeWidth={1} />
+              flap cuts away, so the folder still completes its shape.
+              Flat cards have no cutaway, so no ghost. */}
+          {!flat ? (
+            <>
+              <Path d={back} fill={ghostTint} />
+              <Path d={back} fill="none" stroke="rgba(255,255,255,0.45)" strokeWidth={1} />
+            </>
+          ) : null}
           {/* FRONT: the frosted plate */}
           <Path d={front} fill={tint} />
           <Path d={front} fill="url(#frostSheen)" />

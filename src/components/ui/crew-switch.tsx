@@ -19,6 +19,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { ClawstinMark } from '@/components/ui/clawstin-mark';
+import { FrostedGlassFill } from '@/components/ui/frosted-glass-fill';
 import { PixelText, pixelTextWidth } from '@/components/ui/pixel-text';
 import { CrewPixel } from '@/components/ui/crew-pixel';
 import { CREW_LIST, CrewKey } from '@/mock/crew-routing';
@@ -87,6 +88,7 @@ export function CrewSwitch({
   busy,
   onSelect,
   onExpandChange,
+  light = false,
 }: {
   selected: CrewKey | null;
   manual: boolean;
@@ -98,6 +100,11 @@ export function CrewSwitch({
   /** fires when the pill expands/collapses — the header hides its side
    * buttons while expanded so the row can take the full width */
   onExpandChange?: (expanded: boolean) => void;
+  /** compose reskin (2026-07-17 "픽셀 가져갈 필요 없어"): frosted white
+   * face + plain Helvetica label while COLLAPSED. Expanding still flips
+   * to the dark readout — the picker is a machine moment, and the
+   * pixel reel's width math stays untouched. */
+  light?: boolean;
 }) {
   const { width: winW } = useWindowDimensions();
   // Expanded pill's max width: nearly the full screen — the header's side
@@ -106,6 +113,8 @@ export function CrewSwitch({
   const maxExpandedW = winW - 2 * spacing.md;
 
   const [expanded, setExpanded] = useState(false);
+  // measured Helvetica widths per light-badge label (name → px)
+  const [lightNameWs, setLightNameWs] = useState<Record<string, number>>({});
   const strip = useSharedValue(0); // -index * slotW(state), offset so `selected` centers
   const stripOpacity = useSharedValue(1);
   const pillW = useSharedValue(PILL_W);
@@ -162,8 +171,19 @@ export function CrewSwitch({
       ? 'NEW CHAT'
       : (CREW_LIST.find((c) => c.key === selected)?.name ?? '').toUpperCase();
   const pinned = manual && selected !== null;
-  const restW =
-    10 + 20 + 8 + pixelTextWidth(badgeName, 1.25, true) + (pinned ? 35 : 12) + 2 * BORDER;
+  // LIGHT badge geometry: ONE padding rule for every label, and the
+  // pill HUGS the measured text (2026-07-17 "같은 패딩... 여백이
+  // 중간에 길면 안돼") — face inset 10 + face 20 + gap 8 + measured
+  // Helvetica width + (pinned: 10 gap + ✕ zone 21 / else 12 inset).
+  // Widths land via onTextLayout; a per-char estimate covers the
+  // first frame.
+  const lightLabel =
+    selected === null ? 'New chat' : (CREW_LIST.find((c) => c.key === selected)?.name ?? '');
+  const lightNameW =
+    lightNameWs[lightLabel] ?? Math.ceil(lightLabel.length * 7.6) + 4;
+  const restW = light
+    ? 10 + 20 + 8 + lightNameW + (pinned ? 10 + 21 : 12) + 2 * BORDER
+    : 10 + 20 + 8 + pixelTextWidth(badgeName, 1.25, true) + (pinned ? 35 : 12) + 2 * BORDER;
 
   // Pure "render whatever `selected` is" — all pacing (how long each crew
   // is shown before the next one) is decided upstream in the store's
@@ -286,12 +306,24 @@ export function CrewSwitch({
             // navy swapped for a deepened cut of the app's own
             // accent-blue (#3B76C4 family), tying the readout to the
             // same identity color as the top rule/history key.
-            borderRadius: 0,
-            backgroundColor: 'rgba(30,58,110,0.9)',
-            borderWidth: 1,
+            // 14 = the board's card curve (2026-07-17 compose v2
+            // "곡선모양... 일관되게"), not a full-round pill. v3 same
+            // day ("폴더 헤어라인처럼 똑같은 느낌"): the light face IS
+            // the folder glass — FrostedGlassFill renders below, so
+            // the box itself goes bare.
+            borderRadius: light ? 14 : 0,
+            backgroundColor: light ? 'transparent' : 'rgba(30,58,110,0.9)',
+            borderWidth: light ? 0 : 1,
             borderColor: 'rgba(143,191,242,0.35)',
             overflow: 'hidden',
           }}>
+          {light ? (
+            // v2 (2026-07-17 "파란색이 겹쳐서... 밝은회색계열로"):
+            // blue glass sank into the blue tile field — a bright
+            // neutral-gray cut of the same glass instead, so the pill
+            // lifts off the desk and the ink names keep their contrast
+            <FrostedGlassFill flat radius={14} tint="rgba(242,245,248,0.78)" />
+          ) : null}
           {/* Collapsed layer: fixed centered capsule + picker-wheel strip.
               Stays mounted and cross-fades out while the expanded row fades
               in, so open/close reads as one continuous morph. */}
@@ -316,6 +348,7 @@ export function CrewSwitch({
                     strip={strip}
                     active={c.key === selected}
                     onPress={() => selectAndScheduleClose(c.key)}
+                    light={light}
                   />
                 ))}
               </Animated.View>
@@ -337,20 +370,44 @@ export function CrewSwitch({
                   gap: 8,
                 }}>
                 {selected === null ? (
-                  <ClawstinMark size={20} tint="#EAF4FF" />
+                  <ClawstinMark size={20} tint={light ? '#16181C' : '#EAF4FF'} />
                 ) : (
-                  <CrewPixel id={PIXEL_BY_ROUTE[selected]} size={20} ink="#EAF4FF" />
+                  <CrewPixel
+                    id={PIXEL_BY_ROUTE[selected]}
+                    size={20}
+                    ink={light ? '#16181C' : '#EAF4FF'}
+                  />
                 )}
-                <PixelText
-                  text={
-                    selected === null
-                      ? 'NEW CHAT'
-                      : (CREW_LIST.find((c) => c.key === selected)?.name ?? '').toUpperCase()
-                  }
-                  cell={1.25}
-                  color="#EAF4FF"
-                  led
-                />
+                {light ? (
+                  // compose voice: plain Helvetica, no pixel bitmap;
+                  // measured so the pill hugs with the shared paddings
+                  <Text
+                    onTextLayout={(e) => {
+                      const w = Math.ceil(e.nativeEvent.lines[0]?.width ?? 0);
+                      if (w && lightNameWs[lightLabel] !== w) {
+                        setLightNameWs((prev) => ({ ...prev, [lightLabel]: w }));
+                      }
+                    }}
+                    style={{
+                      fontSize: 13,
+                      fontFamily: fontFamily.semibold,
+                      letterSpacing: 0.2,
+                      color: '#16181C',
+                    }}>
+                    {lightLabel}
+                  </Text>
+                ) : (
+                  <PixelText
+                    text={
+                      selected === null
+                        ? 'NEW CHAT'
+                        : (CREW_LIST.find((c) => c.key === selected)?.name ?? '').toUpperCase()
+                    }
+                    cell={1.25}
+                    color="#EAF4FF"
+                    led
+                  />
+                )}
                 {/* pinned manually: the ✕ says "tap to release to auto" */}
                 {manual && selected !== null ? (
                   <View
@@ -361,7 +418,11 @@ export function CrewSwitch({
                       bottom: 0,
                       justifyContent: 'center',
                     }}>
-                    <Ionicons name="close" size={13} color="rgba(255,255,255,0.9)" />
+                    <Ionicons
+                      name="close"
+                      size={13}
+                      color={light ? 'rgba(22,24,28,0.7)' : 'rgba(255,255,255,0.9)'}
+                    />
                   </View>
                 ) : null}
               </View>
@@ -389,16 +450,29 @@ export function CrewSwitch({
                         height: INNER_H,
                         alignItems: 'center',
                         justifyContent: 'center',
-                        // optical lift: geometric centering left the
-                        // caps feeling pressed to the floor ("밑에
-                        // 막혀있는 느낌", 2026-07-16)
-                        paddingBottom: 4,
+                        // the 2026-07-16 "optical lift" (paddingBottom
+                        // 4) retired with the navy face — on the glass
+                        // it read as sitting HIGH ("살짝 위로",
+                        // 2026-07-17); true center now
                         opacity: pressed ? 0.6 : 1,
                       })}>
                       <PixelText
                         text={c.name.toUpperCase()}
                         cell={1.25}
-                        color={c.key === selected ? '#EAF4FF' : 'rgba(234,244,255,0.4)'}
+                        // ink on the light glass face, lit on the navy
+                        // readout — same pixel geometry either way so
+                        // the slot/highlight math never shifts. Idle
+                        // names lifted 0.4 → 0.65 (2026-07-17
+                        // "ligibility가 약해")
+                        color={
+                          light
+                            ? c.key === selected
+                              ? '#16181C'
+                              : 'rgba(22,24,28,0.65)'
+                            : c.key === selected
+                              ? '#EAF4FF'
+                              : 'rgba(234,244,255,0.4)'
+                        }
                         led
                       />
                     </Pressable>
@@ -456,12 +530,15 @@ function ReelLabel({
   strip,
   active,
   onPress,
+  light,
 }: {
   name: string;
   idx: number;
   strip: SharedValue<number>;
   active: boolean;
   onPress: () => void;
+  /** ink names on the light glass face (2026-07-17 v3) */
+  light?: boolean;
 }) {
   const innerStyle = useAnimatedStyle(() => {
     // Distance (in slots) between this label and whichever slot is centered.
@@ -477,11 +554,20 @@ function ReelLabel({
   return (
     <Animated.View
       style={[{ width: SLOT_W, height: INNER_H, alignItems: 'center', justifyContent: 'center' }, innerStyle]}>
-      <Pressable onPress={onPress} hitSlop={4} style={{ paddingBottom: 3 }}>
+      {/* same de-lift as the expanded slots (2026-07-17): true center */}
+      <Pressable onPress={onPress} hitSlop={4}>
         <PixelText
           text={name.toUpperCase()}
           cell={1.25}
-          color={active ? '#EAF4FF' : 'rgba(234,244,255,0.4)'}
+          color={
+            light
+              ? active
+                ? '#16181C'
+                : 'rgba(22,24,28,0.65)'
+              : active
+                ? '#EAF4FF'
+                : 'rgba(234,244,255,0.4)'
+          }
           led
         />
       </Pressable>

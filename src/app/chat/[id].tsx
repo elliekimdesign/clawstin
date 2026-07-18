@@ -18,7 +18,6 @@ import {
 import Animated, { FadeIn, FadeInDown, FadeOut, FadeOutUp } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { AnalogKey } from '@/components/ui/analog-key';
 import { ApprovalCard } from '@/components/ui/approval-card';
 import { CrewDots } from '@/components/ui/crew-dots';
 import { NewChatSeed, type SeedPhase } from '@/components/ui/new-chat-seed';
@@ -27,7 +26,8 @@ import { CrewSwitch } from '@/components/ui/crew-switch';
 import { AquaBg } from '@/components/ui/aqua-bg';
 import { ButterBg } from '@/components/ui/butter-bg';
 import { CloudBg } from '@/components/ui/cloud-bg';
-import { DeskGradientBg } from '@/components/ui/desk-gradient-bg';
+import { FrostedGlassFill } from '@/components/ui/frosted-glass-fill';
+import { MosaicTilesBg } from '@/components/ui/mosaic-tiles-bg';
 import { MeshBg } from '@/components/ui/mesh-bg';
 import { MintBg } from '@/components/ui/mint-bg';
 import { MonthOverlay } from '@/components/ui/month-overlay';
@@ -100,6 +100,9 @@ export function ChatThreadView({
   // calendar tap shrinks the strip left and drops a vertical rail of
   // calendar actions in the freed column — staggered, one by one
   const [calRail, setCalRail] = useState(false);
+  // compose-only TOOLS rail (2026-07-17 "tools 들이 아래 동그랗게"):
+  // the header's right circle drops the tool doors below it
+  const [toolsRail, setToolsRail] = useState(false);
   const toggleCalRail = () => {
     LayoutAnimation.configureNext(LayoutAnimation.create(220, 'easeInEaseOut', 'opacity'));
     setCalRail((v) => !v);
@@ -285,9 +288,9 @@ export function ChatThreadView({
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: darkChat.base }} edges={['top', 'bottom']}>
       {/* blue desk: light status icons */}
-      {/* v2 (2026-07-16, "near white" desk): dark status bar icons —
-          "light" (white) vanished once the field lightened */}
-      <StatusBar style="dark" />
+      {/* v5 (2026-07-17, mosaic desk): white icons on the blue field,
+          dark on the light colorways */}
+      <StatusBar style={darkChat.background === 'desk' ? 'light' : 'dark'} />
       {/* Background art follows the active chat colorway (see chatThemes) */}
       {darkChat.background === 'aqua' ? (
         <AquaBg />
@@ -298,31 +301,16 @@ export function ChatThreadView({
       ) : darkChat.background === 'clouds' ? (
         <CloudBg />
       ) : darkChat.background === 'desk' ? (
-        // v2 (2026-07-16, "배경을 더 심플하게... 그라데이션은 있는게
-        // 좋을거같아"): the moving-panel shader retired for this screen
-        // — a plain vertical gradient instead, in the same lighter sky
-        // blue. Home keeps its own animated deskWash panels untouched.
-        <DeskGradientBg />
+        // v5 (2026-07-17, "이런 스타일로... 배경은 같은색인데 모자이크
+        // 큰 타일로"): the other tabs' desk blue, laid as a quiet
+        // large-tile mosaic — the MosaicDot language at field scale.
+        <MosaicTilesBg />
       ) : (
         <MeshBg variant="dark" />
       )}
-      {/* v3 same day ("우리 아이덴티티가 사라진느낌" — the near-white
-          field read as a foreign screen): a solid system-accent-blue
-          rule right under the status bar, the same #3B76C4 the whole
-          app uses for its own energy signal — an unmistakable "this is
-          still the desk" anchor even though the field lightened. Must
-          render AFTER the background (absoluteFill) or the gradient
-          paints over it — this is why it wasn't visible at first. */}
-      <View
-        style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          height: 4,
-          backgroundColor: sysColor.accent,
-        }}
-      />
+      {/* the near-white era's 4pt accent anchor rule retired
+          (2026-07-17): the field itself is the desk blue again, so
+          the identity needs no separate marker */}
 
       {/* Slim header: back pinned left, crew switch truly centered on the
           screen (not just centered in the space left of the arrow) — a
@@ -386,6 +374,10 @@ export function ChatThreadView({
             busy={crewBusy}
             onSelect={selectCrew}
             onExpandChange={setCrewExpanded}
+            // v3 (2026-07-17 "글자치면... 다 바껴야"): the folder-glass
+            // face in EVERY state on this screen — typing, routing,
+            // bound. The navy readout is retired here.
+            light
           />
         </View>
         {!crewExpanded ? (
@@ -394,30 +386,29 @@ export function ChatThreadView({
             exiting={FadeOut.duration(120)}
             style={{ width: 48, alignItems: 'flex-end' }}>
             {composeNew && !thread ? (
-              // empty new chat: the calendar means nothing yet — this
-              // slot is the HISTORY door instead, for the hand that
-              // reaches for an LLM-style history list (it lives in
-              // Activity, our receipt ledger). v2 (2026-07-16, "눈에
-              // 띄는걸로") — the white glass key nearly vanished on the
-              // near-white desk; a solid accent-blue chip instead, so
-              // it reads as a real button, not a blend-in artifact.
+              // empty new chat: TOOLS door (2026-07-17 "이부분은
+              // tools로") — tapping drops the round tool doors below,
+              // settings riding last. History lives in Activity.
               <Pressable
-                onPress={() => router.navigate('/(tabs)/chat')}
+                onPress={() => setToolsRail((v) => !v)}
                 hitSlop={8}
                 style={({ pressed }) => ({
                   width: 40,
                   height: 40,
                   borderRadius: 999,
-                  backgroundColor: sysColor.accent,
+                  overflow: 'hidden',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  opacity: pressed ? 0.75 : 1,
-                  shadowColor: sysColor.accent,
-                  shadowOpacity: 0.35,
-                  shadowRadius: 6,
-                  shadowOffset: { width: 0, height: 2 },
+                  opacity: pressed ? 0.7 : 1,
+                  shadowColor: '#16181C',
+                  shadowOpacity: 0.12,
+                  shadowRadius: 8,
+                  shadowOffset: { width: 0, height: 3 },
                 })}>
-                <Ionicons name="time-outline" size={19} color="#FFFFFF" />
+                {/* the badge's own grained glass (2026-07-17 "여기
+                    스타일 색깔도... 비슷하게"), not flat white */}
+                <FrostedGlassFill flat radius={20} tint="rgba(242,245,248,0.82)" />
+                <Ionicons name="apps-outline" size={18} color={sysColor.accent} />
               </Pressable>
             ) : (
               // bound thread: a single tool circle, always the active
@@ -574,6 +565,56 @@ export function ChatThreadView({
             </Animated.View>
           ) : null}
 
+          {/* compose TOOLS rail (2026-07-17): the header's tools
+              circle drops the tool doors below it, one by one —
+              settings (환경설정) rides last */}
+          {toolsRail && composeNew && !thread ? (
+            <View
+              style={{
+                position: 'absolute',
+                top: spacing.sm,
+                right: spacing.md,
+                gap: 10,
+                zIndex: 30,
+              }}>
+              {(
+                [
+                  { icon: 'calendar-clear-outline', action: 'calendar' },
+                  { icon: 'logo-github', action: 'github' },
+                  { icon: 'people-outline', action: 'contacts' },
+                  { icon: 'settings-outline', action: 'settings' },
+                ] as const
+              ).map((r, i) => (
+                <Animated.View key={r.icon} entering={FadeInDown.delay(i * 90).duration(220)}>
+                  <Pressable
+                    onPress={() => {
+                      setToolsRail(false);
+                      if (r.action === 'settings') router.push('/settings');
+                      else Alert.alert('Coming soon');
+                    }}
+                    hitSlop={6}
+                    style={({ pressed }) => ({
+                      width: 40,
+                      height: 40,
+                      borderRadius: 999,
+                      overflow: 'hidden',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      opacity: pressed ? 0.7 : 1,
+                      shadowColor: '#16181C',
+                      shadowOpacity: 0.12,
+                      shadowRadius: 8,
+                      shadowOffset: { width: 0, height: 3 },
+                    })}>
+                    {/* the badge's grained glass, one circle at a time */}
+                    <FrostedGlassFill flat radius={20} tint="rgba(242,245,248,0.82)" />
+                    <Ionicons name={r.icon} size={17} color={sysColor.accent} />
+                  </Pressable>
+                </Animated.View>
+              ))}
+            </View>
+          ) : null}
+
           {/* the calendar rail: starts right under the header, in the
               column both the console and the strip ceded */}
           {calRail && stripTarget != null && !calOpen ? (
@@ -650,51 +691,10 @@ export function ChatThreadView({
                   alignItems: 'center',
                   gap: 10,
                 }}>
+                {/* starter chips deleted (2026-07-17 "이거는 지워") —
+                    the composer and the crew dots carry the empty
+                    state alone */}
                 <NewChatSeed phase={seedPhase} />
-                {(seedPhase === 'idle'
-                  ? ['Plan my day', 'Find time Friday', 'Summarize my inbox']
-                  : []
-                ).map((chip) => (
-                  <Pressable
-                    key={chip}
-                    onPress={() => setDraft(chip)}
-                    style={({ pressed }) => ({
-                      // v2 (2026-07-16, "near white" desk): white-based
-                      // glass vanished on a white-based field — blue
-                      // tint instead, same thin-glass idea
-                      borderRadius: 999,
-                      overflow: 'hidden',
-                      borderWidth: 1,
-                      borderColor: 'rgba(94,159,224,0.45)',
-                      opacity: pressed ? 0.7 : 1,
-                    })}>
-                    {GLASS_AVAILABLE ? (
-                      <GlassView
-                        glassEffectStyle="clear"
-                        colorScheme="light"
-                        style={StyleSheet.absoluteFill}
-                        pointerEvents="none"
-                      />
-                    ) : null}
-                    <View
-                      pointerEvents="none"
-                      style={[
-                        StyleSheet.absoluteFill,
-                        { backgroundColor: 'rgba(94,159,224,0.14)' },
-                      ]}
-                    />
-                    <Text
-                      style={{
-                        paddingHorizontal: 16,
-                        paddingVertical: 9,
-                        fontSize: 13,
-                        fontFamily: fontFamily.regular,
-                        color: '#16181C',
-                      }}>
-                      {chip}
-                    </Text>
-                  </Pressable>
-                ))}
               </View>
             ) : null}
             {thread?.messages.map((m, mi) => {
@@ -838,6 +838,11 @@ export function ChatThreadView({
                       : null
               }
               wave={draft.trim().length > 0}
+              // ROUTING PREVIEW (2026-07-17): the live draft runs
+              // through the SAME routeCrew the send path uses, so the
+              // dot that pulses while you type is the crew that will
+              // actually take it
+              predicted={draft.trim().length > 0 ? (routeCrew(draft)?.key ?? null) : null}
             />
           </View>
           {/* Command KEY row (2026-07-16, Home-consistency pass):
@@ -852,28 +857,39 @@ export function ChatThreadView({
               alignItems: 'center',
               gap: 8,
             }}>
-          <AnalogKey
+          {/* tools door: frosted circle (2026-07-17 compose reskin,
+              keycap retired here) — same family as back/history */}
+          <Pressable
             onPress={() => setAttachOpen((v) => !v)}
             hitSlop={10}
-            style={{
-              width: 36,
-              height: 36,
+            style={({ pressed }) => ({
+              width: 38,
+              height: 38,
+              borderRadius: 999,
+              backgroundColor: 'rgba(255,255,255,0.85)',
+              borderWidth: 1,
+              borderColor: 'rgba(255,255,255,0.9)',
               alignItems: 'center',
               justifyContent: 'center',
-            }}>
-            <Ionicons name="add" size={20} color="rgba(22,24,28,0.6)" />
-          </AnalogKey>
+              opacity: pressed ? 0.7 : 1,
+              shadowColor: '#16181C',
+              shadowOpacity: 0.1,
+              shadowRadius: 6,
+              shadowOffset: { width: 0, height: 2 },
+            })}>
+            <Ionicons name="add" size={20} color="rgba(22,24,28,0.65)" />
+          </Pressable>
           <View
             style={{
               flex: 1,
               // the Home ask bar's expanded FIELD skin, exactly (2026-
               // 07-16 "챗 봇안에는 그게 똑같이"): square writable glass
-              // — the keycap look belongs only to the COLLAPSED bar
+              // v2 (2026-07-17 "유리 재질... 일관되게"): the folder
+              // cards' glass skin at the board's 16 radius — the
+              // full-round pill retired with the plain white veil
               height: 52,
-              borderRadius: 0,
+              borderRadius: 16,
               overflow: 'hidden',
-              borderWidth: 1,
-              borderColor: 'rgba(255,255,255,0.55)',
               flexDirection: 'row',
               alignItems: 'center',
               gap: spacing.sm,
@@ -888,13 +904,7 @@ export function ChatThreadView({
                   pointerEvents="none"
                 />
               ) : null}
-              <View
-                pointerEvents="none"
-                // 0.62 read blue over the deep desk ("더 맑은 흰색"):
-                // the composer sits on darker ground than Home's bar,
-                // so its veil runs whiter to land on the same white
-                style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(255,255,255,0.86)' }]}
-              />
+              <FrostedGlassFill flat radius={16} tint="rgba(255,255,255,0.8)" />
               <Pressable
                 hitSlop={10}
                 onPress={() => {
@@ -987,11 +997,17 @@ export function ChatThreadView({
                 bottom: 64,
                 zIndex: 21,
                 minWidth: 180,
-                backgroundColor: darkChat.solidSurface,
-                borderRadius: radius.lg,
+                shadowColor: '#16181C',
+                shadowOpacity: 0.16,
+                shadowRadius: 18,
+                shadowOffset: { width: 0, height: 6 },
+                elevation: 10,
                 paddingVertical: spacing.xs,
-                ...shadow.card,
               }}>
+              {/* frosted card (2026-07-17 compose v2): the folder
+                  cards' glass skin, flat — a popover is a card, not a
+                  folder */}
+              <FrostedGlassFill flat radius={16} tint="rgba(255,255,255,0.85)" />
               {(
                 [
                   { icon: 'camera-outline', label: 'Camera' },
@@ -1013,15 +1029,12 @@ export function ChatThreadView({
                     paddingHorizontal: spacing.lg,
                     opacity: pressed ? 0.5 : 1,
                   })}>
-                  {/* fixed light ink (2026-07-16 fix): the popover's
-                      own solidSurface is dark navy regardless of the
-                      desk's text color */}
-                  <Ionicons name={item.icon} size={18} color="#EAF4FF" />
+                  <Ionicons name={item.icon} size={18} color="rgba(22,24,28,0.65)" />
                   <Text
                     style={{
                       fontSize: fontSize.body,
                       fontFamily: fontFamily.regular,
-                      color: '#EAF4FF',
+                      color: '#16181C',
                     }}>
                     {item.label}
                   </Text>

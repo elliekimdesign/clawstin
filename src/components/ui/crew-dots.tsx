@@ -100,20 +100,28 @@ function Dot({
 export function CrewDots({
   activeKey,
   wave = false,
+  predicted = null,
 }: {
   activeKey: CrewKey | null;
   /** true while the human is typing: all four wake and ripple */
   wave?: boolean;
+  /** ROUTING PREVIEW (2026-07-17 "움직이는거 요소는 의미있게"): the
+   * crew member the draft would route to (routeCrew on the live text).
+   * That one dot alone wakes and pulses while you type — "who will
+   * take this" — instead of the old decorative all-dot wave. The wave
+   * stays only as the fallback when the draft matches nobody yet. */
+  predicted?: CrewKey | null;
 }) {
   const awakeId = activeKey ? PIXEL_BY_ROUTE[activeKey] : null;
+  const predictedId = !awakeId && predicted ? PIXEL_BY_ROUTE[predicted] : null;
   return (
     <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 7 }}>
       {ORDER.map((id, i) => (
         <Dot
           key={id}
           color={DOT_COLOR[id] ?? CREW_ACCENT[id]}
-          awake={id === awakeId}
-          wave={wave && !awakeId}
+          awake={id === awakeId || id === predictedId}
+          wave={wave && !awakeId && !predictedId}
           waveDelay={i * 150}
         />
       ))}
