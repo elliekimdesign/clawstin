@@ -186,28 +186,24 @@ export const chatThemes: Record<'darkGreen' | 'skyBlue' | 'skyBlueOs' | 'mintOs'
    * vintage-futuristic layer — machined light arcs + the three original
    * window-button gels (DeskRetroBg). Chat and Home become one OS. */
   deskOs: {
-    // matches the chat screen's own DeskGradientBg field color
-    // (2026-07-16, "near white") — the SafeAreaView fill must agree
-    // with the gradient or a seam shows at any edge it doesn't cover
-    // (status bar, load flash before it mounts)
-    base: '#EDF2F8',
-    // ink body voice (2026-07-16 — navy tried first, then "아예
-    // 검정으로해야 더 잘보일거같아"): full ink black, app-wide's own
-    // #16181C, for the strongest read on the light desk field.
-    text: '#16181C',
-    textSecondary: 'rgba(22,24,28,0.75)',
-    textTertiary: 'rgba(22,24,28,0.55)',
-    // v2 (2026-07-16, "near white" desk): white-based glass surfaces
-    // were invisible on a white-based field — recalibrated to a light
-    // blue-gray tint so cards/chips still read as translucent GLASS,
-    // just against the opposite contrast direction
-    glassBg: 'rgba(94,159,224,0.12)',
-    glassBorder: 'rgba(94,159,224,0.35)',
-    surface: 'rgba(94,159,224,0.1)',
+    // the mosaic-tile field's own desk blue (2026-07-17) — the
+    // SafeAreaView fill must agree with the field or a seam shows at
+    // any edge it doesn't cover (status bar, load flash)
+    base: '#4E83B8',
+    // WHITE voice (2026-07-17 "전체 모든 문장 흰색"): the field went
+    // back to the desk blue, so every sentence in the conversation —
+    // replies, card content, meta — speaks white. Light surfaces pin
+    // their own ink locally (onLight).
+    text: 'rgba(255,255,255,0.96)',
+    textSecondary: 'rgba(255,255,255,0.78)',
+    textTertiary: 'rgba(255,255,255,0.6)',
+    // translucent glass tints stay in the blue family; on the blue
+    // field they read as quiet lifted panes
+    glassBg: 'rgba(255,255,255,0.1)',
+    glassBorder: 'rgba(255,255,255,0.35)',
+    surface: 'rgba(255,255,255,0.12)',
     solidSurface: '#2E5079',
-    // ink divider too — a white hairline nearly vanished against the
-    // desk once the body text stopped being white (2026-07-16 pass)
-    divider: 'rgba(22,24,28,0.18)',
+    divider: 'rgba(255,255,255,0.25)',
     onLight: '#2E4F73',
     success: '#5FD9A4',
     background: 'desk',

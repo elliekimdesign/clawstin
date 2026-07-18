@@ -150,17 +150,21 @@ function DoneLog({
   const clipped = lines.length > shown.length;
 
   if (folded) {
-    // the console asleep: a navy circle riding the empty right edge,
-    // '>_' in the run's verdict color; tap to reopen the log
+    // the console asleep beside the composer: same 16 radius as the
+    // field it docks against (2026-07-17 "이거랑 같은 라운드로"), not
+    // a circle — '>_' in the run's verdict color; tap to reopen
     return (
       <Pressable
         onPress={toggle}
         hitSlop={8}
         style={({ pressed }) => ({
-          alignSelf: 'flex-end',
-          width: 40,
-          height: 40,
-          borderRadius: 999,
+          // 52 = the composer field's exact height, so the docked
+          // console rides the SAME top/bottom lines beside it
+          // (2026-07-17 "라인이 안맞아") — the old alignSelf flex-end
+          // was for the retired top-right float and dragged it low
+          width: 52,
+          height: 52,
+          borderRadius: 16,
           backgroundColor: PANEL_BG,
           alignItems: 'center',
           justifyContent: 'center',

@@ -1,7 +1,8 @@
 import { ReactNode, useState } from 'react';
 import { NativeSyntheticEvent, Text, TextLayoutEventData, View } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
-import { darkChat, fontFamily, spacing } from '@/theme/theme';
+import { fontFamily, spacing } from '@/theme/theme';
+import { FrostedGlassFill } from './frosted-glass-fill';
 import { ThinkingBlob } from './thinking-blob';
 
 type Props = {
@@ -24,10 +25,10 @@ type Props = {
 const NUDGE = '#F0812F';
 
 const BODY_STYLE = {
-  // v2 (2026-07-16, "near white" desk): the field flipped from bright
-  // blue to near-white, so white text would vanish — back to the
-  // app's own ink black, no backing wash either way
-  color: '#16181C',
+  // v3 (2026-07-17, mosaic blue desk + "컨텐츠는 흰색으로"): the field
+  // is the desk blue again, so agent replies speak in white — the same
+  // way Home's own text sits on the desk
+  color: 'rgba(255,255,255,0.96)',
   fontSize: 16,
   lineHeight: 24,
   fontFamily: fontFamily.regular,
@@ -68,18 +69,16 @@ export function MessageBubble({ from, text, proactive, caption, showBlob, childr
               transform: [{ translateY: -8 }],
             })}
             style={{
-              // v2 (2026-07-16, "near white" desk): a white-on-white
-              // pill vanished once the field lightened — a soft blue
-              // tint now carries the same "ask bar" glass language but
-              // actually reads as a distinct sent bubble
+              // v3 (2026-07-17, mosaic desk): the sent prompt wears the
+              // COMPOSER's own frosted glass at the board's 14 radius —
+              // what you typed stays in the material you typed it in
               maxWidth: '86%',
-              backgroundColor: 'rgba(143,191,242,0.28)',
-              borderRadius: 0,
-              borderWidth: 1,
-              borderColor: 'rgba(94,159,224,0.4)',
+              borderRadius: 14,
+              overflow: 'hidden',
               paddingHorizontal: 14,
               paddingVertical: 9,
             }}>
+            <FrostedGlassFill flat radius={14} tint="rgba(255,255,255,0.8)" />
             <Text
               style={{
                 color: '#16181C',

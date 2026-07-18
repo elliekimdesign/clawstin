@@ -19,9 +19,7 @@ import Animated, { FadeIn, FadeInDown, FadeOut, FadeOutUp } from 'react-native-r
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ApprovalCard } from '@/components/ui/approval-card';
-import { CrewDots } from '@/components/ui/crew-dots';
-import { NewChatSeed, type SeedPhase } from '@/components/ui/new-chat-seed';
-import { CREW_DEEP } from '@/components/ui/crew-pixel';
+import { type SeedPhase } from '@/components/ui/new-chat-seed';
 import { CrewSwitch } from '@/components/ui/crew-switch';
 import { AquaBg } from '@/components/ui/aqua-bg';
 import { ButterBg } from '@/components/ui/butter-bg';
@@ -163,8 +161,11 @@ export function ChatThreadView({
   const consoleTop = spacing.sm;
   const consoleDone = thinkingHere ? thinkingHere.done : bootLog.length > 0;
   const consoleDocked = consoleDone && consoleFolded;
+  // the calendar no longer hides the console (2026-07-17 "콘솔 위로
+  // 달력패널이 오면 안되고") — the console owns the top slot whenever
+  // it's expanded, and panels stack BELOW it
   const consoleExpandedVisible =
-    !calOpen && !consoleDocked && (thinkingHere !== null || bootLog.length > 0);
+    !consoleDocked && (thinkingHere !== null || bootLog.length > 0);
 
   // The dark week-strip console: NOT during thinking (the console narrates
   // that) — it appears with the calendar answer, right under the console.
@@ -259,7 +260,6 @@ export function ChatThreadView({
   };
   const slashToken = draft.match(/^\/(\w+)/)?.[1]?.toLowerCase();
   const called = slashToken ? SLASH_CALLS[slashToken] ?? null : null;
-  const calledLen = called && slashToken ? slashToken.length + 1 : 0;
 
   // New-chat seed state machine: idle -> routing (crew-color ripple) ->
   // handoff (routed color floods, lockup lifts) -> thread binds
@@ -406,9 +406,12 @@ export function ChatThreadView({
                   shadowOffset: { width: 0, height: 3 },
                 })}>
                 {/* the badge's own grained glass (2026-07-17 "여기
-                    스타일 색깔도... 비슷하게"), not flat white */}
+                    스타일 색깔도... 비슷하게"), not flat white. Icons
+                    in INK, one color across every circle ("검정이
+                    낫지 않을까") — accent-blue made the filled GitHub
+                    glyph read as a stray black. */}
                 <FrostedGlassFill flat radius={20} tint="rgba(242,245,248,0.82)" />
-                <Ionicons name="apps-outline" size={18} color={sysColor.accent} />
+                <Ionicons name="apps-outline" size={18} color="rgba(22,24,28,0.7)" />
               </Pressable>
             ) : (
               // bound thread: a single tool circle, always the active
@@ -441,44 +444,13 @@ export function ChatThreadView({
               the machine zone). The multi-tool horizontal strip that
               used to share this row was retired 2026-07-16 — every
               tool now lives in the vertical corner stack instead. */}
-          {consoleDocked && !calOpen ? (
-            <View
-              style={{
-                // circle alone: costs NO flow height — floats in the
-                // top-right corner and the chat rises fully ("내용은
-                // 자동으로 위로 올라와야 해")
-                position: 'absolute',
-                top: spacing.sm,
-                right: spacing.lg,
-                zIndex: 20,
-                flexDirection: 'row',
-                gap: 8,
-              }}>
-              {thinkingHere ? (
-                <ThinkingConsole
-                  threadId={thinkingHere.threadId}
-                  lines={thinkingHere.lines}
-                  done={thinkingHere.done}
-                  failed={thinkingHere.failed}
-                  folded
-                  onToggleFold={() => setConsoleFolded(false)}
-                />
-              ) : (
-                <ThinkingConsole
-                  threadId={effId}
-                  lines={bootLog}
-                  done
-                  folded
-                  onToggleFold={() => setConsoleFolded(false)}
-                />
-              )}
-            </View>
-          ) : null}
+          {/* docked >_ moved to the composer's left slot (2026-07-17
+              "콘솔이 숨겨지는 자리") — see the command row below */}
           {/* Thinking console: an OVERLAY now (2026-07-14) — the chat
               scrolls BEHIND it ("모든 대화 내용은 콘솔 뒤로"); the scroll
               gets measured top padding so content clears it at rest.
               Hidden while the month view is open. */}
-          {thinkingHere && !calOpen && !consoleDocked ? (
+          {thinkingHere && !consoleDocked ? (
             <Animated.View
               entering={FadeInDown.duration(280)}
               exiting={FadeOutUp.duration(220)}
@@ -487,9 +459,9 @@ export function ChatThreadView({
                 position: 'absolute',
                 top: consoleTop,
                 left: spacing.lg,
-                // this console cedes the rail column too — every dark
-                // panel steps left when the rail is out
-                right: calRail ? spacing.lg + 52 : spacing.lg,
+                // rails OVERLAP now (2026-07-17 "오버래핑해서 앞에") —
+                // no more ceding a column
+                right: spacing.lg,
                 zIndex: 20,
               }}>
               <ThinkingConsole
@@ -507,14 +479,14 @@ export function ChatThreadView({
               thread's ask (folds to the right-edge circle). The gateway
               boot lines ("Gateway connected | E2E...") ALWAYS live
               inside this console — never as bare text in the scroll. */}
-          {!thinkingHere && bootLog.length > 0 && !calOpen && !consoleDocked ? (
+          {!thinkingHere && bootLog.length > 0 && !consoleDocked ? (
             <View
               onLayout={(e) => setConsoleH(e.nativeEvent.layout.height)}
               style={{
                 position: 'absolute',
                 top: consoleTop,
                 left: spacing.lg,
-                right: calRail ? spacing.lg + 52 : spacing.lg,
+                right: spacing.lg,
                 zIndex: 20,
               }}>
               <ThinkingConsole
@@ -554,14 +526,12 @@ export function ChatThreadView({
                 marginTop: spacing.xs,
                 marginBottom: spacing.xs,
               }}>
-              {/* the strip cedes a button-wide column when the rail is out */}
-              <View style={{ marginRight: calRail ? 52 : 0 }}>
-                <Pressable
-                  onPress={() => setCalOpen(true)}
-                  style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}>
-                  <WeekStrip targetDate={stripTarget} scanning={false} />
-                </Pressable>
-              </View>
+              {/* rails overlap now — the strip keeps its full width */}
+              <Pressable
+                onPress={() => setCalOpen(true)}
+                style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}>
+                <WeekStrip targetDate={stripTarget} scanning={false} />
+              </Pressable>
             </Animated.View>
           ) : null}
 
@@ -606,9 +576,10 @@ export function ChatThreadView({
                       shadowRadius: 8,
                       shadowOffset: { width: 0, height: 3 },
                     })}>
-                    {/* the badge's grained glass, one circle at a time */}
+                    {/* the badge's grained glass, one circle at a time;
+                        ink glyphs, one color for every button */}
                     <FrostedGlassFill flat radius={20} tint="rgba(242,245,248,0.82)" />
-                    <Ionicons name={r.icon} size={17} color={sysColor.accent} />
+                    <Ionicons name={r.icon} size={17} color="rgba(22,24,28,0.7)" />
                   </Pressable>
                 </Animated.View>
               ))}
@@ -664,9 +635,10 @@ export function ChatThreadView({
           <ScrollView
             ref={scrollRef}
             contentContainerStyle={{
+              // full width both sides (2026-07-17 "오른쪽에 남겨둔
+              // 화면없이 다 쓰는걸로") — the reserved right rail retired
               paddingLeft: spacing.lg,
-              // right rail reserved for a future vertical element
-              paddingRight: 32,
+              paddingRight: spacing.lg,
               // clear the floating console at rest (it overlays the
               // scroll; content passes behind it once you scroll). A
               // docked (folded) console frees the top — content rises.
@@ -679,24 +651,10 @@ export function ChatThreadView({
             }}
             showsVerticalScrollIndicator={false}
             onContentSizeChange={scrollToEnd}>
-            {/* unbound new chat: quiet starter chips where the first
-                message will land; routing is automatic, so there is
-                nothing to configure up here */}
-            {composeNew && !thread ? (
-              <View
-                style={{
-                  // idle: centered invitation; once sent it snaps up to
-                  // the slot between the header and the coming console
-                  marginTop: seedPhase === 'idle' ? 96 : 4,
-                  alignItems: 'center',
-                  gap: 10,
-                }}>
-                {/* starter chips deleted (2026-07-17 "이거는 지워") —
-                    the composer and the crew dots carry the empty
-                    state alone */}
-                <NewChatSeed phase={seedPhase} />
-              </View>
-            ) : null}
+            {/* unbound new chat: an EMPTY stage (2026-07-17 — starter
+                chips, the routing gauge, and the crew dots all
+                retired). The composer alone is the invitation; the
+                console narrates the run once it starts. */}
             {thread?.messages.map((m, mi) => {
               // the last AGENT message in the thread gets the blob
               // glued to the end of its text — a quiet "at rest" mark
@@ -806,13 +764,18 @@ export function ChatThreadView({
               exiting={FadeOutUp.duration(220)}
               style={{
                 position: 'absolute',
-                top: spacing.sm,
+                // STACK ORDER (2026-07-17): the console owns the top
+                // slot while expanded — the month panel slides in
+                // UNDER it; with the console docked away, the panel
+                // takes the top slot itself, and recalling the console
+                // pushes it back down (this style recomputes live)
+                top: consoleExpandedVisible
+                  ? consoleTop + consoleH + spacing.sm
+                  : spacing.sm,
                 left: spacing.lg,
                 right: spacing.lg,
-                // frontmost: the month view overlaps everything, including
-                // the thinking console and week strip
-                zIndex: 30,
-                elevation: 30,
+                zIndex: 15,
+                elevation: 15,
               }}>
               <MonthOverlay
                 days={calendarDays}
@@ -824,27 +787,8 @@ export function ChatThreadView({
           {/* floating command dock: the conversation scrolls
               underneath — no floor, no wall */}
           <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0 }}>
-          {/* crew standby dots: four signature colors sleeping over the
-              command pill; the routed agent's dot wakes and pulses */}
-          <View style={{ marginBottom: 8 }}>
-            <CrewDots
-              activeKey={
-                called
-                  ? called.key
-                  : seedPhase !== 'idle'
-                    ? seedKey
-                    : crewBusy || isTyping || thinkingHere
-                      ? crewSelected
-                      : null
-              }
-              wave={draft.trim().length > 0}
-              // ROUTING PREVIEW (2026-07-17): the live draft runs
-              // through the SAME routeCrew the send path uses, so the
-              // dot that pulses while you type is the crew that will
-              // actually take it
-              predicted={draft.trim().length > 0 ? (routeCrew(draft)?.key ?? null) : null}
-            />
-          </View>
+          {/* crew standby dots retired (2026-07-17 "컬러바 없애기") —
+              the routed crew shows in the header lockup instead */}
           {/* Command KEY row (2026-07-16, Home-consistency pass):
               attach lives OUTSIDE as a mini keycap (iMessage grammar
               kept, material updated); the bar itself is the Home ask
@@ -857,28 +801,6 @@ export function ChatThreadView({
               alignItems: 'center',
               gap: 8,
             }}>
-          {/* tools door: frosted circle (2026-07-17 compose reskin,
-              keycap retired here) — same family as back/history */}
-          <Pressable
-            onPress={() => setAttachOpen((v) => !v)}
-            hitSlop={10}
-            style={({ pressed }) => ({
-              width: 38,
-              height: 38,
-              borderRadius: 999,
-              backgroundColor: 'rgba(255,255,255,0.85)',
-              borderWidth: 1,
-              borderColor: 'rgba(255,255,255,0.9)',
-              alignItems: 'center',
-              justifyContent: 'center',
-              opacity: pressed ? 0.7 : 1,
-              shadowColor: '#16181C',
-              shadowOpacity: 0.1,
-              shadowRadius: 6,
-              shadowOffset: { width: 0, height: 2 },
-            })}>
-            <Ionicons name="add" size={20} color="rgba(22,24,28,0.65)" />
-          </Pressable>
           <View
             style={{
               flex: 1,
@@ -905,28 +827,21 @@ export function ChatThreadView({
                 />
               ) : null}
               <FrostedGlassFill flat radius={16} tint="rgba(255,255,255,0.8)" />
+              {/* attachments live INSIDE the field now (2026-07-17
+                  "얘를 그냥 안쪽 채팅으로 / 이거 빼고"): the slash
+                  chip retired, the + a bare ink glyph like the mic */}
               <Pressable
                 hitSlop={10}
-                onPress={() => {
-                  if (!draft.startsWith('/')) setDraft('/' + draft);
-                }}
+                onPress={() => setAttachOpen((v) => !v)}
                 style={({ pressed }) => ({
-                  width: 22,
-                  height: 22,
-                  borderRadius: 6,
-                  backgroundColor: 'rgba(59,118,196,0.12)',
+                  width: 30,
+                  height: 30,
                   alignItems: 'center',
                   justifyContent: 'center',
+                  marginLeft: -4,
                   opacity: pressed ? 0.6 : 1,
                 })}>
-                <Text
-                  style={{
-                    fontSize: 11,
-                    fontFamily: fontFamily.semibold,
-                    color: sysColor.accent,
-                  }}>
-                  /
-                </Text>
+                <Ionicons name="add" size={22} color="rgba(22,24,28,0.7)" />
               </Pressable>
               <TextInput
                 onChangeText={setDraft}
@@ -943,21 +858,10 @@ export function ChatThreadView({
                 }}
                 returnKeyType="send"
                 onSubmitEditing={onSend}>
-                {called ? (
-                  <Text>
-                    <Text
-                      style={{
-                        color: CREW_DEEP[called.pixel],
-                        fontSize: 14,
-                        fontFamily: fontFamily.bold,
-                      }}>
-                      {draft.slice(0, calledLen)}
-                    </Text>
-                    {draft.slice(calledLen)}
-                  </Text>
-                ) : (
-                  draft
-                )}
+                {/* the crew-color tag styling retired (2026-07-17
+                    "컬러테그도") — a slash call still routes, the text
+                    just stays plain */}
+                {draft}
               </TextInput>
               <Pressable
                 onPress={() => (draft.trim() ? onSend() : Alert.alert('Coming soon'))}
@@ -978,6 +882,30 @@ export function ChatThreadView({
                 />
               </Pressable>
           </View>
+          {/* the composer's RIGHT SLOT is where the run console docks
+              (2026-07-17 "콘솔 오는 위치가 오른쪽"): the folded >_
+              tucks in beside the field at the field's own radius;
+              empty until a run has happened */}
+          {consoleDocked ? (
+            thinkingHere ? (
+              <ThinkingConsole
+                threadId={thinkingHere.threadId}
+                lines={thinkingHere.lines}
+                done={thinkingHere.done}
+                failed={thinkingHere.failed}
+                folded
+                onToggleFold={() => setConsoleFolded(false)}
+              />
+            ) : (
+              <ThinkingConsole
+                threadId={effId}
+                lines={bootLog}
+                done
+                folded
+                onToggleFold={() => setConsoleFolded(false)}
+              />
+            )
+          ) : null}
           </View>
           </View>
         </View>

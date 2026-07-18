@@ -1,20 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Pressable } from 'react-native';
 
+import { FrostedGlassFill } from './frosted-glass-fill';
+
 /**
  * Tool switch (2026-07-12; row unfold retired 2026-07-16): the chat
- * header's tool circle — a single system readout showing whichever
- * tool the conversation is using. Picking a different tool happens
- * through the vertical corner stack, not by unfolding this circle.
+ * header's tool circle — a single door showing whichever tool the
+ * conversation is using. Wears the compose family's grained glass
+ * (2026-07-17); the dark readout face retired with the navy era.
  */
-
-// READOUT register (2026-07-16): tools are INSTRUMENTS — they change
-// with the prompt, so they wear the system-display face (dark +
-// faintly lit rim, the crew readout's exact material), never the
-// fixed-hardware keycap. Active tool = lit indicator.
-const DISPLAY_FACE = 'rgba(20,36,56,0.88)';
-const DISPLAY_RIM = 'rgba(143,191,242,0.22)';
-const DISPLAY_RIM_LIT = 'rgba(143,191,242,0.85)';
 
 export type ToolDef = { key: string; icon: keyof typeof Ionicons.glyphMap; connected: boolean };
 
@@ -55,17 +49,27 @@ export function ToolSwitch({
         width: 40,
         height: 40,
         borderRadius: 999,
-        backgroundColor: DISPLAY_FACE,
-        borderWidth: 1,
-        borderColor: calOpen ? DISPLAY_RIM_LIT : DISPLAY_RIM,
+        overflow: 'hidden',
         alignItems: 'center',
         justifyContent: 'center',
         opacity: pressed ? 0.7 : 1,
+        shadowColor: '#16181C',
+        shadowOpacity: 0.12,
+        shadowRadius: 8,
+        shadowOffset: { width: 0, height: 3 },
       })}>
+      {/* the compose family's grained glass (2026-07-17 "버튼 툴부분
+          여전히 옛날 스타일" — the navy display face retired); the
+          open month view brightens the face instead of a lit rim */}
+      <FrostedGlassFill
+        flat
+        radius={20}
+        tint={calOpen ? 'rgba(255,255,255,0.95)' : 'rgba(242,245,248,0.82)'}
+      />
       {/* always the TOOL icon, never a ✕ (2026-07-16, "항상 툴모양
           아이콘으로") — this circle IS the tool; the month view's own
           close lives with the month view, not stolen from here */}
-      <Ionicons name={active.icon} size={19} color="#EAF4FF" />
+      <Ionicons name={active.icon} size={19} color="rgba(22,24,28,0.7)" />
     </Pressable>
   );
 }

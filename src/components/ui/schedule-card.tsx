@@ -1,6 +1,7 @@
 import { Pressable, Text, View } from 'react-native';
 
 import type { CalendarEvent, ScheduleSuggestion } from '@/mock/calendar';
+import { FrostedGlassFill } from '@/components/ui/frosted-glass-fill';
 import { darkChat, fontFamily, fontSize, radius, spacing } from '@/theme/theme';
 
 const MONO = fontFamily.mono;
@@ -123,16 +124,16 @@ export function ScheduleCard({
                 key={slot}
                 onPress={() => onBook(slot)}
                 style={({ pressed }) => ({
-                  // fixed white pill (2026-07-16 fix): this exploited
-                  // darkChat.text's OLD white value as a solid button
-                  // fill — now that token means "body ink," not "light
-                  // surface," so the pill needs its own explicit color
-                  backgroundColor: '#FFFFFF',
-                  borderRadius: radius.pill,
+                  // the compose family's grained glass at the board's
+                  // 14 radius (2026-07-17 "디자인 업데이트" — the
+                  // solid white pill was the last old-language button)
+                  borderRadius: 14,
+                  overflow: 'hidden',
                   paddingVertical: 7,
                   paddingHorizontal: spacing.md,
                   opacity: pressed ? 0.85 : 1,
                 })}>
+                <FrostedGlassFill flat radius={14} tint="rgba(255,255,255,0.92)" />
                 <Text
                   style={{
                     color: darkChat.onLight,
