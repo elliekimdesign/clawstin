@@ -39,8 +39,8 @@ const DIVIDER = 'rgba(22,24,28,0.08)';
 const DESK_NIGHT = '#1E3D63';
 
 const GROUPS = [
-  { key: 'today', label: 'TODAY' },
-  { key: 'yesterday', label: 'YESTERDAY' },
+  { key: 'today', label: 'Today' },
+  { key: 'yesterday', label: 'Yesterday' },
 ] as const;
 
 export default function ActivityScreen() {
@@ -160,7 +160,7 @@ export default function ActivityScreen() {
             style={{ paddingVertical: 6, paddingHorizontal: 12 }}>
             <Text
               style={{
-                fontSize: 11,
+                fontSize: 12,
                 fontFamily: fontFamily.mono,
                 letterSpacing: 0.3,
                 color: DIM,
@@ -255,12 +255,12 @@ export default function ActivityScreen() {
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <Text
                 style={{
-                  fontSize: 11,
+                  fontSize: 12,
                   fontFamily: fontFamily.mono,
                   letterSpacing: 0.3,
                   color: rowDim,
                 }}>
-                ACTIVITY
+                Activity
               </Text>
             </View>
             <Text style={{ fontSize: 10, fontFamily: fontFamily.mono, color: rowFaint }}>
@@ -290,7 +290,7 @@ export default function ActivityScreen() {
                       paddingHorizontal: 18,
                       paddingTop: 14,
                       paddingBottom: 4,
-                      fontSize: 10,
+                      fontSize: 11,
                       fontFamily: fontFamily.mono,
                       letterSpacing: 0.3,
                       color: rowFaint,

@@ -48,9 +48,12 @@ export type AwayDigest = {
 export const AWAY_DIGEST: AwayDigest = {
   auto: [
     {
+      // ago, not wall clock (2026-07-22 "정보 구조가 달라"): the whole
+      // right edge speaks RELATIVE age, the Activity feed's grammar —
+      // a clock time here read as an upcoming appointment
       key: 'briefing',
       label: 'Morning briefing is ready',
-      ago: '7:30',
+      ago: '5h',
       threadId: 't3',
       unread: true,
       agentId: 'quill',
@@ -77,6 +80,10 @@ export const AWAY_DIGEST: AwayDigest = {
       ago: '55m',
       threadId: 't1',
       undoKey: 'Booked dinner with Jenna',
+      // YOU-initiated, but the EXECUTOR still fronts the row (2026-07-22
+      // "내 꺼 경우에도"): Crop the operator booked it — same checked
+      // face icon; the tab split already says who asked
+      agentId: 'pilot',
     },
   ],
 };

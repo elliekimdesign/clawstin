@@ -50,7 +50,7 @@ function SettingsWindow({ title, children }: { title: string; children: ReactNod
           // the vertical axis and pin the title to the flap's top
           // ("헤어라인 글씨 안 맞는" bug, 2026-07-17)
           style={{
-            fontSize: 11,
+            fontSize: 12,
             fontFamily: fontFamily.mono,
             letterSpacing: 0.3,
             color: DIM,
@@ -256,7 +256,7 @@ export default function SettingsScreen() {
           </Text>
         </View>
 
-        <SettingsWindow title="CONNECTION">
+        <SettingsWindow title="Connection">
           {/* the section's soul: this phone talking to the Mac gateway */}
           <ConnectionDiagram status={gatewayStatus} />
           <View style={{ height: 1, backgroundColor: DIVIDER }} />
@@ -280,7 +280,7 @@ export default function SettingsScreen() {
             chat rail's three doors are the connected subset. ONE
             SCREEN rule: 3 Connected + the Available tail + one "More
             on your gateway" line, dense enough to fit a viewport. */}
-        <SettingsWindow title="TOOLS">
+        <SettingsWindow title="Tools">
           {TOOLS.map((t) => (
             <Row
               key={t.name}
@@ -335,7 +335,7 @@ export default function SettingsScreen() {
 
         {/* the default model handles new chats; agents can still pick
             their own per run */}
-        <SettingsWindow title="MODELS">
+        <SettingsWindow title="Models">
           {models.map((m, i) => (
             <Row
               key={m.id}
@@ -356,7 +356,7 @@ export default function SettingsScreen() {
           ))}
         </SettingsWindow>
 
-        <SettingsWindow title="CREW">
+        <SettingsWindow title="Crew">
           <Row
             label="Manage crew"
             last
@@ -365,7 +365,7 @@ export default function SettingsScreen() {
           />
         </SettingsWindow>
 
-        <SettingsWindow title="NOTIFICATIONS">
+        <SettingsWindow title="Notifications">
           <Row
             label="Your turn alerts"
             right={

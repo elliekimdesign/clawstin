@@ -27,7 +27,7 @@ function SectionLabel({ children }: { children: string }) {
         paddingHorizontal: 18,
         paddingTop: 18,
         paddingBottom: 4,
-        fontSize: 10,
+        fontSize: 11,
         fontFamily: fontFamily.mono,
         letterSpacing: 0.3,
         color: INK_FAINT,
@@ -100,12 +100,12 @@ export function CrewSheet({
             }}
             style={{
               alignSelf: 'flex-start',
-              fontSize: 11,
+              fontSize: 12,
               fontFamily: fontFamily.mono,
               letterSpacing: 0.3,
               color: INK_DIM,
             }}>
-            {roleTag.toUpperCase()}
+            {roleTag}
           </Text>
         </View>
 
@@ -144,7 +144,7 @@ export function CrewSheet({
           {/* ② standing permissions — the core of the file. Task-level
               scope lives on approval cards; THIS is the employee's
               permanent clearance line. WRITE rows carry the weight. */}
-          <SectionLabel>ACCESS</SectionLabel>
+          <SectionLabel>Access</SectionLabel>
           {member.access.map((g, idx) => (
             <View key={g.tool}>
               {idx > 0 ? (
@@ -183,7 +183,7 @@ export function CrewSheet({
           ))}
 
           {/* ③ recent runs: this member's rows only, doors to threads */}
-          <SectionLabel>RECENT RUNS</SectionLabel>
+          <SectionLabel>Recent runs</SectionLabel>
           {recent.length === 0 ? (
             <Text
               style={{

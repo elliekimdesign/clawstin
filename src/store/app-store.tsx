@@ -266,7 +266,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [activity, setActivity] = useState<ActivityItem[]>(initialActivity);
   const [running] = useState<RunningTask[]>([{ id: 'run1', label: 'Checking your calendar' }]);
   const [services, setServices] = useState<ServiceStatus[]>(initialServices);
-  const [background] = useState<BackgroundTask[]>(initialBackground);
+  const [background, setBackground] = useState<BackgroundTask[]>(initialBackground);
   // Which model currently serves as the default route ('oc35' = Claude).
   const [defaultModelId, setDefaultModelId] = useState('oc35');
 
@@ -940,6 +940,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
         ]);
       }
       if (seeded) respond(id, seeded, seeded.slice(0, 32));
+      // long-work asks go straight onto the RUNNING card, live
+      if (seeded && LONG_TASK_RE.test(seeded)) {
+        startRunningTask(
+          seeded.length > 32 ? `${seeded.slice(0, 31)}…` : seeded,
+          id
+        );
+      }
       // A fresh thread opens unassigned: the pill reads "New Chat" until
       // the first message routes it to a crew (see sendMessage).
       if (greeting) {
@@ -956,6 +963,27 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // after a finished task is a NEW task the orchestrator chops off.
   const CONTINUATION_RE =
     /말고|아니|대신|actually|instead|rather|wait|change|make it|not |cancel|undo/i;
+
+  // Long-work cues: asks that stay RUNNING after the ack (downloads,
+  // renders, standing monitors) land on the Home RUNNING card live.
+  const LONG_TASK_RE =
+    /download|다운로드|render|encode|scrape|crawl|backup|sync|monitor|keep an eye|계속|지켜/i;
+  const startRunningTask = useCallback(
+    (label: string, threadId: string) => {
+      setBackground((prev) => [
+        {
+          id: nextId('b'),
+          agentId: 'pilot',
+          label,
+          state: 'running' as const,
+          threadId,
+          age: 'now',
+        },
+        ...prev,
+      ]);
+    },
+    []
+  );
 
   const sendMessage = useCallback(
     (threadId: string, text: string) => {
@@ -1006,6 +1034,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setThreads((prev) =>
           prev.map((th) => (th.id === threadId ? { ...th, outcome: undefined } : th))
         );
+      }
+      // long-work births land on the RUNNING card live (2026-07-22)
+      if (bornTitle && LONG_TASK_RE.test(trimmed)) {
+        startRunningTask(bornTitle, threadId);
       }
       appendToThread(threadId, { id: nextId('c'), from: 'user', text: trimmed });
       respond(threadId, trimmed, bornTitle);

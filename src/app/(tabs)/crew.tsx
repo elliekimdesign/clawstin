@@ -118,12 +118,12 @@ function CrewBadge({
           <Text
             style={{
               alignSelf: 'flex-end',
-              fontSize: 11,
+              fontSize: 12,
               fontFamily: fontFamily.mono,
               letterSpacing: 0.3,
               color: 'rgba(22,24,28,0.55)',
             }}>
-            {roleTag.toUpperCase()}
+            {roleTag}
           </Text>
         </View>
         {/* SYSTEM ROW, scaled up: face left, name right */}
@@ -189,12 +189,12 @@ function ContributionCard({ crew }: { crew: CrewMember[] }) {
         <Text
           onTextLayout={onTitleLayout}
           style={{
-            fontSize: 11,
+            fontSize: 12,
             fontFamily: fontFamily.mono,
             letterSpacing: 0.3,
             color: 'rgba(22,24,28,0.55)',
           }}>
-          ACTION RUNS
+          Action runs
         </Text>
         <Text style={{ color: 'rgba(22,24,28,0.45)', fontSize: 10 }}>
           tasks, last 7 days
@@ -254,7 +254,7 @@ function ContributionCard({ crew }: { crew: CrewMember[] }) {
                   letterSpacing: 0.3,
                   color: INK_DIM,
                 }}>
-                {m.role.split(' · ')[0].toUpperCase()}
+                {m.role.split(' · ')[0]}
               </Text>
               <View style={{ flexDirection: 'row', gap: 3, flex: 1 }}>
                 {daily[idx].map((v, i) => {
@@ -378,12 +378,12 @@ function PerfSection({ member, recent }: { member: CrewMember; recent: ActivityI
           onTextLayout={onPerfTitleLayout}
           style={{
             alignSelf: 'flex-start',
-            fontSize: 11,
+            fontSize: 12,
             fontFamily: fontFamily.mono,
             letterSpacing: 0.3,
             color: 'rgba(22,24,28,0.55)',
           }}>
-          {roleTag.toUpperCase()}
+          {roleTag}
         </Text>
       </View>
       <View style={{ paddingHorizontal: 14, paddingTop: 10, paddingBottom: 14 }}>
@@ -573,12 +573,12 @@ export default function CrewScreen() {
                 <Text
                   style={{
                     alignSelf: 'flex-end',
-                    fontSize: 11,
+                    fontSize: 12,
                     fontFamily: fontFamily.mono,
                     letterSpacing: 0.3,
                     color: 'rgba(22,24,28,0.55)',
                   }}>
-                  OPEN SLOT
+                  Open slot
                 </Text>
               </View>
               <View

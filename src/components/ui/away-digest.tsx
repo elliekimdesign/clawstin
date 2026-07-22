@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { LayoutAnimation, Pressable, Text, View } from 'react-native';
+import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import type { AwayDigest } from '@/mock/away';
@@ -14,12 +15,38 @@ import { TabFlapBg } from './tab-flap';
 
 const INK = '#16181C';
 const INK_DIM = 'rgba(22,24,28,0.55)';
-const INK_GHOST = 'rgba(22,24,28,0.38)';
+const INK_GHOST = 'rgba(22,24,28,0.46)';
 const DIVIDER = 'rgba(22,24,28,0.08)';
 const TAB_GAP = 18;
 // the flap's diagonal cut runs 26px; the trailing inactive label
 // clears it (18px is enough when the near edge is straight)
 const CUT = 26;
+
+/** the face's DONE variant (2026-07-22 "체크 마크를 넣은 페이스"): the
+ * member's pixel face wearing a tiny ready-green check cell at its
+ * top-right — the avatar-badge grammar, in mosaic squares. The face
+ * icon now has two states: plain (pending) and checked (done). */
+function DoneFace({ id }: { id: string }) {
+  return (
+    <View style={{ width: 16, height: 16 }}>
+      <CrewPixel id={id} size={16} />
+      {/* bare check, no plate (2026-07-22 "배경 없게"): the glyph
+          itself carries the ready green */}
+      <Text
+        style={{
+          position: 'absolute',
+          top: -6,
+          right: -7,
+          color: sysColor.action,
+          fontSize: 10,
+          lineHeight: 11,
+          fontWeight: '800',
+        }}>
+        ✓
+      </Text>
+    </View>
+  );
+}
 
 const easeNext = () =>
   LayoutAnimation.configureNext({
@@ -62,6 +89,9 @@ export function AwayDigestCard({
   const [askedW, setAskedW] = useState(0);
   const [routinesOpen, setRoutinesOpen] = useState(false);
   const [armedRevert, setArmedRevert] = useState<string | null>(null);
+  // which row is swiped open: its time readout hides while the Undo
+  // key is out (2026-07-22 "숫자정보는 사라지게")
+  const [swipedKey, setSwipedKey] = useState<string | null>(null);
 
   // tab footprints in the flap-measure grammar: 18 + label + 18. The
   // ACTIVE tab always wears the front-left flap (2026-07-21 "asked가
@@ -147,22 +177,22 @@ export function AwayDigestCard({
                       if (k === 'asked' && w !== askedW) setAskedW(w);
                     }}
                     style={{
-                      fontSize: 11,
+                      fontSize: 12,
                       fontFamily: fontFamily.mono,
                       letterSpacing: 0.3,
                       color: k === tab ? INK_DIM : INK_GHOST,
                     }}>
-                    {k === 'auto' ? 'CREW' : 'YOU'}
+                    {k === 'auto' ? 'Crew' : 'You'}
                   </Text>
                 </Pressable>
               </View>
             )
           )}
           <View style={{ flex: 1 }} />
-          {/* the card names its OWN state at the strip's right end
-              (2026-07-21): the count readout is the identity line that
-              tells the twin tab-cards apart. On CREW it is also the
-              door to the folded routine runs. */}
+          {/* corner grammar (2026-07-22, same as the hero): +HIDDEN
+              count, never the list size — but DONE stays, since the
+              Crew/You tabs don't name the state. Open = "DONE ˄";
+              nothing folded = a plain "DONE" stamp. */}
           <Pressable
             hitSlop={12}
             disabled={!(tab === 'auto' && digest.routines.length > 0)}
@@ -179,7 +209,9 @@ export function AwayDigestCard({
                 letterSpacing: 0.3,
                 color: INK_DIM,
               }}>
-              {`${total} ${total === 1 ? 'TASK' : 'TASKS'} COMPLETED`}
+              {tab === 'auto' && digest.routines.length > 0 && !routinesOpen
+                ? `+${digest.routines.length} DONE`
+                : 'DONE'}
             </Text>
             {tab === 'auto' && digest.routines.length > 0 ? (
               <Ionicons
@@ -197,15 +229,17 @@ export function AwayDigestCard({
               ? undoables.find((u) => u.label === h.undoKey)
               : undefined;
             const armed = undoable ? armedRevert === undoable.label : false;
-            return (
+            // ONE resting anatomy for every row (2026-07-22 "일관된
+            // 유엑스"): mark, label, check/time — no inline buttons.
+            // Undo hides behind a left swipe (below).
+            const row = (
             <Pressable
-              key={h.key}
               onPress={() => onOpenThread(h.threadId)}
               style={({ pressed }) => ({
                 flexDirection: 'row',
                 alignItems: 'center',
                 gap: spacing.sm,
-                paddingVertical: undoable ? 8 : 12,
+                paddingVertical: 12,
                 borderTopWidth: idx > 0 ? 1 : 0,
                 borderTopColor: DIVIDER,
                 opacity: pressed ? 0.5 : 1,
@@ -213,9 +247,9 @@ export function AwayDigestCard({
               {/* provenance mark (2026-07-21): crew-initiated rows wear
                   the responsible member's FACE; user-asked rows keep
                   the blue mosaic dot */}
-              <View style={{ width: 16, alignItems: 'flex-start' }}>
+              <View style={{ width: 20, alignItems: 'flex-start' }}>
                 {h.agentId ? (
-                  <CrewPixel id={h.agentId} size={16} />
+                  <DoneFace id={h.agentId} />
                 ) : (
                   <MosaicDot color={sysColor.action} />
                 )}
@@ -231,60 +265,93 @@ export function AwayDigestCard({
                   {h.label}
                 </Text>
                 {/* the armed row states what stays done — reversibility
-                    honesty travels with the button */}
+                    honesty travels with the swipe key */}
                 {armed && undoable?.irreversible ? (
                   <Text style={{ marginTop: 3, fontSize: fontSize.caption, color: INK_DIM }}>
                     {undoable.irreversible}
                   </Text>
                 ) : null}
               </View>
-              <Text style={{ fontSize: 10, fontFamily: fontFamily.mono, color: INK_DIM }}>
+              {/* doneness lives on the FACE's badge for crew rows; only
+                  faceless rows keep the receipt check by their time so
+                  nothing is marked twice. The readout steps aside while
+                  the row is swiped open. */}
+              <Text
+                style={{
+                  fontSize: 10,
+                  fontFamily: fontFamily.mono,
+                  color: INK_DIM,
+                  opacity: swipedKey === h.key ? 0 : 1,
+                }}>
+                {!h.agentId ? (
+                  <Text style={{ color: sysColor.ready }}>{'✓ '}</Text>
+                ) : null}
                 {h.ago}
               </Text>
-              {undoable ? (
-                <Pressable
-                  hitSlop={8}
-                  onPress={() => {
-                    if (undoable.irreversible && !armed) {
-                      setArmedRevert(undoable.label);
-                      return;
-                    }
-                    setArmedRevert(null);
-                    onUndo(undoable);
-                  }}
-                  style={({ pressed }) => ({
-                    // the LAST ACTION rail's quiet gray button, verbatim
-                    backgroundColor: 'rgba(22,24,28,0.06)',
-                    borderRadius: 0,
-                    paddingHorizontal: 14,
-                    paddingVertical: 8,
-                    opacity: pressed ? 0.6 : 1,
-                  })}>
-                  {/* ONE word for the rail ("[Undo]로 통일"): the
-                      irreversible two-step keeps its arm-then-fire
-                      safety, only the label stops changing */}
-                  <Text
-                    style={{
-                      fontSize: 12,
-                      fontWeight: fontWeight.semibold,
-                      color: armed ? INK : 'rgba(22,24,28,0.65)',
-                    }}>
-                    Undo
-                  </Text>
-                </Pressable>
-              ) : null}
             </Pressable>
+            );
+            if (!undoable) return <View key={h.key}>{row}</View>;
+            // swipe left → the dark UNDO key (iOS muscle memory); the
+            // irreversible two-step arms on the first tap
+            return (
+              <ReanimatedSwipeable
+                key={h.key}
+                friction={2}
+                rightThreshold={36}
+                overshootRight={false}
+                onSwipeableWillOpen={() => setSwipedKey(h.key)}
+                onSwipeableWillClose={() => {
+                  setArmedRevert(null);
+                  setSwipedKey((k) => (k === h.key ? null : k));
+                }}
+                renderRightActions={(_progress, _translation, methods) => (
+                  <Pressable
+                    onPress={() => {
+                      if (undoable.irreversible && !armed) {
+                        setArmedRevert(undoable.label);
+                        return;
+                      }
+                      setArmedRevert(null);
+                      methods.close();
+                      onUndo(undoable);
+                    }}
+                    style={({ pressed }) => ({
+                      width: 76,
+                      marginLeft: 10,
+                      marginVertical: 6,
+                      borderRadius: 10,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      // DARK on purpose ("버튼이 더 진해야"): armed goes
+                      // full ink for the second, deciding tap
+                      backgroundColor: armed ? '#16181C' : 'rgba(22,24,28,0.82)',
+                      opacity: pressed ? 0.8 : 1,
+                    })}>
+                    <Text
+                      style={{
+                        fontSize: 13,
+                        fontWeight: fontWeight.semibold,
+                        color: '#FFFFFF',
+                      }}>
+                      Undo
+                    </Text>
+                  </Pressable>
+                )}>
+                {row}
+              </ReanimatedSwipeable>
             );
           })}
         </View>
         {tab === 'auto' && routinesOpen
           ? digest.routines.map((r, idx) => (
-              // expanded repeats join the SAME list as the highlights
-              // ("그대로 똑같이 리스트로"): identical row anatomy. Each
-              // row cascades in on its own beat (80ms stagger)
+              // expanded repeats are CHILDREN of the rule row above
+              // (2026-07-22 "들여쓰기해서 안으로"): indented past the
+              // parent's mark column, no repeated face — the parent
+              // already said who. Each cascades in on its own beat.
               <Animated.View
                 key={r.key}
-                entering={FadeInDown.duration(260).delay(80 * idx)}>
+                entering={FadeInDown.duration(260).delay(80 * idx)}
+                style={{ marginLeft: 28 }}>
               <Pressable
                 onPress={() => onOpenThread(r.threadId)}
                 style={({ pressed }) => ({
@@ -296,13 +363,6 @@ export function AwayDigestCard({
                   borderTopColor: DIVIDER,
                   opacity: pressed ? 0.5 : 1,
                 })}>
-                <View style={{ width: 16, alignItems: 'flex-start' }}>
-                  {r.agentId ? (
-                    <CrewPixel id={r.agentId} size={16} />
-                  ) : (
-                    <MosaicDot color="rgba(22,24,28,0.4)" />
-                  )}
-                </View>
                 <Text
                   numberOfLines={1}
                   style={{
@@ -313,6 +373,9 @@ export function AwayDigestCard({
                   }}>
                   {r.label}
                 </Text>
+                {/* no check here (2026-07-22 "뜬금없는데"): these are
+                    sub-entries — the parent row's badge already says
+                    done for the whole group; children just carry time */}
                 <Text style={{ fontSize: 10, fontFamily: fontFamily.mono, color: INK_DIM }}>
                   {r.ago}
                 </Text>

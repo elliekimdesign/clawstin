@@ -20,7 +20,11 @@ export function TabFlapBg({ w }: { w: number }) {
       height={h}
       pointerEvents="none"
       style={{ position: 'absolute', left: -h, top: 0 }}>
-      <Path d={d} fill="rgba(22,24,28,0.07)" />
+      {/* brighter glass (2026-07-22 "눈에 보이는 스타일"): a white
+          frosted plate with its own faint rim, so the waiting tab
+          reads as a discoverable button, not a shadow */}
+      <Path d={d} fill="rgba(255,255,255,0.3)" />
+      <Path d={d} fill="none" stroke="rgba(255,255,255,0.55)" strokeWidth={1} />
     </Svg>
   );
 }

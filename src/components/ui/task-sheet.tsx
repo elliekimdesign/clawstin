@@ -82,7 +82,7 @@ export function TaskSheet({
               }}
               style={{
                 alignSelf: 'flex-start',
-                fontSize: 11,
+                fontSize: 12,
                 fontFamily: fontFamily.mono,
                 letterSpacing: 0.3,
                 color: INK_DIM,
