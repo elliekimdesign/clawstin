@@ -22,6 +22,7 @@ import { KeySheen, keyChrome } from '@/components/ui/analog-key';
 import { FrostedGlassFill } from '@/components/ui/frosted-glass-fill';
 import { MosaicDot } from '@/components/ui/mosaic-dot';
 import { CREW_ACCENT, CrewPixel } from '@/components/ui/crew-pixel';
+import { CrewSheet } from '@/components/ui/crew-sheet';
 import { PixelText } from '@/components/ui/pixel-text';
 import type { ActivityItem } from '@/mock/activity';
 import type { CrewMember } from '@/mock/crew';
@@ -83,15 +84,25 @@ function useFlapW(fallback: number, pad = 14, gap = 16) {
  * air — a bigger face, the bitmap name with the member's mosaic
  * accent, runs in the machine voice pinned bottom-left like Home's
  * "1 routines" door. */
-function CrewBadge({ member, width }: { member: CrewMember; width: number }) {
+function CrewBadge({
+  member,
+  width,
+  onPress,
+}: {
+  member: CrewMember;
+  width: number;
+  /** opens the member's HR-file sheet (2026-07-20) — the old
+      full-screen /crew/[id] push retired with it */
+  onPress: () => void;
+}) {
   const roleTag = member.role.split(' · ')[0];
-  const [flapW, onTitleLayout] = useFlapW(96);
   return (
     <View style={{ width }}>
       <Pressable
-        onPress={() => router.push(`/crew/${member.id}`)}
+        onPress={onPress}
         style={({ pressed }) => ({
-          height: 150,
+          // taller than the old 150: the identity sentence needs room
+          height: 184,
           shadowColor: '#16181C',
           shadowOpacity: 0.1,
           shadowRadius: 18,
@@ -99,12 +110,14 @@ function CrewBadge({ member, width }: { member: CrewMember; width: number }) {
           elevation: 5,
           opacity: pressed ? 0.85 : 1,
         })}>
-        <FrostedGlassFill radius={14} tabWidth={flapW} tabHeight={22} />
-        <View style={{ height: 26, justifyContent: 'center', paddingHorizontal: 14 }}>
+        {/* shape swap (2026-07-21 reference: one soft continuous
+            radius, no flap): the roster drops the folder silhouette but
+            keeps the exact glass — same veil, sheen, grain, rim */}
+        <FrostedGlassFill radius={22} flat />
+        <View style={{ paddingTop: 14, paddingHorizontal: 14 }}>
           <Text
-            onTextLayout={onTitleLayout}
             style={{
-              alignSelf: 'flex-start',
+              alignSelf: 'flex-end',
               fontSize: 11,
               fontFamily: fontFamily.mono,
               letterSpacing: 0.3,
@@ -113,31 +126,35 @@ function CrewBadge({ member, width }: { member: CrewMember; width: number }) {
             {roleTag.toUpperCase()}
           </Text>
         </View>
-        {/* SYSTEM ROW, scaled up: face left, registry text right */}
+        {/* SYSTEM ROW, scaled up: face left, name right */}
         <View
           style={{
-            flex: 1,
             flexDirection: 'row',
             alignItems: 'center',
             gap: 14,
             paddingHorizontal: 14,
-            marginBottom: 10,
+            marginTop: 8,
           }}>
           <CrewPixel id={member.id} size={44} />
-          <View style={{ gap: 8, flexShrink: 1 }}>
-            <PixelText text={member.name.toUpperCase()} cell={1.6} color={INK} led />
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <MosaicDot color={CREW_ACCENT[member.id] ?? INK_DIM} size={8} />
-              <Text style={{ fontSize: 10, fontFamily: fontFamily.mono, color: INK_DIM }}>
-                {member.active ? 'active' : 'paused'}
-              </Text>
-            </View>
-          </View>
+          <PixelText text={member.name.toUpperCase()} cell={1.6} color={INK} led />
         </View>
-        {/* runs: the bottom-left meta door, Home's "1 routines" slot */}
+        {/* identity sentence (2026-07-20, Info = 정체성): WHO this
+            member is replaces the active pill; run stats live in Perf */}
+        <Text
+          style={{
+            paddingHorizontal: 14,
+            marginTop: 8,
+            fontSize: 11,
+            lineHeight: 15,
+            color: INK_DIM,
+          }}>
+          {member.desc}
+        </Text>
+        {/* bottom-left meta door, Home's "1 routines" slot: recency,
+            not totals (the count moved to Perf's ledger) */}
         <View style={{ position: 'absolute', left: 14, bottom: 12 }}>
           <Text style={{ fontSize: 10, fontFamily: fontFamily.mono, color: INK_DIM }}>
-            {`${member.tasksDone} runs`}
+            {`last run ${member.lastRun}`}
           </Text>
         </View>
       </Pressable>
@@ -473,6 +490,10 @@ function ModeToggle({
 export default function CrewScreen() {
   const { crew, activity } = useAppStore();
   const [mode, setMode] = useState<'info' | 'perf'>('info');
+  // the HR-file sheet: id and open flag split on purpose — closing only
+  // flips the flag, so the member stays rendered through the slide-out
+  const [sheetId, setSheetId] = useState<string | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
   const { width: screenW } = useWindowDimensions();
   // two-column roster: screen padding both sides + one 12pt gutter
   const badgeW = (screenW - spacing.lg * 2 - 12) / 2;
@@ -493,10 +514,14 @@ export default function CrewScreen() {
         <View
           style={{
             flexDirection: 'row',
-            alignItems: 'baseline',
+            alignItems: 'center',
             justifyContent: 'space-between',
-            marginTop: spacing.xl,
-            marginBottom: spacing.lg,
+            // header row sits at the SAME spot on every tab: screen
+            // padding (14) + 4 = Home's 18 below the safe area
+            marginTop: 4,
+            // and the board's airy 28pt rhythm below it, like Home's
+            // first section and Activity's search
+            marginBottom: spacing.xxl,
           }}>
           <Text
             style={{
@@ -516,7 +541,15 @@ export default function CrewScreen() {
           // air between rows (2026-07-16 "홈탭 섹션 간격처럼")
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: 12, rowGap: 28 }}>
             {crew.map((m) => (
-              <CrewBadge key={m.id} member={m} width={badgeW} />
+              <CrewBadge
+                key={m.id}
+                member={m}
+                width={badgeW}
+                onPress={() => {
+                  setSheetId(m.id);
+                  setSheetOpen(true);
+                }}
+              />
             ))}
             {/* the empty slot: a GHOST crew card — the next member's
                 badge already on the roster, translucent, with an empty
@@ -528,21 +561,18 @@ export default function CrewScreen() {
               }
               style={({ pressed }) => ({
                 width: badgeW,
-                height: 150,
+                // tracks CrewBadge's height so the ghost stays a sibling
+                height: 184,
                 opacity: pressed ? 0.6 : 1,
               })}>
-              {/* the empty slot is a GHOST FOLDER (2026-07-17): the
-                  same anatomy as its siblings but the front plate goes
-                  see-through — an unfiled folder waiting for a member */}
-              <FrostedGlassFill
-                radius={14}
-                tabWidth={110}
-                tabHeight={22}
-                tint="rgba(255,255,255,0.28)"
-              />
-              <View style={{ height: 26, justifyContent: 'center', paddingHorizontal: 14 }}>
+              {/* the empty slot is a GHOST card: the same soft-radius
+                  plate as its siblings but the front veil goes
+                  see-through — a seat waiting for a member */}
+              <FrostedGlassFill radius={22} flat tint="rgba(255,255,255,0.28)" />
+              <View style={{ paddingTop: 14, paddingHorizontal: 14 }}>
                 <Text
                   style={{
+                    alignSelf: 'flex-end',
                     fontSize: 11,
                     fontFamily: fontFamily.mono,
                     letterSpacing: 0.3,
@@ -623,6 +653,12 @@ export default function CrewScreen() {
         </Pressable>
         )}
       </ScrollView>
+      {/* the card's back side rises over the roster (2026-07-20) */}
+      <CrewSheet
+        member={crew.find((m) => m.id === sheetId) ?? null}
+        visible={sheetOpen}
+        onClose={() => setSheetOpen(false)}
+      />
     </SafeAreaView>
   );
 }

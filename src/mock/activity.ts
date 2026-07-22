@@ -40,7 +40,8 @@ export type ActivityItem = {
 
 // Two use cases only: A = dinner with Jenna (t1), B = the PR-review
 // negotiation (t2). Every row here is a real beat from one of the two
-// storyboards, newest first.
+// storyboards, newest first. (a5/a6 are yesterday's supporting beats so
+// every crew member's HR-file sheet has at least one recent run.)
 export const initialActivity: ActivityItem[] = [
   {
     id: 'a1', time: '16:52', day: 'today', ago: '2m',
@@ -76,6 +77,57 @@ export const initialActivity: ActivityItem[] = [
     steps: [
       { label: 'replan  checking tomorrow morning', ms: '400ms' },
       { label: 'synthesize  10:00 before standup is open', ms: '300ms' },
+    ],
+  },
+  {
+    id: 'a7', time: '07:30', day: 'today', ago: '9h',
+    prompt: 'Morning briefing, delivered',
+    agentId: 'quill', threadId: 't3', total: '6.1s',
+    steps: [
+      { label: 'calendar.events today', ms: '420ms' },
+      { label: 'github.pulls.list · 1 waiting', ms: '380ms' },
+      { label: 'write briefing in your voice', ms: '2.8s' },
+    ],
+  },
+  // the three overnight quiet checks WYWA folds into "+3 routine runs"
+  {
+    id: 'a8', time: '06:50', day: 'today', ago: '10h',
+    prompt: 'PR watch, quiet check',
+    agentId: 'muppet', threadId: 't2', total: '0.3s',
+    source: 'autopilot', ruleKey: 'github-pr-review',
+    steps: [{ label: 'github.pulls.list · 0 new', ms: '300ms' }],
+  },
+  {
+    id: 'a9', time: '04:10', day: 'today', ago: '13h',
+    prompt: 'PR watch, quiet check',
+    agentId: 'muppet', threadId: 't2', total: '0.3s',
+    source: 'autopilot', ruleKey: 'github-pr-review',
+    steps: [{ label: 'github.pulls.list · 0 new', ms: '280ms' }],
+  },
+  {
+    id: 'a10', time: '01:30', day: 'today', ago: '15h',
+    prompt: 'PR watch, quiet check',
+    agentId: 'muppet', threadId: 't2', total: '0.3s',
+    source: 'autopilot', ruleKey: 'github-pr-review',
+    steps: [{ label: 'github.pulls.list · 0 new', ms: '310ms' }],
+  },
+  {
+    id: 'a5', time: '18:24', day: 'yesterday', ago: '1d',
+    prompt: 'Shortlist three quiet places near the office for dinner',
+    agentId: 'scout', threadId: 't1', total: '3.1s',
+    steps: [
+      { label: 'search maps x3', ms: '1.2s' },
+      { label: 'read reviews x12', ms: '1.4s' },
+      { label: 'rank by noise and distance', ms: '500ms' },
+    ],
+  },
+  {
+    id: 'a6', time: '17:05', day: 'yesterday', ago: '1d',
+    prompt: 'TL;DR the two PRs waiting on me',
+    agentId: 'quill', threadId: 't2', total: '2.2s',
+    steps: [
+      { label: 'github.pulls.diff x2', ms: '900ms' },
+      { label: 'summarize in your voice', ms: '1.3s' },
     ],
   },
 ];

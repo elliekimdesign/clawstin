@@ -30,7 +30,7 @@ export default function TabsLayout() {
 
       <NativeTabs.Trigger name="chat">
         <NativeTabs.Trigger.Label>Activity</NativeTabs.Trigger.Label>
-        <NativeTabs.Trigger.Icon sf="apple.terminal" />
+        <NativeTabs.Trigger.Icon sf="square.stack.3d.up.fill" />
       </NativeTabs.Trigger>
 
       <NativeTabs.Trigger name="crew">

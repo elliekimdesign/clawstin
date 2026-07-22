@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
   LayoutAnimation,
@@ -46,6 +46,18 @@ const GROUPS = [
 export default function ActivityScreen() {
   const { activity, threads, crew, consoleLens, setConsoleLens } = useAppStore();
   const [query, setQuery] = useState('');
+
+  // drilldown intake (2026-07-20): doors elsewhere (crew sheet's "all
+  // activity") open this tab with ?q=<member name> — the EXISTING
+  // search field and its clear button are the whole filter UI. The
+  // param is consumed after applying so the same door re-fires later.
+  const { q: qParam } = useLocalSearchParams<{ q?: string }>();
+  useEffect(() => {
+    if (typeof qParam === 'string' && qParam.length > 0) {
+      setQuery(qParam);
+      router.setParams({ q: undefined });
+    }
+  }, [qParam]);
 
   const getThread = (id: string) => threads.find((t) => t.id === id);
   const agentName = (id: string) => crew.find((c) => c.id === id)?.name ?? id;
@@ -99,9 +111,6 @@ export default function ActivityScreen() {
   const glyph = (a: (typeof activity)[number]) =>
     a.status === 'failed' ? '✗' : a.status === 'needs_approval' ? '…' : '✓';
 
-  // the folder flap hugs the ACTIVITY label, same measure pattern as
-  // Home's sections (2026-07-17)
-  const [titleW, setTitleW] = useState(0);
   // >_ raw view is a DARK TERMINAL (the Logs screen's family), so the
   // whole window flips palette with the lens
   const rowInk = consoleLens ? 'rgba(255,255,255,0.85)' : INK;
@@ -128,8 +137,10 @@ export default function ActivityScreen() {
           flexDirection: 'row',
           alignItems: 'center',
           justifyContent: 'space-between',
-          paddingHorizontal: 16,
-          paddingTop: 4,
+          // header row sits at the SAME spot on every tab: 14 side
+          // padding + 18 below the safe area (Home's 14+4 rhythm)
+          paddingHorizontal: 14,
+          paddingTop: 18,
         }}>
           <Text
             style={{
@@ -225,23 +236,24 @@ export default function ActivityScreen() {
             // raw lens: dark terminal plane (the Logs screen's night)
             <View style={[StyleSheet.absoluteFill, { backgroundColor: DESK_NIGHT }]} />
           ) : (
-            <FrostedGlassFill radius={16} tabWidth={titleW ? 18 + titleW + 18 : 100} />
+            // FLAT plate (2026-07-20 "폴더 형태말고"): the feed keeps the
+            // frosted skin but drops the folder flap — its header is a
+            // straight title bar with a hairline, a window not a folder
+            <FrostedGlassFill radius={16} flat />
           )}
           {/* title bar: dots glow while something needs you */}
           <View
             style={{
-              height: 26,
+              height: 34,
               flexDirection: 'row',
               alignItems: 'center',
               justifyContent: 'space-between',
               paddingHorizontal: 18,
+              borderBottomWidth: 1,
+              borderBottomColor: rowDivider,
             }}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <Text
-                onTextLayout={(e) => {
-                  const w = Math.ceil(e.nativeEvent.lines[0]?.width ?? 0);
-                  if (w !== titleW) setTitleW(w);
-                }}
                 style={{
                   fontSize: 11,
                   fontFamily: fontFamily.mono,

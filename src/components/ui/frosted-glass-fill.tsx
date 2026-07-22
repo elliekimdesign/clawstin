@@ -19,15 +19,15 @@ const GRAIN_DOTS = Array.from({ length: 70 }, (_, i) => {
 /** the full-box outline the GHOST layer wears: a plain rounded rect
  * over the card's whole footprint (tab notch included), so the folder
  * still completes into one box behind the front flap. */
-function boxPath(w: number, h: number, r: number) {
+function boxPath(w: number, h: number, r: number, rBot = r) {
   return `
     M ${r},0
     L ${w - r},0
     Q ${w},0 ${w},${r}
-    L ${w},${h - r}
-    Q ${w},${h} ${w - r},${h}
-    L ${r},${h}
-    Q 0,${h} 0,${h - r}
+    L ${w},${h - rBot}
+    Q ${w},${h} ${w - rBot},${h}
+    L ${rBot},${h}
+    Q 0,${h} 0,${h - rBot}
     L 0,${r}
     Q 0,0 ${r},0
     Z
@@ -49,7 +49,11 @@ function folderPath(
   r: number,
   tabW: number,
   tabH: number,
-  slant: number
+  slant: number,
+  // body corners (right of the flap + the bottom pair) — clamped
+  // separately so short cards tighten BELOW while the flap's top
+  // corners keep the family radius
+  rBody = r
 ) {
   // offset the joint curves' touch points down the slope so the tiny
   // bends stay tangent-smooth
@@ -62,23 +66,23 @@ function folderPath(
     Q ${tabW},0 ${tabW + dx},${dy}
     L ${tabW + slant - dx},${tabH - dy}
     Q ${tabW + slant},${tabH} ${tabW + slant + TR},${tabH}
-    L ${w - r},${tabH}
-    Q ${w},${tabH} ${w},${tabH + r}
-    L ${w},${h - r}
-    Q ${w},${h} ${w - r},${h}
-    L ${r},${h}
-    Q 0,${h} 0,${h - r}
+    L ${w - rBody},${tabH}
+    Q ${w},${tabH} ${w},${tabH + rBody}
+    L ${w},${h - rBody}
+    Q ${w},${h} ${w - rBody},${h}
+    L ${rBody},${h}
+    Q 0,${h} 0,${h - rBody}
     L 0,${r}
     Q 0,0 ${r},0
     Z
   `;
 }
 
-/** the FRONT outline with a MID-STRIP flap (tabStart > 0): the body's
- * top edge runs at y=tabH with its own rounded top-left corner, then
- * the flap rises as a STRAIGHT vertical edge at tabStart ("앞에는 그냥
- * 직선"), crosses its top, and cuts back down diagonally — the active
- * filter tab on the task list. */
+/** the FRONT outline with a MID-STRIP flap (tabStart > 0): the flap's
+ * left edge runs the SAME "\" diagonal as the flush flap's closing cut
+ * (2026-07-21 "반대방향, handled 끝나는 사선이랑 똑같이") — a
+ * parallelogram tab, so the previous tab reads as sliding underneath
+ * it — then crosses its top and cuts back down the same way. */
 function midTabPath(
   w: number,
   h: number,
@@ -94,9 +98,9 @@ function midTabPath(
   const dy = (tabH * TR) / len;
   return `
     M ${r},${tabH}
-    L ${tabStart - TR},${tabH}
-    Q ${tabStart},${tabH} ${tabStart},${tabH - TR}
-    L ${tabStart},${TR}
+    L ${tabStart + slant + TR},${tabH}
+    Q ${tabStart + slant},${tabH} ${tabStart + slant - dx},${tabH - dy}
+    L ${tabStart + dx},${dy}
     Q ${tabStart},0 ${tabStart + TR},0
     L ${tabEnd - TR},0
     Q ${tabEnd},0 ${tabEnd + dx},${dy}
@@ -161,16 +165,25 @@ export function FrostedGlassFill({
   const { w, h } = size;
   const ready = w > 0 && h > 0;
   const cut = slant ?? tabHeight;
-  const maxTabW = Math.max(40, w - radius - cut - 24 - tabStart);
+  // split radii for short cards (e.g. the folded WYWA strip): the TOP
+  // corners always keep the family radius so folded and open match at
+  // the flap; only the body corners below the flap clamp to the room
+  // that exists ((h - tabHeight) / 2) — unclamped, the right edge runs
+  // backwards and spikes at the bottom corner
+  const rTop = Math.min(radius, Math.max(3, h / 2 - 1));
+  const rBody = flat
+    ? rTop
+    : Math.min(radius, Math.max(3, (h - tabHeight) / 2));
+  const maxTabW = Math.max(40, w - rTop - cut - 24 - tabStart);
   const tabW = Math.min(tabWidth, maxTabW);
   const front = ready
     ? flat
-      ? boxPath(w, h, radius)
+      ? boxPath(w, h, rTop)
       : tabStart > 0
-        ? midTabPath(w, h, radius, tabStart, tabW, tabHeight, cut)
-        : folderPath(w, h, radius, tabW, tabHeight, cut)
+        ? midTabPath(w, h, rBody, tabStart, tabW, tabHeight, cut)
+        : folderPath(w, h, rTop, tabW, tabHeight, cut, rBody)
     : '';
-  const back = ready ? boxPath(w, h, radius) : '';
+  const back = ready ? boxPath(w, h, rTop, rBody) : '';
 
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill} onLayout={onLayout}>

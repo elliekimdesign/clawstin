@@ -12,6 +12,9 @@ export type AutopilotRule = {
   undone: number;
   /** the conversation this rule came from (tap target) */
   threadId: string;
+  /** NEXT UP's future hook for event rules: when this fires next,
+   * stated dryly (e.g. "on new PR") — schedules use cadence instead */
+  next?: string;
   recent: { label: string; ago: string; undone?: boolean }[];
 };
 
@@ -23,10 +26,15 @@ export const AUTOPILOT_RULES: AutopilotRule[] = [
     key: 'github-pr-review',
     app: 'github',
     name: 'PR review time',
-    runs: 1,
+    // 1 booked block + 3 overnight quiet checks (activity a8-a10)
+    runs: 4,
     undone: 0,
     threadId: 't2',
-    recent: [{ label: 'Blocked 10:00–10:30 for auth-service #482', ago: '2m' }],
+    next: 'on new PR',
+    recent: [
+      { label: 'Blocked 10:00–10:30 for auth-service #482', ago: '2m' },
+      { label: 'Quiet overnight, nothing new waiting', ago: '10h' },
+    ],
   },
 ];
 

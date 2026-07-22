@@ -118,4 +118,51 @@ export const initialThreads: Thread[] = [
       },
     ],
   },
+  {
+    // The overnight push artifact: quill's daily briefing, delivered
+    // before the user woke. WYWA's first highlight opens this thread;
+    // unread clears via the normal markThreadRead on open.
+    id: 't3',
+    title: 'Morning briefing',
+    agentId: 'quill',
+    lastPreview: 'Two meetings today, nothing before 10:00.',
+    updatedAt: '7:30',
+    icon: 'sunny-outline',
+    crew: 'writer',
+    outcome: 'delivered',
+    unread: true,
+    messages: [
+      {
+        id: 't3-m1',
+        from: 'agent',
+        proactive: true,
+        caption: 'MORNING BRIEFING',
+        text: 'Good morning. Your calendar is light: standup at 10:00 and the design sync at 2:00, nothing else booked. Review time for auth-service #482 is already blocked at 10:00, and the rest of your queue is clear.',
+      },
+    ],
+  },
+  {
+    // Home thread of the seeded Weekly review schedule (NEXT UP's
+    // time-anchored row): every schedule owns exactly one thread and
+    // its runs accumulate here.
+    id: 't4',
+    title: 'Weekly review',
+    agentId: 'quill',
+    lastPreview: 'Scheduled for Mondays at 9:00.',
+    updatedAt: '3d',
+    icon: 'calendar-clear-outline',
+    crew: 'writer',
+    messages: [
+      {
+        id: 't4-m1',
+        from: 'user',
+        text: 'Every Monday at 9, summarize what happened last week.',
+      },
+      {
+        id: 't4-m2',
+        from: 'agent',
+        text: 'Done. Weekly review runs Mondays at 9:00 and lands here.',
+      },
+    ],
+  },
 ];

@@ -27,15 +27,17 @@ import Animated, {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AUTOPILOT_RULES } from '@/mock/autopilot';
+import { AWAY_DIGEST } from '@/mock/away';
 import { UNDOABLES } from '@/mock/undoables';
+import { AwayDigestCard } from '@/components/ui/away-digest';
 import { AuroraLine } from '@/components/ui/aurora-line';
 import { Card } from '@/components/ui/card';
 import { GlassIconButton } from '@/components/ui/glass-icon-button';
 import { BlissSwooshBg } from '@/components/ui/bliss-swoosh-bg';
 import { ColorPanelsBg } from '@/components/ui/color-panels-bg';
-import { AutopilotSheet } from '@/components/ui/autopilot-sheet';
 import { CTA_SLAB_INK, CtaSlabFill } from '@/components/ui/cta-slab';
 import { AnalogKey } from '@/components/ui/analog-key';
+import { CrewPixel } from '@/components/ui/crew-pixel';
 import { FrostedGlassFill } from '@/components/ui/frosted-glass-fill';
 import { MosaicDot } from '@/components/ui/mosaic-dot';
 import { TaskSheet, type TaskSheetRow } from '@/components/ui/task-sheet';
@@ -105,6 +107,19 @@ const LAST_ACTION = {
 // UNDOABLES moved to src/mock/undoables.ts (2026-07-12) so the
 // new-chat screen can run the same undo routing.
 
+// The hero's PITCH tab (2026-07-21): a crew-INITIATED proposal, from
+// storyboard B's standing PR-watch rule. Non-blocking by design: light
+// Go / Not now, and it expires on its own if ignored.
+const PITCH = {
+  title: 'Block 10:00 for the auth-service #482 review?',
+  threadId: 't2',
+  // the crew member fronting this pitch — their face IS the "crew
+  // initiated this" mark (test on this row first, 2026-07-21)
+  agentId: 'muppet',
+  expires: '6 PM',
+  goAsk: 'Go ahead, block 10:00 for the review.',
+};
+
 // Autopilot ledger mock: what each auto-approved rule has been doing.
 // The gauge earns trust by showing receipts; "undone" is the honest
 // counter-metric (an autopilot that never gets undone is working).
@@ -149,6 +164,15 @@ const AINK = {
   warn: sysColor.action,
   accent: sysColor.ready,
 };
+
+/** app slug -> monochrome Ionicon for NEXT UP rows (the retired
+ * AutopilotSheet's map): the left slot answers "what does it touch" */
+const NEXTUP_APP_ICON = {
+  gmail: 'mail-outline',
+  github: 'logo-github',
+  drive: 'folder-outline',
+  calendar: 'calendar-clear-outline',
+} as const;
 
 // "silkstyle" — logstyle's exact layout, re-inked for the silk_swoosh
 // light field (white silk + blue veils, see silk-swoosh-bg.tsx): navy
@@ -542,6 +566,7 @@ export default function HomeScreen() {
     schedules,
     addRoutine,
     confirmDinner,
+    skipDinner,
     resolveApproval,
     createThread,
     sendMessage,
@@ -572,7 +597,6 @@ export default function HomeScreen() {
     worst === 'down' ? sysColor.fail : worst === 'degraded' ? sysColor.degraded : sysColor.ready;
 
   const startChat = () => router.push(`/chat/${createThread()}`);
-  const openThread = (id: string) => router.push(`/chat/${id}`);
 
   // Scroll-to-approvals (the charcoal count tile jumps here).
   const scrollRef = useRef<ScrollView>(null);
@@ -594,9 +618,25 @@ export default function HomeScreen() {
   // first tap ARMS the row (label of the armed row lives here) and
   // surfaces what stays done; the second tap actually sends the ask
   const [armedRevert, setArmedRevert] = useState<string | null>(null);
-  const [autopilotOpen, setAutopilotOpen] = useState(false);
   // which dinner slot was answered from the hero card (receipt stamp)
   const [dinnerAnswered, setDinnerAnswered] = useState<string | null>(null);
+  // the pitch answers in place (2026-07-21): Go / Not now receipts
+  const [pitchAnswered, setPitchAnswered] = useState<'go' | 'later' | null>(null);
+  // the waiting queue expands IN PLACE under the ask (2026-07-21, no
+  // half-sheet): same grammar as the digest's folded routine runs
+  const [waitingOpen, setWaitingOpen] = useState(false);
+  const toggleWaiting = () => {
+    // height glides; the rows make their own staggered entrance
+    LayoutAnimation.configureNext({
+      duration: 300,
+      update: { type: 'easeInEaseOut' },
+      delete: { type: 'easeInEaseOut', property: 'opacity' },
+    });
+    setWaitingOpen((v) => !v);
+  };
+  // WHILE YOU WERE AWAY has NO dismiss and NO fold (2026-07-21, both
+  // tried): × is unrecoverable, folding read as fussy. The digest just
+  // stays for the session; the next session's digest replaces it.
   // Accepting the pattern suggestion (YOUR TURN or the sheet) does one
   // real thing: the habit becomes a schedule with its own thread.
   const acceptMorningRoutine = () => {
@@ -604,7 +644,7 @@ export default function HomeScreen() {
     addRoutine({
       name: 'Morning briefing',
       cadence: '8 AM daily',
-      threadId: 't4',
+      threadId: 't3',
       permissionKey: 'gmail',
       scope: 'READ',
       runs: 0,
@@ -621,55 +661,11 @@ export default function HomeScreen() {
   // count-first. A sentence, not a badge row.
   const runningCount = background.filter((t) => t.state === 'running').length;
   const needsYou = background.filter((t) => t.state === 'waiting').length + approvals.length;
-  // Done shelf = threads that actually CLOSED (delivered or expired).
-  // Open conversations live on the desk above, not here.
-  const doneThreads = threads.filter((t) => t.outcome);
-
-  // Rows for the list container, priority top to bottom; stale asks
-  // (age in days) sink to the end. Approvals ARE "needs you". One
-  // list, no filters (2026-07-17): the state-specific views are the
-  // hero cards above and their rising folders.
-  const activeRows = [
-    ...background.map((t) => ({
-      key: t.id,
-      label: t.label,
-      waiting: t.state === 'waiting',
-      deadline: t.deadline,
-      age: t.age,
-      onPress: () => router.push(`/chat/${t.threadId}`),
-    })),
-    ...approvals.map((a) => ({
-      key: a.id,
-      label: a.title,
-      waiting: true,
-      deadline: undefined as string | undefined,
-      age: a.age,
-      onPress: () => a.threadId && router.push(`/chat/${a.threadId}`),
-    })),
-  ].sort(
-    (a, b) => Number(a.age?.endsWith('d') ?? false) - Number(b.age?.endsWith('d') ?? false)
-  );
-  const visibleDone = doneThreads;
-
-  // what each hero card's rising folder lists
-  const needsYouRows: TaskSheetRow[] = [
-    ...background
-      .filter((t) => t.state === 'waiting')
-      .map((t) => ({ key: t.id, label: t.label, age: t.age, threadId: t.threadId })),
-    ...approvals.map((a) => ({ key: a.id, label: a.title, age: a.age, threadId: a.threadId })),
-  ];
-  const runningRows: TaskSheetRow[] = background
-    .filter((t) => t.state === 'running')
-    .map((t) => ({
-      key: t.id,
-      label: t.label,
-      age: t.progress ?? t.age,
-      threadId: t.threadId,
-      running: true,
-    }));
 
   // Live focus for the dashboard widgets: the one running task (real-time
   // pulse) and the front of the needs-you queue (the next action).
+  // Computed BEFORE the list rows so the list can exclude the promoted
+  // item (2026-07-21 dedup: a task never appears twice on one board).
   const runningTask = background.find((t) => t.state === 'running');
   const nextAsk = [
     ...background
@@ -687,6 +683,65 @@ export default function HomeScreen() {
       threadId: a.threadId,
     })),
   ].sort((a, b) => Number(a.aged) - Number(b.aged))[0];
+
+  // NEXT UP rows: the routines ledger as a flat board list (2026-07-21,
+  // the AutopilotSheet retired) — schedules (time-anchored) first, then
+  // event rules; the right column is each row's future hook
+  const nextUpRows = [
+    ...schedules.map((s) => ({
+      key: s.id,
+      app: (s.permissionKey ?? 'calendar') as string,
+      name: s.name,
+      when: s.cadence,
+      threadId: s.threadId,
+    })),
+    ...AUTOPILOT_RULES.map((r) => ({
+      key: r.key,
+      app: r.app as string,
+      name: r.name,
+      when: r.next ?? 'on event',
+      threadId: r.threadId,
+    })),
+  ];
+
+  // the hero's in-place queue (2026-07-21 provenance marks): work YOU
+  // started keeps the blue mosaic dot; crew-initiated approvals wear
+  // the responsible member's face (looked up via their thread)
+  const heroQueueRows = [
+    ...background
+      .filter((t) => t.state === 'waiting')
+      .map((t) => ({
+        key: t.id,
+        label: t.label,
+        age: t.age,
+        threadId: t.threadId as string | undefined,
+        agentId: undefined as string | undefined,
+      })),
+    ...approvals.map((a) => ({
+      key: a.id,
+      label: a.title,
+      age: a.age,
+      threadId: a.threadId,
+      agentId: threads.find((t) => t.id === a.threadId)?.agentId ?? 'muppet',
+    })),
+  ];
+
+  // what each hero card's rising folder lists
+  const needsYouRows: TaskSheetRow[] = [
+    ...background
+      .filter((t) => t.state === 'waiting')
+      .map((t) => ({ key: t.id, label: t.label, age: t.age, threadId: t.threadId })),
+    ...approvals.map((a) => ({ key: a.id, label: a.title, age: a.age, threadId: a.threadId })),
+  ];
+  const runningRows: TaskSheetRow[] = background
+    .filter((t) => t.state === 'running')
+    .map((t) => ({
+      key: t.id,
+      label: t.label,
+      age: t.progress ?? t.age,
+      threadId: t.threadId,
+      running: true,
+    }));
 
   return (
     <SafeAreaView
@@ -793,14 +848,14 @@ export default function HomeScreen() {
               </View>
 
               {/* ── Control-tower dashboard: the trust cycle as a board.
-                  YOUR TURN asks (pre-action), RUNNING shows delegation
-                  at work, TRUST calibrates what stops needing approval,
-                  LAST ACTION below undoes what went through. Every
-                  approval feeds TRUST; TRUST slims YOUR TURN; undo makes
-                  the added autonomy safe. ── */}
+                  YOUR TURN leads (2026-07-21 "your turn up"): the ask
+                  outranks the briefing. RUNNING shows delegation at
+                  work, TRUST calibrates what stops needing approval.
+                  Every approval feeds TRUST; TRUST slims YOUR TURN;
+                  undo makes the added autonomy safe. ── */}
               {nextAsk ? (
                 // board entrance: each section floats in softly, top to
-                // bottom (FadeInDown, 120ms stagger), on connect/mount
+                // bottom (FadeInDown, 120ms stagger, the hero leads)
                 <Animated.View
                   entering={FadeInDown.duration(420)}
                   style={{ marginTop: 28 }}>
@@ -821,29 +876,48 @@ export default function HomeScreen() {
                       itself is drawn as one SVG path, so the outer box
                       stays unclipped/radius-less — no overflow:hidden
                       here, it would clip the notch off */}
+                  {/* ONE folder again (2026-07-21 "탭 구분 말고 하나에"):
+                      the clarification and the crew's pitch stack in
+                      the same YOUR TURN card, split by a hairline */}
                   <FrostedGlassFill radius={16} tabWidth={flapW('yourturn', 132)} />
-                  <View
-                    style={{
-                      height: 26,
-                      flexDirection: 'row',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                    }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                      <Text
-                        onTextLayout={measureTitle('yourturn')}
-                        style={{
-                          fontSize: 11,
-                          fontFamily: fontFamily.mono,
-                          letterSpacing: 0.3,
-                          color: 'rgba(22,24,28,0.55)',
-                        }}>
-                        YOUR TURN
-                      </Text>
-                    </View>
-                    {needsYou - 1 > 0 ? (
-                      <Pressable onPress={() => setTaskSheet('needsYou')} hitSlop={16}>
-                        <PixelText text={`+${needsYou - 1} MORE`} color={AINK.dim} />
+                  <View style={{ height: 26, flexDirection: 'row', alignItems: 'center' }}>
+                    <Text
+                      onTextLayout={measureTitle('yourturn')}
+                      style={{
+                        fontSize: 11,
+                        fontFamily: fontFamily.mono,
+                        letterSpacing: 0.3,
+                        color: 'rgba(22,24,28,0.55)',
+                      }}>
+                      YOUR TURN
+                    </Text>
+                    <View style={{ flex: 1 }} />
+                    {/* the card's identity readout: still the door to
+                        the full queue, expanding in place */}
+                    {needsYou > 0 ? (
+                      <Pressable
+                        onPress={toggleWaiting}
+                        hitSlop={12}
+                        style={({ pressed }) => ({
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          opacity: pressed ? 0.5 : 1,
+                        })}>
+                        <Text
+                          style={{
+                            fontSize: 10,
+                            fontFamily: fontFamily.mono,
+                            letterSpacing: 0.3,
+                            color: AINK.dim,
+                          }}>
+                          {`${needsYou} WAITING`}
+                        </Text>
+                        <Ionicons
+                          name={waitingOpen ? 'chevron-up' : 'chevron-down'}
+                          size={11}
+                          color={AINK.dim}
+                          style={{ marginLeft: 3 }}
+                        />
                       </Pressable>
                     ) : null}
                   </View>
@@ -861,7 +935,7 @@ export default function HomeScreen() {
                       fontFamily: fontFamily.medium,
                       color: AINK.text,
                     }}>
-                    Dinner with Jenna — which time?
+                    Dinner with Jenna, which time?
                   </Text>
                   {dinnerAnswered ? (
                     <Text
@@ -871,7 +945,9 @@ export default function HomeScreen() {
                         fontSize: 12,
                         color: AINK.dim,
                       }}>
-                      {`✓ Booked ${dinnerAnswered}`}
+                      {dinnerAnswered === 'skip'
+                        ? 'Skipped, nothing booked'
+                        : `✓ Booked ${dinnerAnswered}`}
                     </Text>
                   ) : (
                   <View
@@ -912,104 +988,209 @@ export default function HomeScreen() {
                       })}>
                       <Text style={{ fontSize: 13, color: AINK.dim }}>Other</Text>
                     </Pressable>
+                    <View style={{ flex: 1 }} />
+                    {/* the EXIT, right-anchored away from the answers
+                        (2026-07-21): declining is a real answer too. It
+                        resolves in place — no navigation, the thread
+                        quietly records both sides via skipDinner */}
+                    <Pressable
+                      onPress={() => {
+                        setDinnerAnswered('skip');
+                        skipDinner();
+                      }}
+                      hitSlop={8}
+                      style={({ pressed }) => ({
+                        paddingVertical: 9,
+                        opacity: pressed ? 0.5 : 1,
+                      })}>
+                      <Text style={{ fontSize: 13, color: AINK.dim }}>Skip</Text>
+                    </Pressable>
                   </View>
                   )}
+                  {/* the rest of the queue, unfolded IN the folder
+                      (2026-07-21, half-sheet retired): the promoted ask
+                      stays above, the remainder cascades in below */}
+                  {waitingOpen ? (
+                    <View style={{ marginTop: 12 }}>
+                      {heroQueueRows
+                        .filter((r) => r.label !== nextAsk?.label)
+                        .map((r, idx) => (
+                          <Animated.View
+                            key={r.key}
+                            entering={FadeInDown.duration(260).delay(80 * idx)}>
+                            <Pressable
+                              onPress={() =>
+                                r.threadId && router.push(`/chat/${r.threadId}`)
+                              }
+                              style={({ pressed }) => ({
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                gap: spacing.sm,
+                                paddingVertical: 12,
+                                borderTopWidth: 1,
+                                borderTopColor: AINK.divider,
+                                opacity: pressed ? 0.5 : 1,
+                              })}>
+                              {/* crew-initiated rows wear their member's
+                                  face; your own asks keep the blue dot */}
+                              <View style={{ width: 16, alignItems: 'flex-start' }}>
+                                {r.agentId ? (
+                                  <CrewPixel id={r.agentId} size={16} />
+                                ) : (
+                                  <MosaicDot color={sysColor.action} />
+                                )}
+                              </View>
+                              <Text
+                                numberOfLines={1}
+                                style={{
+                                  flex: 1,
+                                  fontSize: fontSize.body,
+                                  fontFamily: fontFamily.regular,
+                                  color: AINK.text,
+                                }}>
+                                {r.label}
+                              </Text>
+                              <Text
+                                style={{
+                                  fontSize: 10,
+                                  fontFamily: fontFamily.mono,
+                                  color: AINK.dim,
+                                }}>
+                                {r.age ?? 'now'}
+                              </Text>
+                            </Pressable>
+                          </Animated.View>
+                        ))}
+                    </View>
+                  ) : null}
+                  {/* ── hairline seam, then the crew's PITCH stacked in
+                      the SAME card (2026-07-21 "하나에"): non-blocking,
+                      light Go / Not now, dies quietly if ignored ── */}
+                  <View
+                    style={{
+                      height: 1,
+                      backgroundColor: AINK.divider,
+                      marginTop: 16,
+                    }}
+                  />
+                  <Pressable
+                    onPress={() => router.push(`/chat/${PITCH.threadId}`)}
+                    style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}>
+                  <View
+                    style={{
+                      marginTop: 14,
+                      flexDirection: 'row',
+                      // top-aligned, not centered: when the title wraps,
+                      // the face stays married to the FIRST line
+                      alignItems: 'flex-start',
+                      gap: spacing.sm,
+                    }}>
+                    {/* the pitching member's FACE is the provenance
+                        mark (the mosaic cell read too abstract): small,
+                        column hugs the face so it stays connected to
+                        the sentence it fronts; 2px nudge centers it on
+                        the first line's 20pt box */}
+                    <View style={{ width: 16, alignItems: 'flex-start', marginTop: 2 }}>
+                      <CrewPixel id={PITCH.agentId} size={16} />
+                    </View>
+                    <Text
+                      numberOfLines={2}
+                      style={{
+                        flex: 1,
+                        fontSize: fontSize.body,
+                        fontFamily: fontFamily.medium,
+                        color: AINK.text,
+                      }}>
+                      {PITCH.title}
+                    </Text>
+                  </View>
+                  <Text
+                    style={{
+                      marginTop: 6,
+                      marginLeft: 24,
+                      fontSize: 10,
+                      fontFamily: fontFamily.mono,
+                      color: AINK.dim,
+                    }}>
+                    {`expires ${PITCH.expires}`}
+                  </Text>
+                  {pitchAnswered ? (
+                    <Text
+                      style={{
+                        marginTop: 14,
+                        marginLeft: 24,
+                        fontFamily: fontFamily.mono,
+                        fontSize: 12,
+                        color: AINK.dim,
+                      }}>
+                      {pitchAnswered === 'go'
+                        ? '✓ Going ahead'
+                        : 'Passed, it expires on its own'}
+                    </Text>
+                  ) : (
+                    <View
+                      style={{
+                        marginTop: 12,
+                        marginLeft: 24,
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 12,
+                      }}>
+                      <AnalogKey
+                        onPress={() => {
+                          setPitchAnswered('go');
+                          sendMessage(PITCH.threadId, PITCH.goAsk);
+                          router.push(`/chat/${PITCH.threadId}`);
+                        }}
+                        style={{ paddingVertical: 9, paddingHorizontal: 17 }}>
+                        <Text
+                          style={{
+                            fontSize: 13,
+                            fontWeight: fontWeight.semibold,
+                            color: CTA_SLAB_INK,
+                          }}>
+                          Go
+                        </Text>
+                      </AnalogKey>
+                      <Pressable
+                        onPress={() => setPitchAnswered('later')}
+                        hitSlop={8}
+                        style={({ pressed }) => ({
+                          paddingVertical: 9,
+                          opacity: pressed ? 0.5 : 1,
+                        })}>
+                        <Text style={{ fontSize: 13, color: AINK.dim }}>Not now</Text>
+                      </Pressable>
+                    </View>
+                  )}
+                  </Pressable>
                 </Pressable>
                 </Animated.View>
               ) : null}
 
+              {/* the CREW/YOU digest rides SECOND now (2026-07-21 "your
+                  turn up"): pure FYI yields to the live ask above */}
+              {AWAY_DIGEST.auto.length + AWAY_DIGEST.asked.length > 0 ? (
+                <AwayDigestCard
+                  digest={AWAY_DIGEST}
+                  undoables={UNDOABLES}
+                  enterDelay={120}
+                  onOpenThread={(id) => router.push(`/chat/${id}`)}
+                  onUndo={undoAction}
+                />
+              ) : null}
+
               <Animated.View
-                entering={FadeInDown.duration(420).delay(120)}
+                entering={FadeInDown.duration(420).delay(240)}
                 style={{
                   flexDirection: 'row',
                   gap: 12,
                   marginTop: 28,
                 }}>
-                {/* AUTOPILOT: the calibration gauge. The card is only the
-                    gauge face; tapping opens the ledger as a bottom sheet
-                    (the board never reflows). Proposals queue in YOUR
-                    TURN, never here. */}
-                <Pressable
-                  onPress={() => setAutopilotOpen(true)}
-                  style={({ pressed }) => ({
-                    flex: 1,
-                    height: 124,
-                    paddingHorizontal: 18,
-                    paddingBottom: 18,
-                    shadowColor: '#16181C',
-                    shadowOpacity: 0.1,
-                    shadowRadius: 18,
-                    shadowOffset: { width: 0, height: 6 },
-                    elevation: 5,
-                    opacity: pressed ? 0.85 : 1,
-                  })}>
-                  <FrostedGlassFill
-                    radius={14}
-                    tabWidth={flapW('routines', 90)}
-                    tabHeight={22}
-                  />
-                  <View
-                    style={{
-                      height: 26,
-                      flexDirection: 'row',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                    }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                      <Text
-                        onTextLayout={measureTitle('routines')}
-                        style={{
-                          fontSize: 11,
-                          fontFamily: fontFamily.mono,
-                          letterSpacing: 0.3,
-                          color: 'rgba(22,24,28,0.55)',
-                        }}>
-                        ROUTINES
-                      </Text>
-                    </View>
-                  </View>
-
-                    {/* same skeleton as the RUNNING card: centered title
-                        with the footer margin reserved, footer row pinned
-                        to the same bottom line as "2 of 4 sites" */}
-                    <View style={{ flex: 1, justifyContent: 'center', marginBottom: 14 }}>
-                      {/* the pattern IS the insight: one line saying what
-                          kept needing you. Numbers and the fix live one
-                          tap deeper, in the sheet. */}
-                      <Text
-                        numberOfLines={2}
-                        style={{
-                          fontSize: fontSize.body,
-                          lineHeight: 20,
-                          fontFamily: fontFamily.regular,
-                          color: AINK.text,
-                        }}>
-                        {trustHandled === 'allowed'
-                          ? 'Morning briefing runs daily now'
-                          : 'You keep asking for inbox summaries'}
-                      </Text>
-                    </View>
-                    <View
-                      style={{
-                        position: 'absolute',
-                        left: 18,
-                        bottom: 16,
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                      }}>
-                      <Text style={{ fontSize: 10, fontFamily: fontFamily.mono, color: AINK.dim }}>
-                        {/* one umbrella word: rules + schedules are both
-                            just the agent acting without you */}
-                        {`${AUTOPILOT_RULES.length + schedules.length} routines`}
-                      </Text>
-                      <Ionicons
-                        name="chevron-forward"
-                        size={11}
-                        color={AINK.dim}
-                        style={{ marginLeft: 2 }}
-                      />
-                    </View>
-                </Pressable>
+                {/* RUNNING leads the row (2026-07-21 reshuffle): the
+                    gauge card retired — routines' content moved to the
+                    bottom ROUTINES section, and the right slot became
+                    the compact NEXT UP card below */}
                 {(
                   [
                     {
@@ -1148,6 +1329,93 @@ export default function HomeScreen() {
                     </View>
                   </Pressable>
                 ))}
+                {/* NEXT UP, compact (2026-07-21): the future axis as a
+                    card — ONE app mark + the soonest scheduled item,
+                    its time pinned to the meta line. The full ledger
+                    lives in the ROUTINES section below. */}
+                <Pressable
+                  onPress={() =>
+                    nextUpRows[0] && router.push(`/chat/${nextUpRows[0].threadId}`)
+                  }
+                  style={({ pressed }) => ({
+                    flex: 1,
+                    height: 124,
+                    paddingHorizontal: 18,
+                    paddingBottom: 18,
+                    shadowColor: '#16181C',
+                    shadowOpacity: 0.1,
+                    shadowRadius: 18,
+                    shadowOffset: { width: 0, height: 6 },
+                    elevation: 5,
+                    opacity: pressed ? 0.85 : 1,
+                  })}>
+                  <FrostedGlassFill
+                    radius={14}
+                    tabWidth={flapW('nextup', 90)}
+                    tabHeight={22}
+                  />
+                  <View style={{ height: 26, flexDirection: 'row', alignItems: 'center' }}>
+                    <Text
+                      onTextLayout={measureTitle('nextup')}
+                      style={{
+                        fontSize: 11,
+                        fontFamily: fontFamily.mono,
+                        letterSpacing: 0.3,
+                        color: 'rgba(22,24,28,0.55)',
+                      }}>
+                      NEXT UP
+                    </Text>
+                  </View>
+                  <View
+                    style={{
+                      flex: 1,
+                      justifyContent: 'center',
+                      marginBottom: 14,
+                    }}>
+                    {nextUpRows[0] ? (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        <Ionicons
+                          name={
+                            NEXTUP_APP_ICON[
+                              nextUpRows[0].app as keyof typeof NEXTUP_APP_ICON
+                            ] ?? 'apps-outline'
+                          }
+                          size={16}
+                          color={AINK.dim}
+                        />
+                        <Text
+                          numberOfLines={2}
+                          style={{
+                            flexShrink: 1,
+                            fontSize: fontSize.body,
+                            lineHeight: 20,
+                            fontFamily: fontFamily.regular,
+                            color: AINK.text,
+                          }}>
+                          {nextUpRows[0].name}
+                        </Text>
+                      </View>
+                    ) : (
+                      <Text
+                        style={{
+                          fontSize: fontSize.body,
+                          lineHeight: 20,
+                          fontFamily: fontFamily.regular,
+                          color: AINK.dim,
+                        }}>
+                        Nothing scheduled
+                      </Text>
+                    )}
+                  </View>
+                  {nextUpRows[0] ? (
+                    <View style={{ position: 'absolute', left: 18, bottom: 16 }}>
+                      <Text
+                        style={{ fontSize: 10, fontFamily: fontFamily.mono, color: AINK.dim }}>
+                        {nextUpRows[0].when}
+                      </Text>
+                    </View>
+                  ) : null}
+                </Pressable>
               </Animated.View>
 
               {/* post-action control: the agent's most recent write
@@ -1155,8 +1423,13 @@ export default function HomeScreen() {
                   in chat. "+N more" expands the card in place into the
                   full undoable queue; the descending minutes column
                   explains itself, no caption needed. */}
+              {/* LAST ACTION only stands alone in PLAIN time (no away
+                  digest on the board): with WYWA present its undo rail
+                  rides the digest rows instead — the two are states of
+                  the same card (2026-07-21 merge) */}
+              {AWAY_DIGEST.auto.length + AWAY_DIGEST.asked.length > 0 ? null : (
               <Animated.View
-                entering={FadeInDown.duration(420).delay(240)}
+                entering={FadeInDown.duration(420).delay(360)}
                 style={{
                   marginTop: 28,
                   paddingHorizontal: 18,
@@ -1274,11 +1547,7 @@ export default function HomeScreen() {
                               ? '#16181C'
                               : 'rgba(22,24,28,0.65)',
                         }}>
-                        {u.irreversible
-                          ? armedRevert === u.label
-                            ? 'Revert'
-                            : 'Revert…'
-                          : 'Undo'}
+                        Undo
                       </Text>
                     </Pressable>
                   </View>
@@ -1296,214 +1565,131 @@ export default function HomeScreen() {
                       borderTopColor: AINK.divider,
                       opacity: pressed ? 0.6 : 1,
                     })}>
+                    {/* dry register (2026-07-21 tone pass): state the
+                        fallback, do not chat about it */}
                     <Text style={{ fontSize: 12, color: AINK.dim }}>
-                      Older actions? Just ask your crew.
+                      Older actions: ask in chat
                     </Text>
                   </Pressable>
                 ) : null}
               </Animated.View>
+              )}
 
-              {/* one glass section: EVERY task, chronological — the
-                  state-specific views live in the hero cards above and
-                  their rising folders, so this list carries no filters
-                  (2026-07-17). Priority reads top to bottom. */}
-              {background.length + approvals.length + doneThreads.length > 0 ? (
-                <Animated.View
-                  entering={FadeInDown.duration(420).delay(360)}
-                  style={{
-                    marginTop: 28,
-                    shadowColor: '#16181C',
-                    shadowOpacity: 0.1,
-                    shadowRadius: 20,
-                    shadowOffset: { width: 0, height: 8 },
-                    elevation: 5,
-                  }}>
-                  <FrostedGlassFill radius={16} tabWidth={flapW('tasks', 100)} />
-                  <View
+              {/* ROUTINES (2026-07-21 reshuffle): the standing-autonomy
+                  ledger as the board's bottom section — the suggestion
+                  line leads (the old gauge card's body), then the flat
+                  list (AutopilotSheet retired): schedules first, event
+                  rules after, every row a door to its home thread. */}
+              <Animated.View
+                entering={FadeInDown.duration(420).delay(480)}
+                style={{
+                  marginTop: 28,
+                  shadowColor: '#16181C',
+                  shadowOpacity: 0.1,
+                  shadowRadius: 20,
+                  shadowOffset: { width: 0, height: 8 },
+                  elevation: 5,
+                }}>
+                <FrostedGlassFill radius={16} tabWidth={flapW('routines', 100)} />
+                <View style={{ height: 26, justifyContent: 'center', paddingHorizontal: 18 }}>
+                  <Text
+                    onTextLayout={measureTitle('routines')}
                     style={{
-                      height: 26,
-                      justifyContent: 'center',
-                      paddingHorizontal: 18,
-                    }}>
-                    <Text
-                      onTextLayout={measureTitle('tasks')}
-                      style={{
-                        alignSelf: 'flex-start',
-                        fontSize: 11,
-                        fontFamily: fontFamily.mono,
-                        letterSpacing: 0.3,
-                        color: 'rgba(22,24,28,0.55)',
-                      }}>
-                      TASKS
-                    </Text>
-                  </View>
-                  {activeRows.map((row, idx) => {
-                    const aged = row.age?.endsWith('d') ?? false;
-                    return (
-                      <View key={row.key}>
-                        {idx > 0 ? (
-                          <View
-                            style={{
-                              height: 1,
-                              marginHorizontal: 18,
-                              backgroundColor: AINK.divider,
-                            }}
-                          />
-                        ) : null}
-                        <Pressable
-                          onPress={row.onPress}
-                          style={({ pressed }) => ({
-                            flexDirection: 'row',
-                            alignItems: 'center',
-                            gap: spacing.sm,
-                            paddingHorizontal: 18,
-                            // the board's 14 rhythm (2026-07-17 "간격"):
-                            // rows breathe like every other section's
-                            // body; the first row clears the flap the
-                            // same 14+4 the YOUR TURN body text does
-                            paddingTop: idx === 0 ? 18 : 14,
-                            paddingBottom: 14,
-                            opacity: pressed ? 0.5 : aged ? 0.5 : 1,
-                          })}>
-                          {/* state cell zone (2026-07-16 "픽셀스타일"):
-                              the round dots became 8×8 pixel cells, the
-                              same block the RUNNING gauge uses — teal =
-                              your turn, pulse = running, dim = resting */}
-                          <View
-                            style={{ width: 14, alignItems: 'flex-start', justifyContent: 'center' }}>
-                            {row.waiting && !aged ? (
-                              // mosaic cluster (2026-07-17): the state
-                              // cell speaks the crew-pixel voice
-                              <MosaicDot color={sysColor.action} />
-                            ) : !row.waiting ? (
-                              // every state cell shares the gauge's 8px
-                              // body; only color and motion differ
-                              <RunningDot color="rgba(22,24,28,0.35)" size={8} square />
-                            ) : (
-                              <MosaicDot color="rgba(22,24,28,0.4)" />
-                            )}
-                          </View>
-                          <View style={{ flex: 1 }}>
-                            <Text
-                              numberOfLines={1}
-                              style={{
-                                color: AINK.text,
-                                fontSize: fontSize.body,
-                                // one flat weight: rows never shout
-                                // (user call 2026-07-14)
-                                fontFamily: fontFamily.regular,
-                              }}>
-                              {row.label}
-                            </Text>
-                            {/* waiting rows name their state (2026-07-17):
-                                the same "Your turn" the hero card wears,
-                                so card = the front of THIS queue reads —
-                                the list is the ledger, the card is its
-                                promoted head */}
-                            {row.waiting ? (
-                              <Text
-                                style={{
-                                  marginTop: 3,
-                                  fontSize: fontSize.caption,
-                                  color: sysColor.action,
-                                }}>
-                                Your turn
-                              </Text>
-                            ) : null}
-                          </View>
-                          {/* right column: always time, in every tab —
-                              the list reads chronological at a glance */}
-                          <Text
-                            style={{ fontSize: 10, fontFamily: fontFamily.mono, color: AINK.dim }}>
-                            {row.age ?? row.deadline ?? 'now'}
-                          </Text>
-                        </Pressable>
-                      </View>
-                    );
-                  })}
-                  {visibleDone.map((t, idx) => (
-                    <View key={t.id}>
-                      {idx > 0 || activeRows.length > 0 ? (
-                        <View
-                          style={{
-                            height: 1,
-                            marginHorizontal: 18,
-                            backgroundColor: AINK.divider,
-                          }}
-                        />
-                      ) : null}
-                      <Pressable
-                        onPress={() => openThread(t.id)}
-                        style={({ pressed }) => ({
-                          flexDirection: 'row',
-                          alignItems: 'center',
-                          gap: spacing.sm,
-                          paddingHorizontal: 18,
-                          // same 14 rhythm as the open rows above
-                          paddingTop: idx === 0 && activeRows.length === 0 ? 18 : 14,
-                          paddingBottom: 14,
-                          opacity: pressed ? 0.5 : t.outcome === 'expired' ? 0.6 : 1,
-                        })}>
-                        {/* no state mark on closed rows, so no reserved
-                            column either — text starts flush (2026-07-16) */}
-                        <View style={{ flex: 1 }}>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                            <Text
-                              numberOfLines={1}
-                              style={{
-                                flexShrink: 1,
-                                color: AINK.text,
-                                fontSize: fontSize.body,
-                                fontFamily: fontFamily.regular,
-                              }}>
-                              {t.title}
-                            </Text>
-                          </View>
-                          <Text
-                            numberOfLines={1}
-                            style={{ color: AINK.dim, fontSize: fontSize.caption, marginTop: 3 }}>
-                            {t.lastPreview}
-                          </Text>
-                        </View>
-                        <Text
-                          style={{
-                            fontSize: 10,
-                            fontFamily: fontFamily.mono,
-                            color: AINK.dim,
-                          }}>
-                          {t.outcome === 'expired' ? 'expired' : t.updatedAt}
-                        </Text>
-                      </Pressable>
-                    </View>
-                  ))}
-                  {/* door to Activity in the BOARD's own door grammar
-                      (2026-07-16 "이런 규칙으로" = the ROUTINES window's
-                      "5 routines ›"): quiet bottom-left mono meta with
-                      an inline chevron — not the sheet's full-width row */}
-                  <Pressable
-                    onPress={() => router.navigate('/(tabs)/chat')}
-                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                    style={({ pressed }) => ({
-                      flexDirection: 'row',
-                      alignItems: 'center',
                       alignSelf: 'flex-start',
-                      paddingHorizontal: 18,
-                      paddingTop: 6,
-                      paddingBottom: 14,
-                      opacity: pressed ? 0.5 : 1,
-                    })}>
-                    <Text style={{ fontSize: 10, fontFamily: fontFamily.mono, color: AINK.dim }}>
-                      all activity
-                    </Text>
-                    <Ionicons
-                      name="chevron-forward"
-                      size={11}
-                      color={AINK.dim}
-                      style={{ marginLeft: 2 }}
-                    />
-                  </Pressable>
-                </Animated.View>
-              ) : null}
+                      fontSize: 11,
+                      fontFamily: fontFamily.mono,
+                      letterSpacing: 0.3,
+                      color: 'rgba(22,24,28,0.55)',
+                    }}>
+                    ROUTINES
+                  </Text>
+                </View>
+                {/* the pattern IS the insight: what keeps needing you,
+                    stated in the machine register (the crew cards'
+                    role-tag voice, 2026-07-21) */}
+                <Text
+                  style={{
+                    paddingHorizontal: 18,
+                    marginTop: 14,
+                    fontSize: 11,
+                    fontFamily: fontFamily.mono,
+                    letterSpacing: 0.3,
+                    color: AINK.dim,
+                  }}>
+                  {trustHandled === 'allowed'
+                    ? 'MORNING BRIEFING RUNS DAILY NOW'
+                    : 'SUGGESTED RULE: INBOX SUMMARIES'}
+                </Text>
+                {nextUpRows.map((row, idx) => (
+                  <View key={row.key}>
+                    {idx > 0 ? (
+                      <View
+                        style={{ height: 1, marginHorizontal: 18, backgroundColor: AINK.divider }}
+                      />
+                    ) : null}
+                    <Pressable
+                      onPress={() => router.push(`/chat/${row.threadId}`)}
+                      style={({ pressed }) => ({
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 12,
+                        paddingHorizontal: 18,
+                        // the suggestion headline leads now, so the
+                        // first row sits on the list rhythm, not 18
+                        paddingTop: 14,
+                        paddingBottom: 14,
+                        opacity: pressed ? 0.5 : 1,
+                      })}>
+                      <Ionicons
+                        name={NEXTUP_APP_ICON[row.app as keyof typeof NEXTUP_APP_ICON] ?? 'apps-outline'}
+                        size={16}
+                        color={AINK.dim}
+                      />
+                      <Text
+                        numberOfLines={1}
+                        style={{
+                          flex: 1,
+                          color: AINK.text,
+                          fontSize: fontSize.body,
+                          fontFamily: fontFamily.regular,
+                        }}>
+                        {row.name}
+                      </Text>
+                      {/* the future hook: a cadence for schedules, the
+                          trigger for event rules — always mono */}
+                      <Text style={{ fontSize: 10, fontFamily: fontFamily.mono, color: AINK.dim }}>
+                        {row.when}
+                      </Text>
+                    </Pressable>
+                  </View>
+                ))}
+                {/* the board's one exit to the ledger, in the door
+                    grammar (survived the TASKS section it used to
+                    live in) */}
+                <Pressable
+                  onPress={() => router.navigate('/(tabs)/chat')}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  style={({ pressed }) => ({
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    alignSelf: 'flex-start',
+                    paddingHorizontal: 18,
+                    paddingTop: 6,
+                    paddingBottom: 14,
+                    opacity: pressed ? 0.5 : 1,
+                  })}>
+                  <Text style={{ fontSize: 10, fontFamily: fontFamily.mono, color: AINK.dim }}>
+                    all activity
+                  </Text>
+                  <Ionicons
+                    name="chevron-forward"
+                    size={11}
+                    color={AINK.dim}
+                    style={{ marginLeft: 2 }}
+                  />
+                </Pressable>
+              </Animated.View>
+
             </Animated.ScrollView>
 
           {/* Connection status popover (over the board) */}
@@ -1527,7 +1713,6 @@ export default function HomeScreen() {
 
           </View>
 
-          <AutopilotSheet visible={autopilotOpen} onClose={() => setAutopilotOpen(false)} />
           {/* +N MORE's rising folder: the hero card's queue, opened */}
           <TaskSheet
             visible={taskSheet !== null}

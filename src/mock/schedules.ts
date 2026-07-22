@@ -36,10 +36,19 @@ export type ScheduleProposal = {
   testRan?: boolean;
 };
 
-// Empty for now (2026-07-16 two-use-case rewrite): schedule-based
-// autonomy ("at time T, act") is a separate feature from Use Case B's
-// event-based rule ("when a PR arrives, act") and isn't part of either
-// storyboard. The old seed pointed at a retired thread; rather than
-// invent new scope, this list starts empty and fills in normally via
-// addRoutine() if a user accepts a routine suggestion in-app.
-export const initialSchedules: Schedule[] = [];
+// One seed (2026-07-21 NEXT UP): the board's future axis needs at
+// least one time-anchored routine to glance at. Its home thread t4
+// exists in mock/threads.ts (the old rule stands: no dangling
+// threadIds). More arrive normally via addRoutine() when the user
+// accepts a routine suggestion in-app.
+export const initialSchedules: Schedule[] = [
+  {
+    id: 'sch-weekly',
+    name: 'Weekly review',
+    cadence: 'Mon 9 AM',
+    threadId: 't4',
+    permissionKey: 'calendar',
+    scope: 'READ',
+    runs: 3,
+  },
+];

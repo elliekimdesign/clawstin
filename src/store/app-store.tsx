@@ -223,6 +223,9 @@ type Store = {
   /** YOUR TURN quick answer: sends the choice into the dinner thread and
    * lets the confirmation arrive there (the button press IS the answer) */
   confirmDinner: (slot: string) => void;
+  /** YOUR TURN decline: resolves the dinner ask in place — the thread
+   * still records both sides, but the user is not dragged into chat */
+  skipDinner: () => void;
 
   // Memory
   memories: Memory[];
@@ -1122,6 +1125,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [appendToThread, runThinking, finishThinking]
   );
 
+  // Skip = a real answer, not a dismissal: no theater (the user chose
+  // NOT to be taken anywhere), but the conversation keeps the record.
+  const skipDinner = useCallback(() => {
+    const threadId = 't1';
+    appendToThread(threadId, {
+      id: nextId('c'),
+      from: 'user',
+      text: 'Skip it, no dinner this time.',
+    });
+    appendToThread(threadId, {
+      id: nextId('c'),
+      from: 'agent',
+      text: 'No problem, nothing booked. Say the word if plans change.',
+    });
+  }, [appendToThread]);
+
   const runScheduleOnce = useCallback(
     (threadId: string, messageId: string) => {
       setThreads((prev) =>
@@ -1355,6 +1374,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       runScheduleOnce,
       addRoutine,
       confirmDinner,
+      skipDinner,
       confirmSchedule,
       logsFilter,
       setLogsFilter,
