@@ -1,15 +1,16 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
+import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
 import type { ServiceState, ServiceStatus } from '@/mock/services';
 import { fontFamily, fontSize, radius, spacing, sysColor } from '@/theme/theme';
 
-// Section-window tokens (2026-07-11): the popover is the status chip
-// UNFOLDED — same silver pane + ink text as the Home board's section
-// windows (the dark console version lives in git).
-const PANEL_BG = '#EFF1F3';
+import { FrostedGlassFill } from './frosted-glass-fill';
+
+// Ink-on-glass tokens (2026-07-22 frosted pass: the popover is the
+// status pill UNFOLDED — the same frosted folder card as the Home
+// board's sections; the silver pane era lives in git).
 const PANEL_TEXT = 'rgba(22,24,28,0.95)';
 const PANEL_DIM = 'rgba(22,24,28,0.6)';
 const PANEL_FAINT = 'rgba(22,24,28,0.42)';
@@ -48,8 +49,6 @@ export function worstServiceState(services: ServiceStatus[]): ServiceState {
 
 type Props = {
   services: ServiceStatus[];
-  /** how many crew agents are active — one summary line, details live in Crew */
-  agentsReady: number;
   onClose: () => void;
   onManageAccess: () => void;
   /** the popover is a summary with doors; this is the door to system settings */
@@ -130,7 +129,6 @@ function ServiceRow({
  */
 export function StatusPopover({
   services,
-  agentsReady,
   onClose,
   onManageAccess,
   onOpenSettings,
@@ -148,11 +146,6 @@ export function StatusPopover({
 
   const core = services.filter((s) => s.group === 'core');
   const llm = services.filter((s) => s.group === 'llm');
-
-  const openCrew = () => {
-    onClose();
-    router.navigate('/(tabs)/crew');
-  };
 
   return (
     <Pressable
@@ -176,50 +169,60 @@ export function StatusPopover({
           top: topOffset + SCRIM_REACH,
           right: spacing.lg,
           width: 300,
-          // square like every section window since the 2026-07-14
-          // right-angle pass (this popover IS a window, unfolded)
-          borderRadius: 0,
-          overflow: 'hidden',
-          borderWidth: 1,
-          // the section windows' white hairline, not an ink outline —
-          // the chip and its unfolded panel read as one family
-          borderColor: 'rgba(255,255,255,0.55)',
           shadowColor: '#16181C',
           shadowOpacity: 0.22,
           shadowRadius: 28,
           shadowOffset: { width: 0, height: 10 },
           elevation: 12,
         }}>
-        {/* pale-blue body + strip title bar: matched to the ROUTINES
-            sheet's design (same colors, shape untouched) — the glass
-            fill + extra white veil era is in git history */}
+        {/* frosted PLATE, not a folder (2026-07-22 "폴더 스타일 안
+            해도 돼"): the system's side surface. NEAR-OPAQUE (2026-07-22
+            "뒷배경이랑 겹치는 것 같아"): a solid milk base under the
+            frost skin so the board's text can't bleed through — a
+            floating system panel sits solid, only its edges admitting
+            the field. */}
         <View
           pointerEvents="none"
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: '#DCE9F6',
-          }}
+          style={[
+            StyleSheet.absoluteFill,
+            { borderRadius: 16, backgroundColor: 'rgba(235,242,249,0.96)' },
+          ]}
         />
+        <FrostedGlassFill flat radius={16} tint="rgba(255,255,255,0.5)" />
+        {/* title band in the VIAL's liquid (2026-07-22 "위에 버튼이랑
+            통일감"): the same dusty running-blue the status pill holds,
+            poured across the panel's top — with the pill's own soft
+            vertical gradient, deeper at the top where it pools */}
         <View
           style={{
-            height: 34,
-            flexDirection: 'row',
-            alignItems: 'center',
+            height: 30,
+            justifyContent: 'center',
             paddingHorizontal: spacing.lg,
-            backgroundColor: 'rgba(84,110,140,0.14)',
+            overflow: 'hidden',
+            borderTopLeftRadius: 16,
+            borderTopRightRadius: 16,
           }}>
+          <Svg
+            width={300}
+            height={30}
+            style={StyleSheet.absoluteFill}
+            pointerEvents="none">
+            <Defs>
+              <LinearGradient id="bandPour" x1="0" y1="0" x2="0" y2="1">
+                <Stop offset="0" stopColor="#5E87C4" stopOpacity="0.58" />
+                <Stop offset="1" stopColor="#5E87C4" stopOpacity="0.26" />
+              </LinearGradient>
+            </Defs>
+            <Rect width={300} height={30} fill="url(#bandPour)" />
+          </Svg>
           <Text
             style={{
-              color: 'rgba(22,24,28,0.55)',
+              color: 'rgba(22,24,28,0.6)',
               fontFamily: fontFamily.mono,
-              fontSize: 11,
+              fontSize: 12,
               letterSpacing: 0.3,
             }}>
-            SYSTEM STATUS
+            System status
           </Text>
         </View>
         <View style={{ paddingVertical: spacing.md, paddingHorizontal: spacing.lg }}>
@@ -245,45 +248,28 @@ export function StatusPopover({
           {core.map((s) => (
             <ServiceRow key={s.id} s={s} onIssue={onManageAccess} onOpen={onOpenSettings} />
           ))}
-          <Pressable
-            onPress={openCrew}
-            style={({ pressed }) => ({
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              paddingVertical: 9,
-              opacity: pressed ? 0.55 : 1,
-            })}>
-            <Text style={{ color: PANEL_TEXT, fontFamily: fontFamily.mono, fontSize: 13 }}>
-              Crew
-            </Text>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <Text style={{ color: PANEL_DIM, fontFamily: fontFamily.mono, fontSize: 12 }}>
-                {`${agentsReady} ready`}
-              </Text>
-              <View
-                style={{ width: 7, height: 7, borderRadius: 999, backgroundColor: sysColor.ready }}
-              />
-              <Ionicons name="chevron-forward" size={12} color={PANEL_FAINT} />
-            </View>
-          </Pressable>
-
+          {/* Crew row removed (2026-07-22 "크루가 필요할까 싶네"):
+              this panel is infra only — agent state lives in the
+              Crew tab */}
           {llm.map((s) => (
             <ServiceRow key={s.id} s={s} onIssue={onManageAccess} onOpen={onOpenSettings} />
           ))}
         </View>
 
         </View>
-        {/* White footer strip, the title bar's twin. When something is
-            wrong the loud row is about the problem; the settings door
-            is always there — status is where you come to act. */}
-        <View style={{ height: 1, backgroundColor: 'rgba(22,24,28,0.1)' }} />
+        {/* footer doors on the same glass — hairline-separated rows,
+            no solid strips (they'd fight the frost and poke past the
+            unclipped corners). When something is wrong the loud row
+            is about the problem; the settings door is always there —
+            status is where you come to act. */}
+        <View
+          style={{ height: 1, backgroundColor: DIVIDER, marginHorizontal: spacing.lg }}
+        />
         {!healthy ? (
           <>
             <Pressable
               onPress={onManageAccess}
               style={({ pressed }) => ({
-                backgroundColor: 'rgba(255,255,255,0.55)',
                 flexDirection: 'row',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -296,13 +282,14 @@ export function StatusPopover({
               </Text>
               <Ionicons name="arrow-forward" size={14} color={PANEL_TEXT} />
             </Pressable>
-            <View style={{ height: 1, backgroundColor: DIVIDER }} />
+            <View
+              style={{ height: 1, backgroundColor: DIVIDER, marginHorizontal: spacing.lg }}
+            />
           </>
         ) : null}
         <Pressable
           onPress={onOpenSettings}
           style={({ pressed }) => ({
-            backgroundColor: 'rgba(255,255,255,0.55)',
             flexDirection: 'row',
             alignItems: 'center',
             justifyContent: 'space-between',

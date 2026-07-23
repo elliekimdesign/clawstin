@@ -679,22 +679,35 @@ export function ChatThreadView({
                       gap: 10,
                       marginVertical: spacing.lg,
                     }}>
-                    {/* readable + navy (2026-07-16, "읽을 수 있는
-                        사이즈야? 폰트를 남색으로") — 10→12pt, and the
-                        divider's own line/text now track darkChat's
-                        navy tokens instead of hardcoded white */}
+                    {/* the chop STAMP (2026-07-22 "태스크: 이름, 저장됨
+                        콕 박히게"): the quiet mono whisper couldn't
+                        carry "a NEW task now exists on Home" — the
+                        boundary is a white chip that says exactly
+                        that, in one read: the task's name, and the
+                        receipt that it was saved. */}
                     <View style={{ flex: 1, height: 1, backgroundColor: darkChat.divider }} />
-                    <Text
-                      numberOfLines={1}
+                    {/* quieter chip (2026-07-22 "흰색이 너무 많으니까"):
+                        the popover band's blue-milk instead of bright
+                        white, and the name alone — no receipt line */}
+                    <View
                       style={{
-                        maxWidth: '60%',
-                        fontFamily: fontFamily.mono,
-                        fontSize: 12,
-                        letterSpacing: 0.3,
-                        color: darkChat.textTertiary,
+                        maxWidth: '70%',
+                        backgroundColor: 'rgba(191,213,236,0.9)',
+                        borderRadius: 11,
+                        paddingHorizontal: 13,
+                        paddingVertical: 7,
+                        alignItems: 'center',
                       }}>
-                      {`task  ${m.taskDivider}`}
-                    </Text>
+                      <Text
+                        numberOfLines={1}
+                        style={{
+                          fontFamily: fontFamily.semibold,
+                          fontSize: 13,
+                          color: '#16181C',
+                        }}>
+                        {`New task: ${m.taskDivider}`}
+                      </Text>
+                    </View>
                     <View style={{ flex: 1, height: 1, backgroundColor: darkChat.divider }} />
                   </View>
                 ) : null}

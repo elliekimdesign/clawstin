@@ -14,7 +14,7 @@ import Svg, { Circle, ClipPath, Defs, G, LinearGradient, Path, Stop } from 'reac
  * SVG renderers, so the frosted "grain" is faked with a fixed field of
  * tiny low-opacity dots instead. Cheap, deterministic, good enough at
  * the sizes these cards render. */
-const GRAIN_DOTS = Array.from({ length: 70 }, (_, i) => {
+export const GRAIN_DOTS = Array.from({ length: 70 }, (_, i) => {
   // simple LCG-ish scatter, no Math.random (keeps renders stable)
   const x = (i * 37 + (i % 7) * 13) % 100;
   const y = (i * 53 + (i % 5) * 19) % 100;

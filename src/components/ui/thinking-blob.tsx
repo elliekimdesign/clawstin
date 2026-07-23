@@ -57,21 +57,30 @@ vec4 main(vec2 fragCoord) {
     return vec4(0.0);
   }
 
-  // blend the three colors by which center is nearest, softened
-  float d0 = length(uv - c0);
-  float d1 = length(uv - c1);
-  float d2 = length(uv - c2);
-  float w0 = 1.0 / (d0 * d0 + 0.02);
-  float w1 = 1.0 / (d1 * d1 + 0.02);
-  float w2 = 1.0 / (d2 * d2 + 0.02);
-  float wsum = w0 + w1 + w2;
-  vec3 blobColor = (u_color0.rgb * w0 + u_color1.rgb * w1 + u_color2.rgb * w2) / wsum;
+  // GLASS BEAD shading (2026-07-22 "영롱하게 뜨는 투명 유리알"):
+  // the bead is mostly see-through in its middle and glows at its
+  // silhouette (a fake fresnel from the field strength), with an
+  // iridescent tint that slowly turns around the bead.
+  // rim: field ~ threshold at the edge, large deep inside
+  float rim = smoothstep(2.4, 1.0, field);
 
-  // no backing plate (2026-07-16, "뒤에 만든 배경 지우기") — the blobs
-  // sit directly on the chat's own background, transparent everywhere
-  // else
-  float alpha = edge;
-  return vec4(blobColor * alpha, alpha);
+  // iridescence: the palette rotating around the bead's center
+  float ang = atan(uv.y - center.y, uv.x - center.x) + t * 0.6;
+  float s0 = 0.5 + 0.5 * sin(ang);
+  float s1 = 0.5 + 0.5 * sin(ang + 2.094);
+  float s2 = 0.5 + 0.5 * sin(ang + 4.189);
+  vec3 irid = (u_color0.rgb * s0 + u_color1.rgb * s1 + u_color2.rgb * s2)
+            / (s0 + s1 + s2);
+
+  // specular: a small fixed skylight catching the upper-left
+  vec2 specPos = center + vec2(-0.055, -0.075);
+  float spec = smoothstep(0.075, 0.015, length(uv - specPos));
+
+  // transparent body, luminous rim, white catch-light
+  vec3 color = irid * (0.55 + 0.45 * rim) + vec3(spec * 0.9);
+  float alpha = edge * (0.3 + 0.55 * rim);
+  alpha = clamp(alpha + spec * 0.7, 0.0, 1.0);
+  return vec4(color * alpha, alpha);
 }
 `;
 
@@ -82,9 +91,10 @@ function vec4(hex: string): number[] {
   return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255, 1];
 }
 
-// richer spread — sky blue, the deep desk anchor, and the ready-signal
-// green — still entirely the app's own palette, no foreign hue
-const COLORS = [vec4('#8FC0E8'), vec4('#3B76C4'), vec4('#5FD9A4')];
+// the bead's iridescence (2026-07-22): pale sky, aqua, and a breath
+// of mint — cool glassy hues only, no foreign color, so the glimmer
+// stays aquaos
+const COLORS = [vec4('#CFE8FC'), vec4('#5E9AE0'), vec4('#8FE8CF')];
 
 export function ThinkingBlob({ size = 34 }: { size?: number }) {
   const clock = useClock();

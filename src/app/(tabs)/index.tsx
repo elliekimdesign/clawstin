@@ -15,7 +15,7 @@ import {
 import { GlassView, isGlassEffectAPIAvailable } from 'expo-glass-effect';
 import { StatusBar } from 'expo-status-bar';
 import { Platform } from 'react-native';
-import Svg, { Defs, LinearGradient as SvgGradient, Path, RadialGradient, Rect, Stop, Text as SvgText } from 'react-native-svg';
+import Svg, { Circle, Defs, LinearGradient as SvgGradient, Path, RadialGradient, Rect, Stop, Text as SvgText } from 'react-native-svg';
 import Animated, {
   FadeInDown,
   useAnimatedStyle,
@@ -44,6 +44,7 @@ import { FlowBar } from '@/components/ui/flow-bar';
 import { MosaicGauge } from '@/components/ui/mosaic-gauge';
 import { TaskSheet, type TaskSheetRow } from '@/components/ui/task-sheet';
 import { PixelText } from '@/components/ui/pixel-text';
+import { RasterCloud } from '@/components/ui/analog-key';
 import { StatusPopover, worstServiceState } from '@/components/ui/status-popover';
 import { TOOL_ACTION_PHRASE, useAppStore } from '@/store/app-store';
 import { brandBlue,
@@ -558,6 +559,54 @@ function LiquidCard({
   );
 }
 
+/** the face's YOUR-TURN variant (2026-07-22 "핑크 동그라미"): the
+ * member's pixel face wearing a small pink dot at its top-right —
+ * the same avatar-badge grammar as the digest's DoneFace check,
+ * but a round "needs you" lamp instead of a check — MUTED LIME
+ * (2026-07-22 swatch round 2): lime harmonizes with the blue
+ * field where orange fought it, muted a step so it stays a
+ * badge, not a highlighter. Used nowhere else on the board. */
+function AskFace({ id }: { id: string }) {
+  return (
+    <View style={{ width: 16, height: 16 }}>
+      <CrewPixel id={id} size={16} />
+      <View
+        style={{
+          position: 'absolute',
+          top: -3,
+          right: -4,
+          width: 6,
+          height: 6,
+          borderRadius: 3,
+          // no stroke (2026-07-22 "색깔로 승부"): after a full color
+          // safari (pink, lime, gold, vintage red) the lamp landed
+          // home — the SAME action aqua as the DoneFace check, so
+          // both face badges speak the one system-energy color
+          backgroundColor: sysColor.action,
+        }}
+      />
+    </View>
+  );
+}
+
+/** the system key's DROP ARROW (2026-07-22 final: icons retired —
+ * the key drops the status panel, so it says exactly that): a crisp
+ * hand-drawn chevron, round caps, flips up while the panel is open. */
+function SysDropGlyph({ color }: { color: string }) {
+  return (
+    <Svg width={15} height={13} viewBox="0 0 15 13">
+      <Path
+        d="M 3.5 4.5 L 7.5 8.5 L 11.5 4.5"
+        stroke={color}
+        strokeWidth={1.8}
+        fill="none"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
 export default function HomeScreen() {
   const {
     connected,
@@ -596,9 +645,9 @@ export default function HomeScreen() {
   // "+N MORE" opens the queue as a RISING FOLDER (2026-07-17, replaces
   // the teleport-scroll that remotely flipped a distant filter tab)
   const [taskSheet, setTaskSheet] = useState<'needsYou' | 'running' | null>(null);
+  // the status pill's gel: aqua at rest, amber/red fluid when a
+  // service is sick. Worst wins.
   const worst = worstServiceState(services);
-  const statusDot: string =
-    worst === 'down' ? sysColor.fail : worst === 'degraded' ? sysColor.degraded : sysColor.ready;
 
   const startChat = () => router.push(`/chat/${createThread()}`);
 
@@ -845,51 +894,49 @@ export default function HomeScreen() {
                   }}>
                   Clawstin
                 </Text>
-                {/* status = the glass stamp stretched into a slim bar
-                    (greeting retired 2026-07-16) — a blank ANALOG KEY on
-                    the desk: beveled edges (lit top, inked bottom), a
-                    sheen on the upper face, and a press that physically
-                    sinks. Same glass palette as the section windows.
-                    Tap opens System Status; warning states fill it. */}
+                {/* status = the RASTER CLOUD (2026-07-22 v4, matched
+                    to the >_ lens key): no shape, no outline — a cloud
+                    of glass cells dissolving into the field. Its
+                    MATTER carries state: white at rest, amber/red when
+                    a service is sick, accent-charged while System
+                    Status is open. Tap sinks it, opens the panel. */}
                 <Pressable
                   onPress={() => setStatusOpen(true)}
                   hitSlop={12}
                   style={({ pressed }) => ({
                     width: 84,
-                    height: 22,
-                    borderRadius: 0,
-                    overflow: 'hidden',
-                    backgroundColor:
-                      worst === 'down' || worst === 'degraded'
-                        ? statusDot
-                        : statusOpen
-                          ? 'rgba(255,255,255,0.92)'
-                          : pressed
-                            ? 'rgba(255,255,255,0.5)'
-                            : 'rgba(255,255,255,0.62)',
-                    borderWidth: 1,
-                    borderTopColor: 'rgba(255,255,255,0.95)',
-                    borderLeftColor: 'rgba(255,255,255,0.8)',
-                    borderRightColor: 'rgba(255,255,255,0.6)',
-                    borderBottomColor: 'rgba(22,24,28,0.25)',
-                    shadowColor: '#16181C',
-                    shadowOpacity: pressed ? 0.08 : 0.18,
-                    shadowRadius: pressed ? 1.5 : 3,
-                    shadowOffset: { width: 0, height: pressed ? 1 : 2 },
+                    height: 28,
                     transform: [{ translateY: pressed ? 1 : 0 }],
+                    opacity: pressed ? 0.75 : 1,
                   })}>
-                  {/* the key's curved face: brighter upper half */}
-                  <View
-                    pointerEvents="none"
-                    style={{
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      height: 9,
-                      backgroundColor: 'rgba(255,255,255,0.4)',
-                    }}
-                  />
+                  {({ pressed }) => (
+                    <>
+                      <RasterCloud
+                        active={statusOpen}
+                        pressed={pressed}
+                        state={worst === 'operational' ? undefined : worst}
+                      />
+                      {/* the cloud's anchor: the DROP ARROW — the key
+                          pulls the system panel down; flips up while
+                          the panel is open */}
+                      <View
+                        pointerEvents="none"
+                        style={[
+                          StyleSheet.absoluteFill,
+                          {
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            transform: [
+                              { rotate: statusOpen ? '180deg' : '0deg' },
+                            ],
+                          },
+                        ]}>
+                        <SysDropGlyph
+                          color={statusOpen ? '#FFFFFF' : 'rgba(37,56,84,0.8)'}
+                        />
+                      </View>
+                    </>
+                  )}
                 </Pressable>
               </View>
 
@@ -925,7 +972,7 @@ export default function HomeScreen() {
                   {/* ONE folder again (2026-07-21 "탭 구분 말고 하나에"):
                       the clarification and the crew's pitch stack in
                       the same YOUR TURN card, split by a hairline */}
-                  <FrostedGlassFill radius={16} tabWidth={flapW('yourturn', 96)} />
+                  <FrostedGlassFill radius={16} tabWidth={flapW('yourturn', 108)} />
                   <View style={{ height: 26, flexDirection: 'row', alignItems: 'center' }}>
                     <Text
                       onTextLayout={measureTitle('yourturn')}
@@ -935,7 +982,7 @@ export default function HomeScreen() {
                         letterSpacing: 0.3,
                         color: 'rgba(22,24,28,0.55)',
                       }}>
-                      Waiting
+                      Your turn
                     </Text>
                     <View style={{ flex: 1 }} />
                     {/* the card's identity readout: still the door to
@@ -1005,7 +1052,7 @@ export default function HomeScreen() {
                         (2026-07-22 "전부 크루 페이스로"): Crop is on
                         the dinner — plain face = pending */}
                     <View style={{ width: 20, alignItems: 'flex-start', marginTop: 2 }}>
-                      <CrewPixel id="pilot" size={16} />
+                      <AskFace id="pilot" />
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text
@@ -1104,7 +1151,7 @@ export default function HomeScreen() {
                                   face; your own asks keep the blue dot */}
                               <View style={{ width: 20, alignItems: 'flex-start' }}>
                                 {r.agentId ? (
-                                  <CrewPixel id={r.agentId} size={16} />
+                                  <AskFace id={r.agentId} />
                                 ) : (
                                   <MosaicDot color={sysColor.action} />
                                 )}
@@ -1144,7 +1191,7 @@ export default function HomeScreen() {
                     <FrostedGlassFill
                       radius={16}
                       dock
-                      tabWidth={flapW('pitch', 84)}
+                      tabWidth={flapW('pitch', 148)}
                       // the waiting-tab plate family, a touch lighter
                       tint="rgba(255,255,255,0.22)"
                     />
@@ -1166,7 +1213,7 @@ export default function HomeScreen() {
                           letterSpacing: 0.3,
                           color: 'rgba(22,24,28,0.55)',
                         }}>
-                        Proposed
+                        Proposed by crew
                       </Text>
                     </View>
                   <ReanimatedSwipeable
@@ -1184,7 +1231,9 @@ export default function HomeScreen() {
                   <Pressable
                     onPress={() => toggleHeroItem('pitch')}
                     style={({ pressed }) => ({
-                      marginTop: 10,
+                      // same title→row breathing room as the hero list
+                      // (2026-07-22 "간격이 좀 넓어야, 다른 데처럼")
+                      marginTop: 14,
                       paddingHorizontal: 18,
                       flexDirection: 'row',
                       // top-aligned, not centered: when the title wraps,
@@ -1504,7 +1553,9 @@ export default function HomeScreen() {
                     )}
                   </View>
                   {nextUpRows[0] ? (
-                    <View style={{ position: 'absolute', left: 18, bottom: 16 }}>
+                    // time meta lives BOTTOM-RIGHT (2026-07-22 "시간
+                    // 부분은 바텀 오른쪽")
+                    <View style={{ position: 'absolute', right: 18, bottom: 16 }}>
                       <Text
                         style={{ fontSize: 10, fontFamily: fontFamily.mono, color: AINK.dim }}>
                         {nextUpRows[0].when}
@@ -1792,7 +1843,6 @@ export default function HomeScreen() {
             {statusOpen ? (
               <StatusPopover
                 services={services}
-                agentsReady={crew.filter((m) => m.active).length}
                 onClose={() => setStatusOpen(false)}
                 onManageAccess={() => {
                   setStatusOpen(false);

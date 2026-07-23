@@ -13,8 +13,8 @@ import {
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { RasterCloud } from '@/components/ui/analog-key';
 import { ColorPanelsBg } from '@/components/ui/color-panels-bg';
-import { AnalogKey } from '@/components/ui/analog-key';
 import { FrostedGlassFill } from '@/components/ui/frosted-glass-fill';
 import { MosaicDot } from '@/components/ui/mosaic-dot';
 import { useAppStore } from '@/store/app-store';
@@ -43,9 +43,56 @@ const GROUPS = [
   { key: 'yesterday', label: 'Yesterday' },
 ] as const;
 
+/** the >_ key: the shared RASTER CLOUD (analog-key.tsx) with the
+ * glyph holding its center — the same shapeless cell-matter as the
+ * Home status key, plus the lens icon. */
+function LensDitherKey({
+  onPress,
+  active,
+}: {
+  onPress: () => void;
+  active: boolean;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      hitSlop={12}
+      style={({ pressed }) => ({
+        width: 84,
+        height: 28,
+        transform: [{ translateY: pressed ? 1 : 0 }],
+        opacity: pressed ? 0.75 : 1,
+      })}>
+      {({ pressed }) => (
+        <>
+          <RasterCloud active={active} pressed={pressed} />
+          {/* the glyph holds the cloud's center */}
+          <Text
+            style={{
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              top: 6,
+              textAlign: 'center',
+              fontSize: 12,
+              fontFamily: fontFamily.mono,
+              fontWeight: '700',
+              letterSpacing: 0.5,
+              color: active ? '#FFFFFF' : 'rgba(22,24,28,0.75)',
+            }}>
+            {'>_'}
+          </Text>
+        </>
+      )}
+    </Pressable>
+  );
+}
+
 export default function ActivityScreen() {
   const { activity, threads, crew, consoleLens, setConsoleLens } = useAppStore();
   const [query, setQuery] = useState('');
+  // the ledger's TYPE lens (2026-07-22): chat turns vs task runs
+  const [typeFilter, setTypeFilter] = useState<'all' | 'chat' | 'task'>('all');
 
   // drilldown intake (2026-07-20): doors elsewhere (crew sheet's "all
   // activity") open this tab with ?q=<member name> — the EXISTING
@@ -75,6 +122,10 @@ export default function ActivityScreen() {
 
   const q = query.trim().toLowerCase();
   const rows = activity.filter((a) => {
+    // TYPE lens (2026-07-22, Notion-filter reference): the ledger
+    // splits into chat turns vs task runs — All is the default
+    if (typeFilter !== 'all' && (a.kind ?? 'chat') !== typeFilter)
+      return false;
     if (!q) return true;
     const t = getThread(a.threadId);
     return (
@@ -151,23 +202,9 @@ export default function ActivityScreen() {
             }}>
             Activity
           </Text>
-          {/* analog key (2026-07-16): same physical keycap as the Home
-              status bar — and the SAME face in both lens states ("클릭
-              전이랑 후랑 스타일이 맞아야"), no solid-white active swap */}
-          <AnalogKey
-            onPress={flipLens}
-            hitSlop={12}
-            style={{ paddingVertical: 6, paddingHorizontal: 12 }}>
-            <Text
-              style={{
-                fontSize: 12,
-                fontFamily: fontFamily.mono,
-                letterSpacing: 0.3,
-                color: DIM,
-              }}>
-              {'>_'}
-            </Text>
-          </AnalogKey>
+          {/* the flag-dither lens key (2026-07-22): glyph + pixel wake
+              straight on the field, same face in both lens states */}
+          <LensDitherKey onPress={flipLens} active={consoleLens} />
       </View>
 
       <ScrollView
@@ -252,7 +289,7 @@ export default function ActivityScreen() {
               borderBottomWidth: 1,
               borderBottomColor: rowDivider,
             }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
               <Text
                 style={{
                   fontSize: 12,
@@ -262,6 +299,22 @@ export default function ActivityScreen() {
                 }}>
                 Activity
               </Text>
+              {/* TYPE lens (2026-07-22, Notion-filter reference): the
+                  ledger splits chat turns from task runs, in the
+                  title strip's machine voice */}
+              {(['all', 'chat', 'task'] as const).map((k) => (
+                <Pressable key={k} onPress={() => setTypeFilter(k)} hitSlop={8}>
+                  <Text
+                    style={{
+                      fontSize: 11,
+                      fontFamily: fontFamily.mono,
+                      letterSpacing: 0.3,
+                      color: typeFilter === k ? rowInk : rowFaint,
+                    }}>
+                    {k === 'all' ? 'All' : k === 'chat' ? 'Chat' : 'Task'}
+                  </Text>
+                </Pressable>
+              ))}
             </View>
             <Text style={{ fontSize: 10, fontFamily: fontFamily.mono, color: rowFaint }}>
               {/* today's pulse, not a lifetime vanity total */}

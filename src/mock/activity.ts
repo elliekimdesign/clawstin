@@ -36,6 +36,10 @@ export type ActivityItem = {
   source?: 'autopilot';
   /** which automation fired (see mock/autopilot.ts rule keys) */
   ruleKey?: string;
+  /** ledger type filter (2026-07-22): 'task' = the run belongs to a
+   * Home task (chopped work, standing rules, autopilot); 'chat' =
+   * conversational back-and-forth with no task object. Absent = chat. */
+  kind?: 'chat' | 'task';
 };
 
 // Two use cases only: A = dinner with Jenna (t1), B = the PR-review
@@ -44,7 +48,7 @@ export type ActivityItem = {
 // every crew member's HR-file sheet has at least one recent run.)
 export const initialActivity: ActivityItem[] = [
   {
-    id: 'a1', time: '16:52', day: 'today', ago: '2m',
+    id: 'a1', time: '16:52', day: 'today', ago: '2m', kind: 'task',
     prompt: 'Book dinner with Jenna',
     agentId: 'pilot', threadId: 't1', total: '1.4s',
     steps: [
@@ -54,13 +58,13 @@ export const initialActivity: ActivityItem[] = [
     ],
   },
   {
-    id: 'a2', time: '16:40', day: 'today', ago: '15m',
+    id: 'a2', time: '16:40', day: 'today', ago: '15m', kind: 'task',
     prompt: "Keep an eye on PRs waiting on me. If I'm sitting on one, grab me 30 min.",
     agentId: 'muppet', threadId: 't2', total: '0.4s',
     steps: [{ label: 'watch  github.pulls, standing rule armed', ms: '400ms' }],
   },
   {
-    id: 'a3', time: '16:46', day: 'today', ago: '6m',
+    id: 'a3', time: '16:46', day: 'today', ago: '6m', kind: 'task',
     prompt: 'PR review time, standing watch',
     agentId: 'muppet', threadId: 't2', status: 'needs_approval',
     source: 'autopilot', ruleKey: 'github-pr-review',
@@ -71,7 +75,7 @@ export const initialActivity: ActivityItem[] = [
     ],
   },
   {
-    id: 'a4', time: '15:12', day: 'today', ago: '1h',
+    id: 'a4', time: '15:12', day: 'today', ago: '1h', kind: 'chat',
     prompt: 'Can\'t — I\'m on call this afternoon.',
     agentId: 'muppet', threadId: 't2', total: '0.7s',
     steps: [
@@ -80,7 +84,7 @@ export const initialActivity: ActivityItem[] = [
     ],
   },
   {
-    id: 'a7', time: '07:30', day: 'today', ago: '9h',
+    id: 'a7', time: '07:30', day: 'today', ago: '9h', kind: 'task',
     prompt: 'Morning briefing, delivered',
     agentId: 'quill', threadId: 't3', total: '6.1s',
     steps: [
@@ -91,28 +95,28 @@ export const initialActivity: ActivityItem[] = [
   },
   // the three overnight quiet checks WYWA folds into "+3 routine runs"
   {
-    id: 'a8', time: '06:50', day: 'today', ago: '10h',
+    id: 'a8', time: '06:50', day: 'today', ago: '10h', kind: 'task',
     prompt: 'PR watch, quiet check',
     agentId: 'muppet', threadId: 't2', total: '0.3s',
     source: 'autopilot', ruleKey: 'github-pr-review',
     steps: [{ label: 'github.pulls.list · 0 new', ms: '300ms' }],
   },
   {
-    id: 'a9', time: '04:10', day: 'today', ago: '13h',
+    id: 'a9', time: '04:10', day: 'today', ago: '13h', kind: 'task',
     prompt: 'PR watch, quiet check',
     agentId: 'muppet', threadId: 't2', total: '0.3s',
     source: 'autopilot', ruleKey: 'github-pr-review',
     steps: [{ label: 'github.pulls.list · 0 new', ms: '280ms' }],
   },
   {
-    id: 'a10', time: '01:30', day: 'today', ago: '15h',
+    id: 'a10', time: '01:30', day: 'today', ago: '15h', kind: 'task',
     prompt: 'PR watch, quiet check',
     agentId: 'muppet', threadId: 't2', total: '0.3s',
     source: 'autopilot', ruleKey: 'github-pr-review',
     steps: [{ label: 'github.pulls.list · 0 new', ms: '310ms' }],
   },
   {
-    id: 'a5', time: '18:24', day: 'yesterday', ago: '1d',
+    id: 'a5', time: '18:24', day: 'yesterday', ago: '1d', kind: 'task',
     prompt: 'Shortlist three quiet places near the office for dinner',
     agentId: 'scout', threadId: 't1', total: '3.1s',
     steps: [
@@ -122,7 +126,7 @@ export const initialActivity: ActivityItem[] = [
     ],
   },
   {
-    id: 'a6', time: '17:05', day: 'yesterday', ago: '1d',
+    id: 'a6', time: '17:05', day: 'yesterday', ago: '1d', kind: 'chat',
     prompt: 'TL;DR the two PRs waiting on me',
     agentId: 'quill', threadId: 't2', total: '2.2s',
     steps: [

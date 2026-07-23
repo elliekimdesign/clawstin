@@ -454,8 +454,9 @@ function ModeToggle({
   onChange: (m: 'info' | 'perf') => void;
 }) {
   return (
-    // analog key shell (2026-07-16): the segmented toggle sits on the
-    // same beveled keycap material as the Home status bar / >_ lens
+    // analog key shell (2026-07-16, RESTORED 2026-07-22 "처음 그
+    // 아날로그 버튼 스타일"): the segmented toggle sits on the beveled
+    // keycap material again
     <View style={[keyChrome(false), { flexDirection: 'row', padding: 3 }]}>
       <KeySheen />
       {(['info', 'perf'] as const).map((m) => (
