@@ -13,12 +13,15 @@ import type { CalendarDay, CalendarEvent } from '@/mock/calendar';
 import { CAL_MONTH } from '@/mock/calendar';
 import { fontFamily, fontSize, spacing } from '@/theme/theme';
 
-// Same deep navy as every other system surface (home console, week strip).
-const PANEL_BG = '#0E1626';
-const DIM = 'rgba(255,255,255,0.35)';
-const LABEL = 'rgba(255,255,255,0.55)';
+// The CALENDAR's own blue, matching the week strip (2026-07-24): tapping the
+// strip opens this, so they have to be one surface growing — a color jump on
+// tap would read as landing in a different screen. Split from the system dark
+// the consoles keep.
+const PANEL_BG = '#33689C';
+const DIM = 'rgba(255,255,255,0.5)';
+const LABEL = 'rgba(255,255,255,0.72)';
 const DOT = 'rgba(255,255,255,0.9)';
-const DIVIDER = 'rgba(255,255,255,0.12)';
+const DIVIDER = 'rgba(255,255,255,0.18)';
 const CIRCLE = 34;
 
 const WEEKDAY_SHORT = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
@@ -179,7 +182,10 @@ export function MonthOverlay({
                     <>
                       <Text
                         style={{
-                          color: isToday ? '#0E1626' : eventDates.has(d) ? '#FFFFFF' : DIM,
+                          // today's number sits INSIDE the white circle, so
+                          // it stays dark — but as the panel's own blue now,
+                          // not the retired system black (2026-07-24)
+                          color: isToday ? PANEL_BG : eventDates.has(d) ? '#FFFFFF' : DIM,
                           fontSize: fontSize.body,
                           fontFamily: fontFamily.semibold,
                         }}>

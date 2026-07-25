@@ -145,6 +145,7 @@ export function FrostedGlassFill({
   flat = false,
   shine = false,
   dock = false,
+  noRim = false,
   tint = 'rgba(255,255,255,0.55)',
   ghostTint = 'rgba(173,208,240,0.42)',
 }: {
@@ -169,6 +170,10 @@ export function FrostedGlassFill({
    * state): the whole silhouette breathes brighter and back — the
    * translucent folder look stays, it just lights up */
   shine?: boolean;
+  /** drop the white rim stroke and keep ONLY the blur/veil (2026-07-24
+   * "아웃라인없애고 배경 지금처럼 블러로만"): on the prompt mast the outline
+   * drew a hard edge that fought the soft glass it sits on. */
+  noRim?: boolean;
   /** DOCKED into a parent section (2026-07-22, the hero's Pitch layer):
    * ONE plate only — no ghost box behind the flap — with SQUARE top
    * ends (it meets the section's sides) and only the bottom corners
@@ -295,7 +300,7 @@ export function FrostedGlassFill({
               </G>
             </>
           ) : null}
-          {!dock ? (
+          {!dock && !noRim ? (
             <Path d={front} fill="none" stroke="rgba(255,255,255,0.85)" strokeWidth={1} />
           ) : null}
         </Svg>

@@ -1,11 +1,10 @@
-import { ReactNode, useState } from 'react';
-import { NativeSyntheticEvent, Text, TextLayoutEventData, View } from 'react-native';
-import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
+import { ReactNode } from 'react';
+import { Text, View } from 'react-native';
+import Animated, { FadeIn } from 'react-native-reanimated';
 import { fontFamily, spacing } from '@/theme/theme';
 import { ClawstinMark } from './clawstin-mark';
 import { CrewPixel } from './crew-pixel';
 import { FrostedGlassFill } from './frosted-glass-fill';
-import { ThinkingBlob } from './thinking-blob';
 
 type Props = {
   from: 'user' | 'agent';
@@ -14,11 +13,6 @@ type Props = {
   proactive?: boolean;
   /** caption override, e.g. "TASK PAUSED" on failure updates */
   caption?: string;
-  /** the blob glued to the end of this reply's text (2026-07-16): only
-   * the LAST agent message in the thread, and only while nothing new
-   * is being thought about — it vanishes the instant a fresh send
-   * starts and reappears once the new reply settles */
-  showBlob?: boolean;
   /** the crew member whose FACE leads the reply (2026-07-22 "문장의
    * 시작은 모두 페이스로"): assigned work answers with its member's
    * face; ownerless replies front the Clawstin mark instead */
@@ -29,6 +23,12 @@ type Props = {
 
 // Warning amber shared with the home "needs you" grammar.
 const NUDGE = '#F0812F';
+
+/** THE TEXT COLUMN (2026-07-24 "전광판에 나오는 거랑 똑같은 데서 시작"):
+ * every sentence starts this far in from the scroll's edge padding. Set by
+ * the agent row's own face chip (22) + gap (8) — the caption and the child
+ * cards indent to match it, since they have no face to push them. */
+const TEXT_COL = 34;
 
 const BODY_STYLE = {
   // v3 (2026-07-17, mosaic blue desk + "컨텐츠는 흰색으로"): the field
@@ -54,7 +54,7 @@ const BODY_STYLE = {
  * re-wrapping the text. Other participating crews will be revealed on tap
  * later; no counts, no extra faces.
  */
-export function MessageBubble({ from, text, proactive, caption, showBlob, agentId, children }: Props) {
+export function MessageBubble({ from, text, proactive, caption, agentId, children }: Props) {
   const isUser = from === 'user';
 
   if (isUser) {
@@ -108,7 +108,6 @@ export function MessageBubble({ from, text, proactive, caption, showBlob, agentI
       text={text}
       proactive={proactive}
       caption={caption}
-      showBlob={showBlob}
       agentId={agentId}>
       {children}
     </AgentMessage>
@@ -121,6 +120,8 @@ function SystemCaption({ label }: { label: string }) {
   return (
     <Text
       style={{
+        // on the shared text column, like everything else (2026-07-24)
+        marginLeft: TEXT_COL,
         fontFamily: fontFamily.mono,
         fontSize: 10,
         letterSpacing: 1,
@@ -136,29 +137,19 @@ function AgentMessage({
   text,
   proactive,
   caption,
-  showBlob,
   agentId,
   children,
 }: {
   text?: string;
   proactive?: boolean;
   caption?: string;
-  showBlob?: boolean;
   agentId?: string;
   children?: ReactNode;
 }) {
   const capText = caption ?? (proactive ? 'CREW UPDATE' : null);
-  // the blob glues to the END OF THE ACTUAL LAST LINE (2026-07-16,
-  // "문장 바로 긑에 오게") — RN can't inline a live Skia canvas inside
-  // Text, so instead onTextLayout measures where the last wrapped line
-  // actually ends and the blob is absolutely positioned right there,
-  // rather than dropping to its own row under the whole paragraph.
-  const [lastLineEnd, setLastLineEnd] = useState<{ x: number; y: number } | null>(null);
-  const onTextLayout = (e: NativeSyntheticEvent<TextLayoutEventData>) => {
-    const lines = e.nativeEvent.lines;
-    const last = lines[lines.length - 1];
-    if (last) setLastLineEnd({ x: last.x + last.width, y: last.y });
-  };
+  // The onTextLayout line-measuring that pinned the blob to the end of the
+  // last wrapped line (2026-07-16 "문장 바로 긑에 오게") retired 2026-07-24 —
+  // the blob has its own row now, so nothing needs measuring.
 
   // RULE: no rails, no boxes — every answer (text or card) sits flush on
   // the same left edge as the user's prompt. Alignment does the grouping;
@@ -179,6 +170,11 @@ function AgentMessage({
           entering={FadeIn.duration(320).springify().damping(16).withInitialValues({
             transform: [{ translateY: 16 }],
           })}
+          // ONE TEXT COLUMN (2026-07-24 "전광판에 나오는 거랑 똑같은 데서
+          // 시작"): this row DEFINES the column — face chip (22) + gap (8)
+          // puts its text 30px in, and the mast/index/cards were moved to
+          // match. Pulling this row left instead would have shoved the face
+          // flush against the screen edge.
           style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
           {/* the face rides a white profile chip (2026-07-22 "챗
               프로필처럼": bare pixels on the field read colorless and
@@ -186,42 +182,40 @@ function AgentMessage({
           <View
             style={{
               marginTop: 1,
-              width: 22,
-              height: 22,
-              borderRadius: 11,
+              width: 26,
+              height: 26,
+              borderRadius: 13,
               backgroundColor: 'rgba(255,255,255,0.92)',
               alignItems: 'center',
               justifyContent: 'center',
             }}>
+            {/* a touch bigger inside the SAME chip (2026-07-24 "얼굴 조금만
+                더 크게 아주조금만"): the chip stays 22 so the 30px text
+                column (chip + gap) doesn't move — only the face fills more
+                of it, 15 → 17 */}
             {agentId ? (
-              <CrewPixel id={agentId} size={15} />
+              <CrewPixel id={agentId} size={20} />
             ) : (
-              <ClawstinMark size={15} />
+              <ClawstinMark size={20} />
             )}
           </View>
-          <View
-            // extra right padding reserves room for the blob so it never
-            // gets clipped past the bubble's own width
-            style={{ flex: 1, paddingRight: showBlob ? 30 : 0 }}>
-            <Text style={BODY_STYLE} onTextLayout={onTextLayout}>
-              {text}
-            </Text>
-            {showBlob && lastLineEnd ? (
-              <Animated.View
-                entering={FadeIn.duration(260)}
-                exiting={FadeOut.duration(150)}
-                style={{
-                  position: 'absolute',
-                  left: lastLineEnd.x + 6,
-                  top: lastLineEnd.y - 2,
-                }}>
-                <ThinkingBlob size={36} />
-              </Animated.View>
-            ) : null}
+          <View style={{ flex: 1 }}>
+            <Text style={BODY_STYLE}>{text}</Text>
           </View>
         </Animated.View>
       ) : null}
-      {children ? <View style={{ marginTop: text ? spacing.md : 0 }}>{children}</View> : null}
+      {/* cards keep the same left edge as the sentence above them — the reply
+          and its evidence read as one block (2026-07-24). They still run to
+          the full right margin. */}
+      {children ? (
+        <View style={{ marginTop: text ? spacing.md : 0, paddingLeft: TEXT_COL }}>
+          {children}
+        </View>
+      ) : null}
+      {/* The at-rest blob MOVED to the prompt mast (2026-07-24 "맨 밑에
+          나오는거 지우고... 여기 옆에 넣어줘"): trailing the thread it was a
+          stray dot hanging under the last answer. Beside the pinned ask it
+          reads as what it actually means — this run is alive/at rest. */}
     </View>
   );
 }

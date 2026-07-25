@@ -20,7 +20,12 @@ import {
   parseScheduleRequest,
   suggestSlots,
 } from '@/mock/calendar';
-import { ChatMessage, getScriptedReply } from '@/mock/chat';
+import {
+  ChatMessage,
+  draftForSchedule,
+  getScriptedReply,
+  recipientOf,
+} from '@/mock/chat';
 import { QuickTask } from '@/mock/quick-tasks';
 import { initialMemories, Memory } from '@/mock/memories';
 import {
@@ -30,12 +35,11 @@ import {
   RequestLogItem,
 } from '@/mock/permissions';
 import { CrewMember, initialCrew } from '@/mock/crew';
-import { CrewKey, ISLAND_CREWS, routeCrew } from '@/mock/crew-routing';
+import { CrewKey, ISLAND_CREWS, routeCrew, wantsDraft } from '@/mock/crew-routing';
 import { PENDING_PRS } from '@/mock/github';
 import { initialInfra, InfraEndpoint } from '@/mock/infra';
 import { BackgroundTask, initialBackground } from '@/mock/background';
 import { initialSchedules, Schedule } from '@/mock/schedules';
-import { DINNER_COPY, DINNER_REROUTE_STAGES } from '@/mock/dinner-graph';
 import { initialServices, ServiceStatus } from '@/mock/services';
 import { initialThreads, Thread } from '@/mock/threads';
 
@@ -175,6 +179,8 @@ type Store = {
   /** non-null while Muppet is "scanning" the calendar (drives the chat week strip) */
   calendarScan: { targetDate: number } | null;
   bookScheduleSlot: (threadId: string, messageId: string, slot: string) => void;
+  /** send the draft Scribe wrote (stamps the card sent in place) */
+  sendDraft: (threadId: string, messageId: string) => void;
 
   // Quick-task presets (guided suggestions, no in-app "connect" step)
   startQuickTask: (threadId: string, task: QuickTask) => void;
@@ -206,8 +212,6 @@ type Store = {
   /** create a new thread (optionally seeded with a first user message), returns its id */
   createThread: (seedText?: string) => string;
   sendMessage: (threadId: string, text: string) => void;
-  /** the flip demo's correction beat (see mock/dinner-graph) */
-  runDinnerReroute: (threadId: string, userText: string) => void;
   resolveChatApproval: (
     threadId: string,
     messageId: string,
@@ -787,6 +791,33 @@ export function AppProvider({ children }: { children: ReactNode }) {
                   slots: suggestSlots(dayEvents, parsed.start),
                 },
               });
+              // HANDOFF (2026-07-24 "스크라이버가 나와서 글을 써주는걸로"):
+              // the ask wanted a note written too, not just a time. routeCrew
+              // can only pick one winner and the time won, so the drafting
+              // half used to vanish. Orchestrator finishes the calendar
+              // check, THEN Scribe visibly takes the pill and writes.
+              if (wantsDraft(userText)) {
+                runThinking(threadId, [
+                  'parse & plan  routing to Scribe  0.2s',
+                  'synthesize  drafting the note  0.6s',
+                ]);
+                setTypingThreadId(threadId);
+                setCrewBusy(true);
+                runCrewSequence(['writer'], setCrewSelected, () => {
+                  setTypingThreadId(null);
+                  setCrewBusy(false);
+                  finishThinking(threadId);
+                  appendToThread(threadId, {
+                    id: nextId('c'),
+                    from: 'agent',
+                    text: "Here's a note you can send. Say the word and it goes out.",
+                    draft: {
+                      to: recipientOf(parsed.title),
+                      body: draftForSchedule(parsed.title, parsed.start),
+                    },
+                  });
+                });
+              }
             }
           },
           (key) => {
@@ -1069,55 +1100,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [appendToThread, respond, threads]
   );
 
-  // THE DINNER REROUTE BEAT (2026-07-22 flip demo, see mock/dinner-graph):
-  // fired when the user corrects a HELD run ("Jenna is vegetarian").
-  // Appends the user's fix + the ack, narrates the re-run through the
-  // console, then lands the closing reply with the send-invite approval.
-  const runDinnerReroute = useCallback(
-    (threadId: string, userText: string) => {
-      appendToThread(threadId, { id: nextId('c'), from: 'user', text: userText });
-      appendToThread(threadId, {
-        id: nextId('c'),
-        from: 'agent',
-        text: DINNER_COPY.reroute,
-      });
-      setTypingThreadId(threadId);
-      setCrewBusy(true);
-      focusCrew('researcher');
-      const lines = DINNER_REROUTE_STAGES.map((s) => `${s.label}  ${s.ms}`);
-      runThinking(threadId, lines);
-      const doneAt = Math.round(800 * DEMO_PACE) * (lines.length + 1) + 900;
-      setTimeout(() => {
-        finishThinking(threadId);
-        setTypingThreadId(null);
-        setCrewBusy(false);
-        appendToThread(threadId, {
-          id: nextId('c'),
-          from: 'agent',
-          text: DINNER_COPY.closing,
-          approval: {
-            id: 'ap-dinner-invite',
-            icon: 'mail',
-            title: DINNER_COPY.approvalTitle,
-            detail: 'Verdura, Friday 7 PM. The draft speaks in your voice.',
-            risk: 'write',
-            policy: 'Needs your approval',
-            allowlisted: true,
-            age: 'now',
-            threadId,
-            actionLabel: 'Send invite',
-            denyLabel: 'Not yet',
-            scopeOverride: 'Gmail WRITE',
-            items: [
-              { label: 'To Jenna', detail: 'dinner invite, Friday 7 PM' },
-              { label: 'Verdura', detail: 'table for two, booked' },
-            ],
-          },
-        });
-      }, doneAt);
-    },
-    [appendToThread, focusCrew, runThinking, finishThinking]
-  );
+  // The DINNER REROUTE BEAT retired 2026-07-24 with the backstage flip it
+  // served ("티비 기능자체도 다 삭제") — along with its mock/dinner-graph copy.
 
   // When approving inside chat, also flip permission + remove the inline card,
   // then add a short agent follow-up to the same thread.
@@ -1388,13 +1372,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const thread = threads.find((t) => t.id === threadId);
       const schedule = thread?.messages.find((m) => m.id === messageId)?.schedule;
       if (!schedule || schedule.booked) return;
+      // A draft still waiting to go out means the task ISN'T delivered yet
+      // (2026-07-24): booking the time is only half of "7pm and write the
+      // note", so the thread keeps its running state until the note is sent.
+      const draftPending = (thread?.messages ?? []).some((m) => m.draft && !m.draft.sent);
       addCalendarEvent(schedule.date, { title: schedule.title, start: slot, color: 'brand' });
       setThreads((prev) =>
         prev.map((t) =>
           t.id === threadId
             ? {
                 ...t,
-                outcome: 'delivered' as const,
+                ...(draftPending ? null : { outcome: 'delivered' as const }),
                 updatedAt: 'now',
                 lastPreview: `✓ Booked at ${slot}`,
                 messages: t.messages.map((m) =>
@@ -1413,6 +1401,34 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }));
     },
     [threads, addCalendarEvent]
+  );
+
+  // Send Scribe's draft: stamp the card sent IN PLACE (receipt model, same as
+  // bookScheduleSlot and resolveChatApproval — the card itself is the
+  // confirmation, no follow-up bubble). This is the beat that finally
+  // delivers a "book it AND write the note" task.
+  const sendDraft = useCallback(
+    (threadId: string, messageId: string) => {
+      const thread = threads.find((t) => t.id === threadId);
+      const draft = thread?.messages.find((m) => m.id === messageId)?.draft;
+      if (!draft || draft.sent) return;
+      setThreads((prev) =>
+        prev.map((t) =>
+          t.id === threadId
+            ? {
+                ...t,
+                outcome: 'delivered' as const,
+                updatedAt: 'now',
+                lastPreview: draft.to ? `✓ Sent to ${draft.to}` : '✓ Note sent',
+                messages: t.messages.map((m) =>
+                  m.id === messageId ? { ...m, draft: { ...draft, sent: true } } : m
+                ),
+              }
+            : t
+        )
+      );
+    },
+    [threads]
   );
 
   // --- Quick-task presets ----------------------------------------------------
@@ -1458,6 +1474,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       addCalendarEvent,
       calendarScan,
       bookScheduleSlot,
+      sendDraft,
       startQuickTask,
       crewSelected,
       crewManual,
@@ -1475,7 +1492,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       markThreadRead,
       createThread,
       sendMessage,
-      runDinnerReroute,
       resolveChatApproval,
       schedules,
       runScheduleOnce,
@@ -1517,6 +1533,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       addCalendarEvent,
       calendarScan,
       bookScheduleSlot,
+      sendDraft,
       startQuickTask,
       crewSelected,
       crewManual,
@@ -1536,7 +1553,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       markThreadRead,
       createThread,
       sendMessage,
-      runDinnerReroute,
       resolveChatApproval,
       schedules,
       runScheduleOnce,

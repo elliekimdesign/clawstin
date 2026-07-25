@@ -59,3 +59,16 @@ export function routeCrew(text: string): CrewRoute | null {
   if (has(RESEARCHER_WORDS)) return ISLAND_CREWS.researcher;
   return null;
 }
+
+/**
+ * Does this ask ALSO want something WRITTEN, on top of whatever crew won the
+ * main route? routeCrew picks one winner, so "7pm and write the note to
+ * Jenna" routes to Orchestrator on the time and never reaches the writing
+ * words at all (2026-07-24: the drafting half of that ask was silently
+ * dropped). This is the second question — asked separately so a scheduling
+ * ask can hand off to Scribe afterward instead of competing with her.
+ */
+export function wantsDraft(text: string): boolean {
+  const lower = text.toLowerCase();
+  return WRITER_WORDS.some((w) => lower.includes(w));
+}

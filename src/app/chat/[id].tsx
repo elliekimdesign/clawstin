@@ -16,24 +16,17 @@ import {
   View,
 } from 'react-native';
 import Animated, {
-  Easing,
   FadeIn,
   FadeInDown,
   FadeOut,
   FadeOutUp,
-  runOnJS,
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
 } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Svg, { Path, Rect } from 'react-native-svg';
 
 import { ApprovalCard } from '@/components/ui/approval-card';
 import { type SeedPhase } from '@/components/ui/new-chat-seed';
 import { CrewSwitch } from '@/components/ui/crew-switch';
 import { AquaBg } from '@/components/ui/aqua-bg';
-import { BackstageFlip, useDinnerRun } from '@/components/ui/backstage-flip';
 import { ButterBg } from '@/components/ui/butter-bg';
 import { CloudBg } from '@/components/ui/cloud-bg';
 import { FrostedGlassFill } from '@/components/ui/frosted-glass-fill';
@@ -41,12 +34,15 @@ import { MosaicTilesBg } from '@/components/ui/mosaic-tiles-bg';
 import { MeshBg } from '@/components/ui/mesh-bg';
 import { MintBg } from '@/components/ui/mint-bg';
 import { MonthOverlay } from '@/components/ui/month-overlay';
+import { DraftCard } from '@/components/ui/draft-card';
 import { MessageBubble } from '@/components/ui/message-bubble';
+import { PromptMast } from '@/components/ui/prompt-mast';
 import { PipelineCard } from '@/components/ui/pipeline-card';
 import { PRConsole } from '@/components/ui/pr-console';
 import { ResultCard } from '@/components/ui/result-card';
 import { ScheduleProposalCard } from '@/components/ui/schedule-proposal-card';
 import { ScheduleCard } from '@/components/ui/schedule-card';
+import { ThinkingBlob } from '@/components/ui/thinking-blob';
 import { ThinkingConsole } from '@/components/ui/thinking-console';
 import { WeekStrip } from '@/components/ui/week-strip';
 import { routeCrew, type CrewKey } from '@/mock/crew-routing';
@@ -55,6 +51,21 @@ import { useAppStore } from '@/store/app-store';
 import { brandBlue, darkChat, fontFamily, fontSize, radius, shadow, spacing , sysColor } from '@/theme/theme';
 
 const GLASS_AVAILABLE = Platform.OS === 'ios' && isGlassEffectAPIAvailable();
+
+/** First-frame stand-in for the prompt mast's height, before onLayout
+ * measures it: one line of 16/22 type plus its 14px padding. Only used for
+ * the occluder plate and the scroll-index line, both of which re-derive from
+ * the real measurement a frame later. */
+const MAST_MIN_H = 50;
+
+/** THE TEXT COLUMN (2026-07-24 "전광판에 나오는 거랑 똑같은 데서 시작"):
+ * every sentence on this screen — the mast's own words, the gray index lines,
+ * the replies, the NEW TASK marker — starts this far in from the scroll's
+ * edge padding. Set by the agent reply's own geometry (face chip 26 + gap 8),
+ * because that face can't be shoved to the screen edge; the mast's padding
+ * matches it. Grew 30 -> 34 when the face did (2026-07-24 "페이스부분들 더
+ * 약간 크게하고 필요하면 글씨들 더 오른쪽으로"). Mirrors message-bubble.tsx. */
+const TEXT_COL = 34;
 
 /** The conversation view for one thread. Rendered two ways: pushed over
  * the tabs (with a back button) and inside the Chat tab's slider
@@ -89,6 +100,7 @@ export function ChatThreadView({
     resolveChatApproval,
     calendarDays,
     bookScheduleSlot,
+    sendDraft,
     runScheduleOnce,
     confirmSchedule,
     crewSelected,
@@ -96,8 +108,6 @@ export function ChatThreadView({
     crewBusy,
     selectCrew,
     focusCrew,
-    // flip demo (2026-07-22): the backstage correction beat
-    runDinnerReroute,
   } = useAppStore();
   const [draft, setDraft] = useState(initialDraft ?? '');
   // compose-new binds to a real thread on the first send
@@ -157,80 +167,18 @@ export function ChatThreadView({
   const thinkingHere = thinking?.threadId === effId ? thinking : null;
   // the floating console's measured height, so the scroll's content
   // starts below it at rest but slides BEHIND it when scrolling
-  const [consoleH, setConsoleH] = useState(0);
+  // the pinned prompt mast's measured height — the console stacks under
+  // it, and the scroll clears both
+  const [mastH, setMastH] = useState(0);
   // console fold: expanded = full log floating up top (chat slides
   // behind); folded = a small circle docked at the right, above the
   // composer. Seeded threads arrive folded; folding/unfolding reflows
   // the chat naturally (LayoutAnimation in the console's toggle).
   const [consoleFolded, setConsoleFolded] = useState(true);
 
-  // ── BACKSTAGE FLIP (2026-07-22, memory/flip-crew-graph): tap the
-  // LIVE console on the dinner task and the whole screen flips to the
-  // crew handoff graph. Hold freezes the run; the correction happens
-  // back on the front side.
-  const dinner = useDinnerRun();
-  const [backstage, setBackstage] = useState(false);
-  const flipSV = useSharedValue(0);
-  const isDinnerThread = /dinner|jenna/i.test(thread?.title ?? '');
-  const openBackstage = () => {
-    if (dinner.phase === 'idle') dinner.start();
-    setBackstage(true);
-    flipSV.value = withTiming(1, { duration: 650, easing: Easing.inOut(Easing.cubic) });
-  };
-  const closeBackstage = () => {
-    flipSV.value = withTiming(
-      0,
-      { duration: 650, easing: Easing.inOut(Easing.cubic) },
-      (finished) => {
-        if (finished) runOnJS(setBackstage)(false);
-      }
-    );
-  };
-  // Hold lands → carry the user back to the chat to type the fix
-  useEffect(() => {
-    if (dinner.phase === 'held' && backstage) {
-      const t = setTimeout(closeBackstage, 1100);
-      return () => clearTimeout(t);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dinner.phase]);
-  // the ANALOG TV mark (2026-07-22 "아날로그 티비 마크"): a little
-  // CRT with rabbit ears riding the console's empty right side — the
-  // anytime on/off switch for the backstage screen behind the chat
-  const TvMark = () => (
-    <Pressable
-      onPress={openBackstage}
-      hitSlop={12}
-      style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}>
-      <Svg width={22} height={18} viewBox="0 0 22 18">
-        <Path
-          d="M 11 7 L 6 1.5 M 11 7 L 16 1.5"
-          stroke="rgba(255,255,255,0.55)"
-          strokeWidth={1.4}
-          strokeLinecap="round"
-        />
-        <Rect
-          x={2.5}
-          y={7}
-          width={17}
-          height={9.5}
-          rx={2.5}
-          stroke="rgba(255,255,255,0.55)"
-          strokeWidth={1.4}
-          fill="none"
-        />
-        <Rect x={16} y={10} width={1.6} height={1.6} fill="rgba(255,255,255,0.55)" />
-        <Rect x={16} y={13} width={1.6} height={1.6} fill="rgba(255,255,255,0.55)" />
-      </Svg>
-    </Pressable>
-  );
-
-  const frontFlipStyle = useAnimatedStyle(() => ({
-    transform: [{ perspective: 1200 }, { rotateY: `${flipSV.value * 180}deg` }],
-  }));
-  const backFlipStyle = useAnimatedStyle(() => ({
-    transform: [{ perspective: 1200 }, { rotateY: `${(flipSV.value - 1) * 180}deg` }],
-  }));
+  // BACKSTAGE FLIP retired 2026-07-24 ("티비 기능자체도 다 삭제해도
+  // 플립하면 나오는것들"): the analog-TV mark, the flip-side crew graph it
+  // opened, and the demo-only reroute beat that drove it are all gone.
   useEffect(() => {
     // fresh runs open loud, seeded histories arrive quiet
     setConsoleFolded(!thinkingHere);
@@ -239,6 +187,17 @@ export function ChatThreadView({
   useEffect(() => {
     if (thinkingHere && !thinkingHere.done) setConsoleFolded(false);
   }, [thinkingHere]);
+  // ...and it FOLDS ITSELF once the run lands (2026-07-24 "핑퐁이 잘 말이
+  // 되게"): while working, the console is the story; the moment it says Done
+  // the answer below it is, so the log shrinks to its dock instead of
+  // holding the top of the screen. A short beat lets the ✓ Done be read
+  // first. Any manual fold/unfold after this still wins — this only fires
+  // on the done edge.
+  useEffect(() => {
+    if (!thinkingHere?.done) return;
+    const t = setTimeout(() => setConsoleFolded(true), 1400);
+    return () => clearTimeout(t);
+  }, [thinkingHere?.done, thinkingHere?.threadId]);
 
   // The chat-start boot lines (gateway + tools) merged INTO the seeded
   // run console — they must never float bare in the scroll ("무조건 이
@@ -254,15 +213,112 @@ export function ChatThreadView({
   // every tool the ask touches now stacks vertically as its own circle
   // in the corner instead of a horizontal strip under the header; the
   // corner stack IS the tool switch, no separate multi-tool concept.
-  // where the floating console sits: always the collapsed position now
-  const consoleTop = spacing.sm;
+  // where the floating console sits: under the prompt mast when one is
+  // pinned (2026-07-24 "크루 이름이랑 밑에 콘솔사이에"), else the
+  // collapsed top position
+  // PROMPT MAST (2026-07-24 "내가 프롬프트 친 모든것은 상단에 걸쳐줘"):
+  // every ask in the CURRENT task, hoisted out of the scroll and pinned
+  // under the crew pill. Sliced from the last chop so a new task gets a
+  // clean mast instead of inheriting the previous task's asks.
+  const currentTaskFrom = (() => {
+    const msgs = thread?.messages ?? [];
+    let start = 0;
+    msgs.forEach((m, i) => {
+      if (m.taskDivider) start = i;
+    });
+    return start;
+  })();
+  const currentTaskPrompts = (thread?.messages ?? [])
+    .slice(currentTaskFrom)
+    .filter((m) => m.from === 'user' && !!m.text)
+    .map((m) => ({ id: m.id, text: m.text as string }));
+
+  // THE MAST IS AN INDEX (2026-07-24 "그게 인덱스라서 스크롤 내릴때... 하나씩만"):
+  // it shows ONE ask — whichever one you're currently reading the answer to —
+  // and swaps as you scroll, like a sticky section header. So the small gray
+  // prompt lines came BACK into the thread (they're the anchors this indexes),
+  // and the mast stopped stacking every ask at once.
+  const [activePromptId, setActivePromptId] = useState<string | null>(null);
+  // measured y of each in-thread prompt line, keyed by message id
+  const promptTops = useRef<Record<string, number>>({});
+  const activePrompt =
+    currentTaskPrompts.find((p) => p.id === activePromptId) ??
+    currentTaskPrompts[currentTaskPrompts.length - 1];
+
+  // Pick the ask whose ANSWER fills the screen right now: the last prompt
+  // line that has scrolled up past the pinned band. Cheap comparison against
+  // measured offsets, so it runs fine on every scroll frame.
+  //
+  // While the thread still FITS on screen there is nothing to index, so the
+  // mast shows the newest ask (2026-07-24 "첫화면에서는 스크롤이 안넘어가기
+  // 때문에 가장 마지막에 프롬프트 친게 나오면돼"). Tracking only takes over
+  // once the content actually overflows — otherwise a short thread would pin
+  // whichever ask happened to sit above the fold.
+  const onScrollIndex = (y: number, viewH: number, contentH: number) => {
+    // Nothing to index, or parked AT THE BOTTOM: the mast shows the newest
+    // ask (2026-07-24 "항상 가장최근에 쓴 프롬프트가 그대로 오는거야"). The
+    // bottom case is the bug fix — sending a message calls scrollToEnd, whose
+    // scroll event then overwrote the "show newest" reset with whatever ask
+    // happened to sit above the fold, so a fresh prompt never took the mast.
+    const atBottom = y + viewH >= contentH - 24;
+    if (contentH <= viewH + 4 || atBottom) {
+      setActivePromptId(null); // null = "just show the newest"
+      return;
+    }
+    const line = y + mastTop + (mastH || MAST_MIN_H);
+    let next: string | null = null;
+    currentTaskPrompts.forEach((p) => {
+      const top = promptTops.current[p.id];
+      if (top != null && top <= line) next = p.id;
+    });
+    // above the first prompt, hold the first one rather than blanking
+    const resolved = next ?? currentTaskPrompts[0]?.id ?? null;
+    if (resolved !== activePromptId) setActivePromptId(resolved);
+  };
+
+  // A FRESH ask takes the mast and HOLDS it (2026-07-24 "최신 프롬프트를 치면
+  // 그게 계속 떠잇어야해"): sending scrolls the thread to the bottom, and the
+  // index would otherwise keep pointing at whatever you had scrolled to.
+  // Clearing to null hands the mast back to "newest", and normal scroll
+  // tracking resumes the moment you scroll again.
+  const newestPromptId = currentTaskPrompts[currentTaskPrompts.length - 1]?.id;
+  useEffect(() => {
+    setActivePromptId(null);
+  }, [newestPromptId]);
+  // a different thread's offsets must not survive into this one — they'd
+  // point the index at rows that no longer exist
+  useEffect(() => {
+    promptTops.current = {};
+    setActivePromptId(null);
+  }, [effId]);
+
+  const mastTop = spacing.sm;
+  // only RESERVE the band while a mast is actually up: a stale mastH
+  // from a previous thread would leave the console floating in a gap
+  const mastVisible = currentTaskPrompts.length > 0 && !calOpen;
+  const mastBand = mastVisible && mastH ? mastH + spacing.sm : 0;
+  const consoleTop = mastTop + mastBand;
   const consoleDone = thinkingHere ? thinkingHere.done : bootLog.length > 0;
   const consoleDocked = consoleDone && consoleFolded;
-  // the calendar no longer hides the console (2026-07-17 "콘솔 위로
-  // 달력패널이 오면 안되고") — the console owns the top slot whenever
-  // it's expanded, and panels stack BELOW it
-  const consoleExpandedVisible =
-    !consoleDocked && (thinkingHere !== null || bootLog.length > 0);
+  // ONE source for whichever log the console is showing (2026-07-24): a live
+  // run if there is one, else this thread's boot lines. Both the mast's
+  // folded dock and its expanded panel read from this, so the two states can
+  // never disagree about what they're narrating.
+  const consoleSource: {
+    threadId: string;
+    lines: string[];
+    done: boolean;
+    failed?: boolean;
+  } | null = thinkingHere
+    ? {
+        threadId: thinkingHere.threadId,
+        lines: thinkingHere.lines,
+        done: thinkingHere.done,
+        failed: thinkingHere.failed,
+      }
+    : bootLog.length > 0
+      ? { threadId: effId, lines: bootLog, done: true }
+      : null;
 
   // The dark week-strip console: NOT during thinking (the console narrates
   // that) — it appears with the calendar answer, right under the console.
@@ -294,14 +350,8 @@ export function ChatThreadView({
   const onSend = () => {
     const text = draft.trim();
     if (!text) return;
-    // the flip demo's correction: a held run + the missing context →
-    // the reroute beat (ack, re-run, closing + send-invite approval)
-    if (thread && isDinnerThread && dinner.phase === 'held' && /vegetarian|vegan/i.test(text)) {
-      runDinnerReroute(thread.id, text);
-      dinner.resume();
-      setDraft('');
-      return;
-    }
+    // the flip demo's "vegetarian" reroute branch retired with backstage
+    // (2026-07-24) — a message like that is now just an ordinary message
     if (!thread) {
       if (!composeNew) return;
       // undo speaks to the original executor in the original thread
@@ -348,6 +398,7 @@ export function ChatThreadView({
   });
   const currentTaskStart = taskStarts[taskStarts.length - 1];
 
+
   // Slash calls (2026-07-12): typing /research etc. CALLS a crew member.
   // Once the word completes, their standby dot wakes and the token
   // itself turns their deep signature color, small and bold.
@@ -392,10 +443,9 @@ export function ChatThreadView({
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: darkChat.base }} edges={['top', 'bottom']}>
-      {/* FRONT of the card: the whole chat, flippable */}
-      <Animated.View
-        style={[{ flex: 1, backfaceVisibility: 'hidden' }, frontFlipStyle]}
-        pointerEvents={backstage ? 'none' : 'auto'}>
+      {/* the whole chat. Was the flippable FRONT of a card until the
+          backstage flip retired (2026-07-24); now a plain wrapper. */}
+      <Animated.View style={{ flex: 1 }}>
       {/* blue desk: light status icons */}
       {/* v5 (2026-07-17, mosaic desk): white icons on the blue field,
           dark on the light colorways */}
@@ -456,11 +506,18 @@ export function ChatThreadView({
                 justifyContent: 'center',
                 opacity: pressed ? 0.6 : 1,
               })}>
-              <GlassView
-                glassEffectStyle="clear"
-                colorScheme="light"
-                style={[StyleSheet.absoluteFill, { borderRadius: 999 }]}
-              />
+              {/* gated like every other glass surface (2026-07-24): the
+                  API is iOS 26+, and an ungated GlassView leaves this
+                  circle with no material at all on older builds */}
+              {GLASS_AVAILABLE ? (
+                <GlassView
+                  glassEffectStyle="clear"
+                  colorScheme="light"
+                  style={[StyleSheet.absoluteFill, { borderRadius: 999 }]}
+                />
+              ) : (
+                <FrostedGlassFill flat radius={20} tint="rgba(255,255,255,0.5)" />
+              )}
               <Ionicons name="chevron-back" size={19} color="#16181C" />
             </Pressable>
             ) : onShowHistory ? (
@@ -561,88 +618,96 @@ export function ChatThreadView({
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}>
         <View style={{ flex: 1 }}>
-          {/* the FOLDED console docks in the corner as its own circle
-              (user: the composer-corner dock was 뜬금없음 — the top is
-              the machine zone). The multi-tool horizontal strip that
-              used to share this row was retired 2026-07-16 — every
-              tool now lives in the vertical corner stack instead. */}
-          {/* docked >_ moved to the composer's left slot (2026-07-17
-              "콘솔이 숨겨지는 자리") — see the command row below */}
-          {/* Thinking console: an OVERLAY now (2026-07-14) — the chat
-              scrolls BEHIND it ("모든 대화 내용은 콘솔 뒤로"); the scroll
-              gets measured top padding so content clears it at rest.
-              Hidden while the month view is open. */}
-          {thinkingHere && !consoleDocked ? (
-            <Animated.View
-              entering={FadeInDown.duration(280)}
-              exiting={FadeOutUp.duration(220)}
-              onLayout={(e) => setConsoleH(e.nativeEvent.layout.height)}
+          {/* THE MASK behind the pinned band (2026-07-24 "여기사이 글씨가
+              보이는데 안보이게"): the mast floats with 8px of air above it
+              and 14px down each side, and the thread scrolls THROUGH those
+              gaps — so sentences were sliding past in the seam between the
+              header and the mast. A desk-blue plate spanning the full width
+              swallows them. It reads as nothing (same color as the field);
+              it's purely an occluder, so it sits just under the mast. */}
+          {currentTaskPrompts.length && !calOpen ? (
+            <View
+              pointerEvents="none"
               style={{
                 position: 'absolute',
-                top: consoleTop,
-                left: spacing.lg,
-                // rails OVERLAP now (2026-07-17 "오버래핑해서 앞에") —
-                // no more ceding a column
-                right: spacing.lg,
+                top: 0,
+                left: 0,
+                right: 0,
+                // covers the air above AND the seam right below the box; on
+                // the very first frame mastH is still 0, so fall back to the
+                // mast's own min height rather than flashing an 8px sliver
+                height: mastTop + (mastH || MAST_MIN_H) + spacing.xs,
+                backgroundColor: darkChat.base,
+                // just under the mast (21). This plate is now the ONLY thing
+                // stopping the thread showing through, since the mast's face
+                // went translucent to match the crew pill (2026-07-24) — its
+                // height tracks the measured mast, so it grows with the
+                // console that now lives inside it.
                 zIndex: 20,
-              }}>
-              {/* mid-run, the console is the DOOR to backstage
-                  (2026-07-22): tap flips; done consoles keep their
-                  fold tap untouched */}
-              <Pressable
-                disabled={!isDinnerThread || thinkingHere.done}
-                onPress={openBackstage}>
-                <ThinkingConsole
-                  threadId={thinkingHere.threadId}
-                  lines={thinkingHere.lines}
-                  done={thinkingHere.done}
-                  failed={thinkingHere.failed}
-                  folded={false}
-                  onToggleFold={() => setConsoleFolded(true)}
-                />
-              </Pressable>
-            </Animated.View>
+              }}
+            />
           ) : null}
-
-          {/* the anytime BACKSTAGE switch (2026-07-22 "언제든지
-              켜지고 꺼지게"): the analog TV riding top-right under the
-              tool circle, above whatever the console is doing */}
-          {isDinnerThread && !backstage ? (
+          {/* PROMPT MAST: the current task's asks, pinned in the band
+              between the crew pill and the console (2026-07-24). Hidden
+              while the month view is open, like the console — a panel
+              that big owns the screen. */}
+          {currentTaskPrompts.length && !calOpen ? (
             <View
-              pointerEvents="box-none"
               style={{
                 position: 'absolute',
-                top: consoleTop + 10,
-                right: spacing.lg + 12,
-                zIndex: 30,
-              }}>
-              <TvMark />
-            </View>
-          ) : null}
-
-          {/* Seeded run log: the background run that produced this
-              thread's ask (folds to the right-edge circle). The gateway
-              boot lines ("Gateway connected | E2E...") ALWAYS live
-              inside this console — never as bare text in the scroll. */}
-          {!thinkingHere && bootLog.length > 0 && !consoleDocked ? (
-            <View
-              onLayout={(e) => setConsoleH(e.nativeEvent.layout.height)}
-              style={{
-                position: 'absolute',
-                top: consoleTop,
+                top: mastTop,
                 left: spacing.lg,
                 right: spacing.lg,
-                zIndex: 20,
+                zIndex: 21,
               }}>
-              <ThinkingConsole
-                threadId={effId}
-                lines={bootLog}
-                done
-                folded={false}
-                onToggleFold={() => setConsoleFolded(true)}
+              <PromptMast
+                prompt={activePrompt?.text}
+                // the at-rest orb in the mast's FACE slot (2026-07-24): the
+                // "you typed this" counterpart to the crew face on replies.
+                // 36 canvas for a ~22 visible orb — it draws itself inset,
+                // so the canvas runs larger than the mark you see.
+                blob={
+                  !isTyping && (thread?.messages.some((m) => m.from === 'agent') ?? false) ? (
+                    <ThinkingBlob size={36} />
+                  ) : null
+                }
+                // The run console lives INSIDE the mast either way
+                // (2026-07-24): folded, a small square on the ask's line;
+                // expanded, the full log directly below on the text column.
+                dock={
+                  consoleDocked && consoleSource ? (
+                    <ThinkingConsole
+                      threadId={consoleSource.threadId}
+                      lines={consoleSource.lines}
+                      done={consoleSource.done}
+                      failed={consoleSource.failed}
+                      folded
+                      compactDock
+                      onToggleFold={() => setConsoleFolded(false)}
+                    />
+                  ) : null
+                }
+                below={
+                  !consoleDocked && consoleSource ? (
+                    <ThinkingConsole
+                      threadId={consoleSource.threadId}
+                      lines={consoleSource.lines}
+                      done={consoleSource.done}
+                      failed={consoleSource.failed}
+                      folded={false}
+                      onToggleFold={() => setConsoleFolded(true)}
+                    />
+                  ) : null
+                }
+                onLayout={(e) => setMastH(Math.ceil(e.nativeEvent.layout.height))}
               />
             </View>
           ) : null}
+          {/* Both console states moved INSIDE the prompt mast (2026-07-24):
+              the free-floating overlay that used to sit under the mast, and
+              the folded >_ that hid in the composer's corner, are now the
+              mast's `below` and `dock` slots. One white box holds the ask and
+              the run that answers it. */}
 
           {/* PR console: the dynamic console as a GitHub micro-app —
               pulled DATA up here, the calendar ACTION down in the chat. */}
@@ -659,34 +724,19 @@ export function ChatThreadView({
             </Animated.View>
           ) : null}
 
-          {/* Week-strip console: in the flow right below the thinking
-              console. Tap = trade up: the small strip goes away and the
-              big month view opens in front. */}
-          {stripTarget != null && !calOpen ? (
-            <Animated.View
-              entering={FadeInDown.duration(280)}
-              exiting={FadeOutUp.duration(220)}
-              style={{
-                marginHorizontal: spacing.lg,
-                marginTop: spacing.xs,
-                marginBottom: spacing.xs,
-              }}>
-              {/* rails overlap now — the strip keeps its full width */}
-              <Pressable
-                onPress={() => setCalOpen(true)}
-                style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}>
-                <WeekStrip targetDate={stripTarget} scanning={false} />
-              </Pressable>
-            </Animated.View>
-          ) : null}
+          {/* the pinned week strip retired 2026-07-24: it sat in the FLOW
+              at the top of this area while the mast and console floated
+              absolutely over the same band, so all three overlapped. The
+              strip now rides inside its own answer, down in the thread. */}
 
-          {/* the calendar rail: starts right under the header, in the
-              column both the console and the strip ceded */}
+          {/* the calendar rail: drops below whatever already owns the top
+              band (2026-07-24) — at spacing.sm it landed straight on the
+              prompt mast */}
           {calRail && stripTarget != null && !calOpen ? (
             <View
               style={{
                 position: 'absolute',
-                top: spacing.sm,
+                top: consoleTop,
                 right: spacing.lg,
                 gap: 10,
                 zIndex: 30,
@@ -736,85 +786,111 @@ export function ChatThreadView({
               // clear the floating console at rest (it overlays the
               // scroll; content passes behind it once you scroll). A
               // docked (folded) console frees the top — content rises.
-              // When a FLOW console (PR card / week strip) already
-              // occupies the top, the absolute console overlays THAT,
-              // so reserving consoleH again doubled the gap
-              // (2026-07-24 "간격이 왜 크게 나오지")
-              paddingTop:
-                consoleExpandedVisible &&
-                !(prReveal?.threadId === effId && !calOpen) &&
-                !(stripTarget != null && !calOpen)
-                  ? consoleH + consoleTop + spacing.md
-                  : spacing.lg,
+              // ONE thing to clear now (2026-07-24): the console lives inside
+              // the mast, so the mast's own measured height already covers
+              // both and there's no second surface to reserve for.
+              // mastBand already carries spacing.sm of air below the box, so
+              // adding spacing.md again stacked ~20px of dead space between
+              // the mast and the first line ("여기사이가 여전히 거리가 멀어").
+              paddingTop: mastBand ? mastTop + mastBand : spacing.lg,
               // room to scroll past the floating command pill: the
-              // conversation flows BEHIND it, no wall
-              paddingBottom: 118,
+              // conversation flows BEHIND it, no wall. Raised 118 → 150
+              // (2026-07-24 "지금 너무 챗 콘솔이랑 가까"): the reply's
+              // at-rest blob is the last thing in the scroll, and at 118 it
+              // came to rest almost touching the composer band.
+              paddingBottom: 150,
             }}
             showsVerticalScrollIndicator={false}
+            // drives the mast index (2026-07-24): 16/s is plenty for a label
+            // swap and keeps the JS bridge quiet
+            scrollEventThrottle={64}
+            onScroll={(e) =>
+              onScrollIndex(
+                e.nativeEvent.contentOffset.y,
+                e.nativeEvent.layoutMeasurement.height,
+                e.nativeEvent.contentSize.height
+              )
+            }
             onContentSizeChange={scrollToEnd}>
             {/* unbound new chat: an EMPTY stage (2026-07-17 — starter
                 chips, the routing gauge, and the crew dots all
                 retired). The composer alone is the invitation; the
                 console narrates the run once it starts. */}
             {thread?.messages.map((m, mi) => {
-              // the last AGENT message in the thread gets the blob
-              // glued to the end of its text — a quiet "at rest" mark
-              // that hides the instant a new send starts thinking and
-              // reappears once the fresh reply settles (2026-07-16,
-              // "문장 끝에마다 붙여줘... 시작하면 사라지고 다시 활성화")
-              const isLastAgentMessage =
-                m.from === 'agent' &&
-                !thread.messages.slice(mi + 1).some((later) => later.from === 'agent');
+              // The turn hairline is RETIRED (2026-07-24 "여기 줄나오는거는...
+              // 지우기"): it drew a rule above every new ask, which is almost
+              // every turn — so it read as constant furniture rather than a
+              // boundary. The gray index lines already mark where each ask
+              // landed, and a genuinely NEW task still gets its NEW TASK line.
               return (
-              <View key={m.id}>
-                {/* the task tick experiment is retired ("이 흰색 바는
-                    지워") — the chop divider + console task line carry
-                    the context split on their own */}
-                {/* chop boundary: the orchestrator cut a new task here —
-                    one scroll, visibly segmented */}
+              <View
+                key={m.id}
+                // measured HERE, not on the Text: this wrapper is a direct
+                // child of the scroll content, so its y IS the scroll offset
+                // the mast index compares against
+                onLayout={
+                  m.from === 'user' && m.text && !m.taskDivider
+                    ? (e) => {
+                        promptTops.current[m.id] = e.nativeEvent.layout.y;
+                      }
+                    : undefined
+                }>
+                {/* CHOP boundary as a LINE OF TEXT (2026-07-24 "이 디자인
+                    제거하고... 프롬프트의 대답글 시작에 맞춰서 줄로 텍스트로"):
+                    the centered blue-milk chip flanked by two rules was
+                    doing far too much for a boundary marker.
+                    Now it's one quiet line, starting on the SAME left edge
+                    as the replies below it (the 22px face chip + its 8px
+                    gap), so the thread keeps a single text column. */}
                 {m.taskDivider ? (
-                  <View
-                    style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      gap: 10,
-                      marginVertical: spacing.lg,
-                    }}>
-                    {/* the chop STAMP (2026-07-22 "태스크: 이름, 저장됨
-                        콕 박히게"): the quiet mono whisper couldn't
-                        carry "a NEW task now exists on Home" — the
-                        boundary is a white chip that says exactly
-                        that, in one read: the task's name, and the
-                        receipt that it was saved. */}
-                    <View style={{ flex: 1, height: 1, backgroundColor: darkChat.divider }} />
-                    {/* quieter chip (2026-07-22 "흰색이 너무 많으니까"):
-                        the popover band's blue-milk instead of bright
-                        white, and the name alone — no receipt line */}
-                    <View
+                  <View style={{ marginTop: spacing.xl, marginBottom: spacing.md }}>
+                    <Text
+                      numberOfLines={1}
                       style={{
-                        maxWidth: '70%',
-                        backgroundColor: 'rgba(191,213,236,0.9)',
-                        borderRadius: 11,
-                        paddingHorizontal: 13,
-                        paddingVertical: 7,
-                        alignItems: 'center',
+                        marginLeft: TEXT_COL,
+                        fontFamily: fontFamily.mono,
+                        fontSize: 11,
+                        letterSpacing: 0.8,
+                        color: darkChat.textTertiary,
                       }}>
-                      <Text
-                        numberOfLines={1}
-                        style={{
-                          fontFamily: fontFamily.semibold,
-                          fontSize: 13,
-                          color: '#16181C',
-                        }}>
-                        {`New task: ${m.taskDivider}`}
-                      </Text>
-                    </View>
-                    <View style={{ flex: 1, height: 1, backgroundColor: darkChat.divider }} />
+                      {`NEW TASK  ${m.taskDivider}`}
+                    </Text>
                   </View>
                 ) : null}
                 {/* terminalLog no longer renders here — those boot
                     lines live inside the top run console (bootLog) */}
-                {m.taskDivider ? null : (
+                {/* MY ask keeps its place in the record but loses the
+                    bubble (2026-07-24 "말풍선은 없애는 데 기록은 남겨야
+                    해서 그냥 심플하게 텍스트로만"): a quiet plain-text line
+                    marking where the ask landed.
+                    It is ALSO the mast's anchor (same day, "그게 인덱스라서"):
+                    onLayout records where each ask sits so the pinned mast
+                    can name whichever answer you've scrolled to. The mast
+                    used to hide these lines to avoid a duplicate; showing
+                    one ask at a time up top is what makes both readable. */}
+                {!m.taskDivider && m.from === 'user' ? (
+                  m.text ? (
+                    <Text
+                      style={{
+                        // on the shared text column, level with the mast's
+                        // own words and the replies below (2026-07-24)
+                        marginLeft: TEXT_COL,
+                        // tight to the answer it labels (2026-07-24 "간격을
+                        // 더 가깝게"): the index line and its reply are one
+                        // unit, so the air belongs ABOVE the pair, not
+                        // between them
+                        marginTop: spacing.md,
+                        marginBottom: 2,
+                        fontSize: 13,
+                        lineHeight: 19,
+                        fontFamily: fontFamily.regular,
+                        color: 'rgba(255,255,255,0.5)',
+                      }}>
+                      {m.text}
+                    </Text>
+                  ) : null
+                ) : null}
+                {m.taskDivider || m.from === 'user' ? null : (
                 <MessageBubble
                   from={m.from}
                   text={m.text}
@@ -832,7 +908,7 @@ export function ChatThreadView({
                         ]
                       : undefined)
                   }
-                  showBlob={isLastAgentMessage && !isTyping}>
+                  >
                 {m.approval ? (
                   <ApprovalCard
                     compact
@@ -841,6 +917,22 @@ export function ChatThreadView({
                     onApprove={(a) => resolveChatApproval(thread.id, m.id, a, true)}
                     onDeny={(a) => resolveChatApproval(thread.id, m.id, a, false)}
                   />
+                ) : null}
+                {/* the WEEK STRIP rides with the answer that produced it
+                    (2026-07-24 "다 오버랩되고있어 콘솔이랑 달력"): it used
+                    to be pinned up top, where it collided with the mast and
+                    the console. In the flow it scrolls with the reply and
+                    the week reads as that reply's own evidence. Tap still
+                    trades up to the month view. */}
+                {m.schedule && !m.schedule.booked && !calOpen ? (
+                  <Pressable
+                    onPress={() => setCalOpen(true)}
+                    style={({ pressed }) => ({
+                      marginBottom: spacing.sm,
+                      opacity: pressed ? 0.85 : 1,
+                    })}>
+                    <WeekStrip targetDate={m.schedule.date} scanning={false} />
+                  </Pressable>
                 ) : null}
                 {m.schedule ? (
                   <ScheduleCard
@@ -857,6 +949,15 @@ export function ChatThreadView({
                     proposal={m.scheduleProposal}
                     onRunOnce={() => runScheduleOnce(thread.id, m.id)}
                     onSchedule={() => confirmSchedule(thread.id, m.id)}
+                  />
+                ) : null}
+                {/* Scribe's draft (2026-07-24): Edit hands the words to the
+                    composer, so rewriting happens where typing happens */}
+                {m.draft ? (
+                  <DraftCard
+                    draft={m.draft}
+                    onSend={() => sendDraft(thread.id, m.id)}
+                    onEdit={() => setDraft(m.draft!.body)}
                   />
                 ) : null}
                 {m.pipeline ? <PipelineCard pipeline={m.pipeline} /> : null}
@@ -887,14 +988,10 @@ export function ChatThreadView({
               exiting={FadeOutUp.duration(220)}
               style={{
                 position: 'absolute',
-                // STACK ORDER (2026-07-17): the console owns the top
-                // slot while expanded — the month panel slides in
-                // UNDER it; with the console docked away, the panel
-                // takes the top slot itself, and recalling the console
-                // pushes it back down (this style recomputes live)
-                top: consoleExpandedVisible
-                  ? consoleTop + consoleH + spacing.sm
-                  : spacing.sm,
+                // the month panel takes the top slot outright: opening it
+                // hides the mast (and the console now inside it), so there's
+                // nothing left up there to stack under (2026-07-24)
+                top: spacing.sm,
                 left: spacing.lg,
                 right: spacing.lg,
                 zIndex: 15,
@@ -1106,28 +1203,10 @@ export function ChatThreadView({
                 />
               </Pressable>
               </View>
-              {/* docked run console beside the input (2026-07-24): same
-                  line height, sits in the slot the input shrinks to give */}
-              {consoleDocked ? (
-                thinkingHere ? (
-                  <ThinkingConsole
-                    threadId={thinkingHere.threadId}
-                    lines={thinkingHere.lines}
-                    done={thinkingHere.done}
-                    failed={thinkingHere.failed}
-                    folded
-                    onToggleFold={() => setConsoleFolded(false)}
-                  />
-                ) : (
-                  <ThinkingConsole
-                    threadId={effId}
-                    lines={bootLog}
-                    done
-                    folded
-                    onToggleFold={() => setConsoleFolded(false)}
-                  />
-                )
-              ) : null}
+              {/* the docked run console MOVED into the prompt mast
+                  (2026-07-24 "여기 흰색창 안에 오른쪽으로 숨기기") — it used
+                  to hide in this composer corner, a long way from the run it
+                  narrates. See the PromptMast's dock/below slots. */}
               </View>
           </View>
           </View>
@@ -1136,22 +1215,8 @@ export function ChatThreadView({
 
       </KeyboardAvoidingView>
       </Animated.View>
-      {/* BACK of the card: the crew handoff graph */}
-      {backstage ? (
-        <Animated.View
-          style={[
-            StyleSheet.absoluteFill,
-            { backfaceVisibility: 'hidden' },
-            backFlipStyle,
-          ]}>
-          <BackstageFlip
-            taskTitle={thread?.title ?? 'dinner with Jenna'}
-            run={dinner}
-            onClose={closeBackstage}
-            onOpenCrew={() => closeBackstage()}
-          />
-        </Animated.View>
-      ) : null}
+      {/* the BACK of the card (the crew handoff graph) retired with the
+          flip, 2026-07-24 */}
     </SafeAreaView>
   );
 }

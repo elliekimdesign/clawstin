@@ -16,6 +16,55 @@ export type ResultCard = {
 export type PipelineStep = { label: string; status: 'done' | 'active' | 'pending' };
 export type Pipeline = { steps: PipelineStep[] };
 
+/**
+ * A message Scribe wrote for the user to send on. Reviewed in the chat
+ * bubble that offered it (approvals-in-chat rule) — never a review screen.
+ */
+export type Draft = {
+  /** who it goes to, when known ("Jenna") */
+  to?: string;
+  /** the drafted prose itself */
+  body: string;
+  /** stamped in place once sent — the card stays as the receipt */
+  sent?: boolean;
+};
+
+/**
+ * Scribe's draft for a scheduling ask: the note that goes out once a time is
+ * settled. Mock copy, in the user's own plain voice (no em dashes, no emoji
+ * per the product rules).
+ */
+/**
+ * Who the note goes to, pulled from a parsed event title. parseScheduleRequest
+ * already capitalizes whatever follows "with" ("dinner with jenna" →
+ * "Dinner with Jenna"), so that's the name to address. Undefined when the
+ * title names no one — the card then just says "Send it".
+ */
+export function recipientOf(title: string): string | undefined {
+  const m = title.match(/\bwith\s+([A-Z][\w'-]*)/);
+  return m ? m[1] : undefined;
+}
+
+export function draftForSchedule(title: string, slot?: string): string {
+  // The note goes TO the person, so drop "with Jenna" from the subject —
+  // otherwise the draft reads "does 7pm work for dinner with jenna?" at
+  // Jenna herself, and lowercasing the whole title mangles her name too.
+  // (anchorless \bwith\b would leave a bare "with jenna" title as the
+  // subject, so strip any leading "with" too)
+  const subject = title
+    .replace(/\s*\bwith\s+[A-Z][\w'-]*/, '')
+    .replace(/^\s*with\b/i, '')
+    .trim()
+    .toLowerCase();
+  return slot
+    ? subject
+      ? `Hey! Does ${slot} work for ${subject}? Happy to move it if that's tight for you.`
+      : `Hey! Does ${slot} work for you? Happy to move it if that's tight.`
+    : subject
+      ? `Hey! Are you free for ${subject} this week? Send me a time that works and I'll lock it in.`
+      : `Hey! Are you free sometime this week? Send me a time that works and I'll lock it in.`;
+}
+
 export type ChatMessage = {
   id: string;
   from: 'user' | 'agent';
@@ -25,6 +74,10 @@ export type ChatMessage = {
   /** structured recurring-task proposal (name, cadence, scope) with a
    * test-run-first button row; stamped in place once scheduled */
   scheduleProposal?: ScheduleProposal;
+  /** Scribe wrote something to send (2026-07-24): prose the user reads,
+   * then sends or edits. Distinct from `text` — that's the agent talking TO
+   * you; this is the agent's draft FOR you to send to someone else. */
+  draft?: Draft;
   result?: ResultCard;
   /** multi-agent status card — shown only for replies that represent real
    * tool/data work (not every reply; simple replies stay plain text). */

@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -18,9 +19,10 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
+import { GlassView, isGlassEffectAPIAvailable } from 'expo-glass-effect';
+
 import { ClawstinMark } from '@/components/ui/clawstin-mark';
 import { FrostedGlassFill } from '@/components/ui/frosted-glass-fill';
-import { PixelText, pixelTextWidth } from '@/components/ui/pixel-text';
 import { CrewPixel } from '@/components/ui/crew-pixel';
 import { CREW_LIST, CrewKey } from '@/mock/crew-routing';
 import { darkChat, fontFamily, fontSize, spacing } from '@/theme/theme';
@@ -28,16 +30,27 @@ import { darkChat, fontFamily, fontSize, spacing } from '@/theme/theme';
 const PILL_H = 40;
 const SLOT_W = 92; // per-name slot width in the collapsed strip
 
-// The crew names' own voice (2026-07-24 "typography가 off해서 튄다"): the
-// pixel bitmap retired here too — machine register carried by Helvetica at
-// small size, uppercase, wide tracking, exactly like every other system
-// label. Pixel geometry (cell 1.25) is gone, so widths are measured/estimated
-// against THIS type instead.
-const NAME_SIZE = 11.5;
-const NAME_TRACKING = 1.4;
-/** rough advance per uppercase Helvetica char at NAME_SIZE, incl. tracking */
-const NAME_CHAR_W = NAME_SIZE * 0.66 + NAME_TRACKING;
+// The crew names' own voice. The pixel bitmap retired 2026-07-24
+// ("typography가 off해서 튄다"), and the uppercase+wide-tracking Helvetica
+// that briefly replaced it went too ("폰트 바꾼것도 마음에안들어"): it was
+// still louder than anything under it. Now the names speak the SAME label
+// type as the chat content below (fontFamily.medium at 12, sentence case,
+// [id].tsx:1005) so header and thread read as one screen. Pixel geometry
+// (cell 1.25) is gone, so widths are estimated against THIS type.
+const NAME_SIZE = 12;
+const NAME_TRACKING = 0.2;
+/** rough advance per mixed-case Helvetica char at NAME_SIZE, incl. tracking */
+const NAME_CHAR_W = NAME_SIZE * 0.53 + NAME_TRACKING;
 const nameWidth = (s: string) => Math.ceil(s.length * NAME_CHAR_W);
+// Same ink as the composer's tool-chip labels (2026-07-24 "칩에 있는
+// 글씨색"): the light pill and those chips are the one register, so they
+// share color, not just size/weight. On the header blue this lands at
+// 3.35:1 — a touch BETTER than the white-0.95 it replaces (3.2:1).
+const NAME_INK = 'rgba(22,24,28,0.7)';
+/** the chip ink at full strength, for the name that's currently bound */
+const NAME_INK_ACTIVE = '#16181C';
+/** Liquid Glass only exists on iOS 26+; FrostedGlassFill is the fallback. */
+const GLASS_AVAILABLE = Platform.OS === 'ios' && isGlassEffectAPIAvailable();
 
 // Our own pixel crew (the Muppet photos are retired): route key ->
 // crew-pixel character id.
@@ -159,7 +172,7 @@ export function CrewSwitch({
   const expandedSlotWidths = useMemo(
     () =>
       CREW_LIST.map((c) =>
-        Math.max(SLOT_W * 0.72, nameWidth(c.name.toUpperCase()) + 26)
+        Math.max(SLOT_W * 0.72, nameWidth(c.name) + 26)
       ),
     []
   );
@@ -182,8 +195,8 @@ export function CrewSwitch({
   // don't jitter the box.
   const badgeName =
     selected === null
-      ? 'NEW TASK'
-      : (CREW_LIST.find((c) => c.key === selected)?.name ?? '').toUpperCase();
+      ? 'New task'
+      : (CREW_LIST.find((c) => c.key === selected)?.name ?? '');
   const pinned = manual && selected !== null;
   // LIGHT badge geometry: ONE padding rule for every label, and the
   // pill HUGS the measured text (2026-07-17 "같은 패딩... 여백이
@@ -194,7 +207,7 @@ export function CrewSwitch({
   const lightLabel =
     selected === null ? 'New task' : (CREW_LIST.find((c) => c.key === selected)?.name ?? '');
   const lightNameW =
-    lightNameWs[lightLabel] ?? Math.ceil(lightLabel.length * 7.6) + 4;
+    lightNameWs[lightLabel] ?? nameWidth(lightLabel) + 4;
   // faceless marquee (2026-07-22 "전광판처럼": the reply's own face
   // carries identity now — the pill is text-only status)
   const restW = light
@@ -310,7 +323,11 @@ export function CrewSwitch({
           style={{ position: 'absolute', top: -1000, left: -1000, right: -1000, height: 3000, zIndex: 1 }}
         />
       ) : null}
-      <Animated.View style={[{ borderRadius: 0, overflow: 'hidden', zIndex: 2 }, pillStyle]}>
+      {/* the clipping wrapper has to carry the SAME radius as the face
+          below it, or its square corners crop the round pill back into a
+          box (2026-07-24) */}
+      <Animated.View
+        style={[{ borderRadius: light ? 999 : 0, overflow: 'hidden', zIndex: 2 }, pillStyle]}>
         <View
           style={{
             height: PILL_H,
@@ -322,23 +339,37 @@ export function CrewSwitch({
             // navy swapped for a deepened cut of the app's own
             // accent-blue (#3B76C4 family), tying the readout to the
             // same identity color as the top rule/history key.
-            // 14 = the board's card curve (2026-07-17 compose v2
-            // "곡선모양... 일관되게"), not a full-round pill. v3 same
-            // day ("폴더 헤어라인처럼 똑같은 느낌"): the light face IS
-            // the folder glass — FrostedGlassFill renders below, so
-            // the box itself goes bare.
-            borderRadius: light ? 14 : 0,
+            // v4 (2026-07-24 "동그란 Liquid Glass 기준"): FULLY ROUND on
+            // the light face. The 14-radius folder curve made the pill the
+            // odd one out in a header whose < and + are both r=999 circles
+            // — three items, two round and one soft-square. The header is
+            // now one Apple-glass family; the folder curve stays on the
+            // board's cards, where it belongs.
+            borderRadius: light ? 999 : 0,
             backgroundColor: light ? 'transparent' : 'rgba(30,58,110,0.9)',
             borderWidth: light ? 0 : 1,
             borderColor: 'rgba(143,191,242,0.35)',
             overflow: 'hidden',
           }}>
           {light ? (
-            // v3 (2026-07-24 "배경을 밑에 채팅 필드랑 같게"): the pill
-            // BLENDS with the blue field now — a whisper of white veil
-            // over the desk blue, not a bright gray box. The names go
-            // white to read on it (chat-text grammar).
-            <FrostedGlassFill flat radius={14} tint="rgba(255,255,255,0.14)" />
+            // v4 (2026-07-24): the SAME material as the header's < and +
+            // — Apple's clear Liquid Glass, gated because it only exists
+            // on iOS 26+. FrostedGlassFill stays underneath as the
+            // fallback and as the whisper of white veil that keeps the
+            // pill blended with the desk blue rather than a gray box
+            // (v3, "배경을 밑에 채팅 필드랑 같게"). Names stay white
+            // (chat-text grammar).
+            <>
+              {GLASS_AVAILABLE ? (
+                <GlassView
+                  glassEffectStyle="clear"
+                  colorScheme="light"
+                  style={[StyleSheet.absoluteFill, { borderRadius: 999 }]}
+                  pointerEvents="none"
+                />
+              ) : null}
+              <FrostedGlassFill flat radius={999} tint="rgba(255,255,255,0.14)" />
+            </>
           ) : null}
           {/* Collapsed layer: fixed centered capsule + picker-wheel strip.
               Stays mounted and cross-fades out while the expanded row fades
@@ -386,8 +417,13 @@ export function CrewSwitch({
                   gap: 8,
                 }}>
                 {light ? (
-                  // compose voice: plain Helvetica, no pixel bitmap;
-                  // measured so the pill hugs with the shared paddings
+                  // compose voice: the SAME label as the composer's tool
+                  // chips below (2026-07-24 "밑에 회색 글씨랑 맞춰야") —
+                  // 12/medium/ink-0.7, matching them in color too, not
+                  // just size. (13/Bold + white read as a heavier,
+                  // bigger, brighter voice than any content it sat
+                  // above.) Still measured, so the pill hugs with the
+                  // shared paddings.
                   <Text
                     onTextLayout={(e) => {
                       const w = Math.ceil(e.nativeEvent.lines[0]?.width ?? 0);
@@ -396,23 +432,21 @@ export function CrewSwitch({
                       }
                     }}
                     style={{
-                      fontSize: 13,
-                      fontFamily: fontFamily.semibold,
-                      letterSpacing: 0.2,
-                      color: 'rgba(255,255,255,0.95)',
+                      fontSize: NAME_SIZE,
+                      fontFamily: fontFamily.medium,
+                      letterSpacing: NAME_TRACKING,
+                      color: NAME_INK,
                     }}>
                     {lightLabel}
                   </Text>
                 ) : (
-                  <PixelText
+                  <CrewName
                     text={
                       selected === null
-                        ? 'NEW TASK'
-                        : (CREW_LIST.find((c) => c.key === selected)?.name ?? '').toUpperCase()
+                        ? 'New task'
+                        : (CREW_LIST.find((c) => c.key === selected)?.name ?? '')
                     }
-                    cell={1.25}
                     color="#EAF4FF"
-                    led
                   />
                 )}
                 {/* pinned manually: the ✕ says "tap to release to auto" */}
@@ -463,24 +497,22 @@ export function CrewSwitch({
                         // 2026-07-17); true center now
                         opacity: pressed ? 0.6 : 1,
                       })}>
-                      <PixelText
-                        text={c.name.toUpperCase()}
-                        cell={1.25}
+                      <CrewName
+                        text={c.name}
                         // ink on the light glass face, lit on the navy
-                        // readout — same pixel geometry either way so
+                        // readout — same type metrics either way so
                         // the slot/highlight math never shifts. Idle
                         // names lifted 0.4 → 0.65 (2026-07-17
                         // "ligibility가 약해")
                         color={
                           light
                             ? c.key === selected
-                              ? '#16181C'
-                              : 'rgba(22,24,28,0.65)'
+                              ? NAME_INK_ACTIVE
+                              : NAME_INK
                             : c.key === selected
                               ? '#EAF4FF'
                               : 'rgba(234,244,255,0.4)'
                         }
-                        led
                       />
                     </Pressable>
                   ))}
@@ -506,6 +538,24 @@ export function CrewSwitch({
         </View>
       </Animated.View>
     </View>
+  );
+}
+
+/** One crew name in the pill's machine voice: uppercase Helvetica, tracked.
+ * Shared by the collapsed reel, the expanded row, and the dark badge so all
+ * three read as the same label. */
+function CrewName({ text, color }: { text: string; color: string }) {
+  return (
+    <Text
+      numberOfLines={1}
+      style={{
+        fontSize: NAME_SIZE,
+        fontFamily: fontFamily.medium,
+        letterSpacing: NAME_TRACKING,
+        color,
+      }}>
+      {text}
+    </Text>
   );
 }
 
@@ -563,19 +613,17 @@ function ReelLabel({
       style={[{ width: SLOT_W, height: INNER_H, alignItems: 'center', justifyContent: 'center' }, innerStyle]}>
       {/* same de-lift as the expanded slots (2026-07-17): true center */}
       <Pressable onPress={onPress} hitSlop={4}>
-        <PixelText
-          text={name.toUpperCase()}
-          cell={1.25}
+        <CrewName
+          text={name}
           color={
             light
               ? active
-                ? '#16181C'
-                : 'rgba(22,24,28,0.65)'
+                ? NAME_INK_ACTIVE
+                : NAME_INK
               : active
                 ? '#EAF4FF'
                 : 'rgba(234,244,255,0.4)'
           }
-          led
         />
       </Pressable>
     </Animated.View>

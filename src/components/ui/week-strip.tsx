@@ -10,12 +10,18 @@ import Animated, {
 
 import { fontFamily, fontSize, spacing } from '@/theme/theme';
 
-// The app's one system-surface dark: same deep navy as the home Ask
-// console, the Logs field, and the status popover family.
-const STRIP_BG = '#0E1626';
-const CHARCOAL = '#0E1626';
-const DIM = 'rgba(255,255,255,0.35)';
-const LABEL = 'rgba(255,255,255,0.55)';
+// CALENDAR BLUE, not the system dark (2026-07-24 "콘솔이랑은다르게"): the
+// strip used to be the exact #0E1626 of the thinking console, so sitting one
+// above the other they read as a single black slab. They are different kinds
+// of thing — the console is the machine NARRATING, the strip is your calendar
+// DATA — so the calendar family (this strip and the month view it opens) now
+// wears a mid-tone blue of its own. White text still clears 4.9:1 on it.
+const STRIP_BG = '#33689C';
+const CHARCOAL = '#33689C';
+// lifted for the lighter face: the old 0.35/0.55 were tuned against near
+// black and go muddy on blue
+const DIM = 'rgba(255,255,255,0.5)';
+const LABEL = 'rgba(255,255,255,0.72)';
 const RING = 'rgba(255,255,255,0.9)';
 const CIRCLE = 30;
 
