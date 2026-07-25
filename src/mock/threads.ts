@@ -142,26 +142,26 @@ export const initialThreads: Thread[] = [
     ],
   },
   {
-    // Home thread of the seeded Weekly review schedule (NEXT UP's
+    // Home thread of the seeded Daily summary schedule (NEXT UP's
     // time-anchored row): every schedule owns exactly one thread and
     // its runs accumulate here.
     id: 't4',
-    title: 'Weekly review',
+    title: 'Daily summary',
     agentId: 'quill',
-    lastPreview: 'Scheduled for Mondays at 9:00.',
+    lastPreview: 'Scheduled for 8:30 AM daily.',
     updatedAt: '3d',
-    icon: 'calendar-clear-outline',
+    icon: 'mail-outline',
     crew: 'writer',
     messages: [
       {
         id: 't4-m1',
         from: 'user',
-        text: 'Every Monday at 9, summarize what happened last week.',
+        text: 'Every morning at 8:30, summarize my inbox.',
       },
       {
         id: 't4-m2',
         from: 'agent',
-        text: 'Done. Weekly review runs Mondays at 9:00 and lands here.',
+        text: 'Done. Daily summary runs at 8:30 AM and lands here.',
       },
     ],
   },

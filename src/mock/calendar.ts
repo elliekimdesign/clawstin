@@ -31,44 +31,19 @@ export const initialCalendarDays: CalendarDay[] = [
     id: 'd-0701',
     weekday: 'Wednesday',
     date: 1,
-    events: [
-      { id: 'e1a', title: 'Team standup', start: '9:30 AM', end: '9:45 AM', color: 'brand', source: 'google' },
-      {
-        id: 'e1b',
-        title: 'Design review',
-        start: '2:00 PM',
-        end: '3:00 PM',
-        location: 'Figma huddle',
-        color: 'brand',
-        source: 'google',
-      },
-    ],
+    events: [],
   },
   {
     id: 'd-0702',
     weekday: 'Thursday',
     date: 2,
-    events: [
-      { id: 'e2a', title: 'Team standup', start: '9:30 AM', end: '9:45 AM', color: 'brand', source: 'google' },
-      { id: 'e2b', title: '1:1 with Sarah Chen', start: '2:00 PM', end: '2:30 PM', color: 'brand', source: 'google' },
-      {
-        id: 'e2c',
-        title: 'Climbing at Mission Cliffs',
-        start: '7:00 PM',
-        end: '9:00 PM',
-        location: 'Mission Cliffs',
-        color: 'mint',
-        source: 'apple',
-      },
-    ],
+    events: [],
   },
   {
     id: 'd-0703',
     weekday: 'Friday',
     date: 3,
-    events: [
-      { id: 'e3a', title: 'Rent', allDay: true, color: 'yellow', source: 'apple' },
-    ],
+    events: [],
   },
   { id: 'd-0704', weekday: 'Saturday', date: 4, events: [] },
   { id: 'd-0705', weekday: 'Sunday', date: 5, events: [] },
@@ -76,200 +51,85 @@ export const initialCalendarDays: CalendarDay[] = [
     id: 'd-0706',
     weekday: 'Monday',
     date: 6,
-    events: [
-      { id: 'e6a', title: 'Sprint planning', start: '10:00 AM', end: '11:00 AM', color: 'brand', source: 'google' },
-      { id: 'e6b', title: 'PR review block', start: '3:00 PM', end: '4:00 PM', color: 'brand', source: 'google' },
-    ],
+    events: [],
   },
   {
     id: 'd-0707',
     weekday: 'Tuesday',
     date: 7,
-    events: [
-      {
-        id: 'e7a',
-        title: 'Pair with Priya on auth refactor',
-        start: '11:00 AM',
-        end: '12:30 PM',
-        color: 'brand',
-        source: 'google',
-      },
-      // (kept light on purpose: the demo books "Dinner with Jenna 6pm
-      // tmrw" INTO this day — it must not already exist here)
-    ],
+    events: [],
   },
   {
     id: 'd-0708',
     weekday: 'Wednesday',
     date: 8,
-    events: [
-      {
-        id: 'e8a',
-        title: 'Q3 roadmap offsite',
-        start: '9:00 AM',
-        end: '4:00 PM',
-        location: 'Mountain View campus',
-        color: 'mint',
-        source: 'google',
-      },
-    ],
+    events: [],
   },
   {
     id: 'd-0709',
     weekday: 'Thursday',
     date: 9,
-    events: [
-      { id: 'e9a', title: '1:1 with Sarah Chen', start: '2:00 PM', end: '2:30 PM', color: 'brand', source: 'google' },
-    ],
+    events: [],
   },
   { id: 'd-0710', weekday: 'Friday', date: 10, events: [] },
   {
     id: 'd-0711',
     weekday: 'Saturday',
     date: 11,
-    events: [
-      {
-        id: 'e11a',
-        title: 'Fort Funston hike',
-        start: '10:00 AM',
-        end: '12:00 PM',
-        color: 'mint',
-        source: 'apple',
-      },
-      {
-        id: 'e11b',
-        title: "Maya's birthday dinner",
-        start: '7:00 PM',
-        location: 'Foreign Cinema',
-        color: 'yellow',
-        source: 'apple',
-      },
-    ],
+    events: [],
   },
   {
     id: 'd-0712',
     weekday: 'Sunday',
     date: 12,
-    events: [
-      {
-        id: 'e12a',
-        title: 'Brunch with Dev and Maya',
-        start: '11:00 AM',
-        location: 'Zazie, Cole Valley',
-        color: 'yellow',
-        source: 'apple',
-      },
-    ],
+    events: [],
   },
   { id: 'd-0713', weekday: 'Monday', date: 13, events: [] },
   {
     id: 'd-0714',
     weekday: 'Tuesday',
     date: 14,
-    events: [
-      { id: 'e14a', title: 'Sprint planning', start: '11:00 AM', end: '12:00 PM', color: 'brand', source: 'google' },
-      {
-        id: 'e14b',
-        title: 'Dentist',
-        start: '4:30 PM',
-        end: '5:15 PM',
-        location: 'SoMa Dental',
-        color: 'mint',
-        source: 'apple',
-      },
-    ],
+    events: [],
   },
   { id: 'd-0715', weekday: 'Wednesday', date: 15, events: [] },
   {
     id: 'd-0716',
     weekday: 'Thursday',
     date: 16,
-    events: [
-      {
-        id: 'e16a',
-        title: 'Coffee chat with Stripe recruiter',
-        start: '8:30 AM',
-        end: '9:15 AM',
-        location: 'Blue Bottle, SoMa',
-        color: 'yellow',
-        source: 'apple',
-      },
-      { id: 'e16b', title: '1:1 with Sarah Chen', start: '2:00 PM', end: '2:30 PM', color: 'brand', source: 'google' },
-    ],
+    events: [],
   },
   {
     id: 'd-0717',
     weekday: 'Friday',
     date: 17,
-    events: [
-      { id: 'e17a', title: 'Demo Friday', start: '4:00 PM', end: '5:00 PM', color: 'brand', source: 'google' },
-      { id: 'e17b', title: 'On-call handoff', start: '5:00 PM', end: '5:15 PM', color: 'brand', source: 'google' },
-    ],
+    events: [],
   },
   {
     id: 'd-0718',
     weekday: 'Saturday',
     date: 18,
-    events: [
-      {
-        id: 'e18a',
-        title: 'Run in Golden Gate Park',
-        start: '9:00 AM',
-        end: '10:00 AM',
-        color: 'mint',
-        source: 'apple',
-      },
-    ],
+    events: [],
   },
   { id: 'd-0719', weekday: 'Sunday', date: 19, events: [] },
   {
     id: 'd-0720',
     weekday: 'Monday',
     date: 20,
-    events: [
-      { id: 'e20a', title: 'Sprint planning', start: '10:00 AM', end: '11:00 AM', color: 'brand', source: 'google' },
-      {
-        id: 'e20b',
-        title: 'Architecture review: billing service',
-        start: '2:00 PM',
-        end: '3:30 PM',
-        color: 'brand',
-        source: 'google',
-      },
-    ],
+    events: [],
   },
   { id: 'd-0721', weekday: 'Tuesday', date: 21, events: [] },
   {
     id: 'd-0722',
     weekday: 'Wednesday',
     date: 22,
-    events: [
-      {
-        id: 'e22a',
-        title: 'Design review',
-        start: '2:00 PM',
-        end: '3:00 PM',
-        location: 'Figma huddle',
-        color: 'brand',
-        source: 'google',
-      },
-    ],
+    events: [],
   },
   { id: 'd-0723', weekday: 'Thursday', date: 23, events: [] },
   {
     id: 'd-0724',
     weekday: 'Friday',
     date: 24,
-    events: [
-      {
-        id: 'e24a',
-        title: 'Giants game with Dev',
-        start: '6:45 PM',
-        location: 'Oracle Park',
-        color: 'yellow',
-        source: 'apple',
-      },
-    ],
+    events: [],
   },
   { id: 'd-0725', weekday: 'Saturday', date: 25, events: [] },
   { id: 'd-0726', weekday: 'Sunday', date: 26, events: [] },
@@ -277,34 +137,21 @@ export const initialCalendarDays: CalendarDay[] = [
     id: 'd-0727',
     weekday: 'Monday',
     date: 27,
-    events: [
-      { id: 'e27a', title: 'Sprint planning', start: '10:00 AM', end: '11:00 AM', color: 'brand', source: 'google' },
-    ],
+    events: [],
   },
   { id: 'd-0728', weekday: 'Tuesday', date: 28, events: [] },
   {
     id: 'd-0729',
     weekday: 'Wednesday',
     date: 29,
-    events: [
-      { id: 'e29a', title: 'Perf review drafts due', allDay: true, color: 'yellow', source: 'google' },
-    ],
+    events: [],
   },
   { id: 'd-0730', weekday: 'Thursday', date: 30, events: [] },
   {
     id: 'd-0731',
     weekday: 'Friday',
     date: 31,
-    events: [
-      {
-        id: 'e31a',
-        title: 'Team offsite dinner',
-        start: '6:00 PM',
-        location: 'Mission Chinese Food',
-        color: 'yellow',
-        source: 'google',
-      },
-    ],
+    events: [],
   },
 ];
 
@@ -333,6 +180,18 @@ export function suggestSlots(events: CalendarEvent[], requested?: string): strin
  * calendar"? Returns the event to add, or null to fall through to the normal
  * scripted replies. Intentionally simple — keyword + time-regex level.
  */
+/** weekday of a July 2026 date (July 1 = Wednesday); Mon = 0 */
+const dow = (date: number) => (date + 1) % 7;
+const WEEKDAYS = [
+  ['monday', 'mon'],
+  ['tuesday', 'tue', 'tues'],
+  ['wednesday', 'wed'],
+  ['thursday', 'thu', 'thur', 'thurs'],
+  ['friday', 'fri'],
+  ['saturday', 'sat'],
+  ['sunday', 'sun'],
+];
+
 export function parseScheduleRequest(
   text: string,
   todayDate: number
@@ -340,20 +199,42 @@ export function parseScheduleRequest(
   const lower = text.toLowerCase();
   const timeMatch = lower.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)/);
   const tomorrow = lower.includes('tomorrow') || /\btmrw?\b/.test(lower);
+  // FREEFORM (2026-07-24 "완전히 플루이드하게"): a named weekday books
+  // its next occurrence, and any booking-flavored verb or meal/meeting
+  // noun triggers — not just the scripted example phrases
+  const weekdayIdx = WEEKDAYS.findIndex((names) =>
+    names.some((n) => new RegExp(`\\b${n}\\b`).test(lower))
+  );
+  const nextWeek = /\bnext week\b/.test(lower);
   const triggered =
     timeMatch != null ||
     tomorrow ||
-    lower.includes('schedule') ||
-    lower.includes('remind') ||
-    lower.includes('calendar');
+    weekdayIdx >= 0 ||
+    nextWeek ||
+    /\b(schedule|remind|calendar|book|block|hold|plan|meet|meeting|dinner|lunch|brunch|coffee|call|appointment)\b/.test(
+      lower
+    );
   if (!triggered) return null;
+
+  // the target date, in preference order: named weekday (its next
+  // occurrence) > next week > tomorrow > today
+  let date = todayDate;
+  if (weekdayIdx >= 0) {
+    date = todayDate + 1;
+    while (date <= 31 && dow(date) !== weekdayIdx) date++;
+    if (date > 31) date = todayDate; // fell off the month: stay put
+  } else if (nextWeek) {
+    date = Math.min(31, todayDate + 7);
+  } else if (tomorrow) {
+    date = todayDate + 1;
+  }
 
   // "Check my calendar" is a QUESTION, not a booking: nothing to extract,
   // no slots to offer. Only booking-flavored asks take the book path below.
   const checkAsk =
     timeMatch == null && /\b(check|show|what'?s|look at|review)\b/.test(lower);
   if (checkAsk) {
-    return { date: tomorrow ? todayDate + 1 : todayDate, title: '', intent: 'check' };
+    return { date, title: '', intent: 'check' };
   }
 
   let start: string | undefined;
@@ -365,7 +246,11 @@ export function parseScheduleRequest(
   if (timeMatch) title = title.replace(new RegExp(timeMatch[0], 'i'), ' ');
   title = title
     .replace(
-      /\b(remind me to|schedule|remind|add|put|please|tomorrow|tmrw|tmr|today|calendar|my|to|at|on)\b/gi,
+      /\b(remind me to|set up|schedule|remind|book|block|hold|plan|add|put|please|tomorrow|tmrw|tmr|today|next week|calendar|my|the|a|to|at|on|for)\b/gi,
+      ' '
+    )
+    .replace(
+      /\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|tues|wed|thu|thur|thurs|fri|sat|sun)\b/gi,
       ' '
     )
     .replace(/\s+/g, ' ')
@@ -375,5 +260,5 @@ export function parseScheduleRequest(
   // a name, and a lowercase name reads like a broken extraction.
   title = title.replace(/\bwith (\w)/i, (_m, c: string) => `with ${c.toUpperCase()}`);
 
-  return { date: tomorrow ? todayDate + 1 : todayDate, title, start, intent: 'book' };
+  return { date, title, start, intent: 'book' };
 }

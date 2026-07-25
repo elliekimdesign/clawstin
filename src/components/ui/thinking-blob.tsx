@@ -36,16 +36,18 @@ vec4 main(vec2 fragCoord) {
   vec2 center = vec2(0.5 * asp, 0.5);
   float t = u_time;
 
-  // three small offsets from center, each breathing independently —
-  // radius itself pulses too, so the silhouette expands/contracts in
-  // many directions at once rather than just sliding sideways
-  vec2 o0 = vec2(0.06 * sin(t * 1.7), 0.05 * cos(t * 2.3));
-  vec2 o1 = vec2(0.055 * sin(t * 2.1 + 2.1), 0.06 * cos(t * 1.6 + 1.0));
-  vec2 o2 = vec2(0.05 * sin(t * 1.4 + 4.2), 0.055 * cos(t * 2.6 + 3.0));
+  // CALM breath (2026-07-22 "해파리처럼 중심 없이... 편차가 너무
+  // 심해"): the bead stays essentially a circle — offsets tethered to
+  // a third of their old reach and radius pulses cut to a quarter, so
+  // the silhouette only whispers off round and the size barely
+  // swells; the anchored center never reads as drifting
+  vec2 o0 = vec2(0.018 * sin(t * 1.7), 0.015 * cos(t * 2.3));
+  vec2 o1 = vec2(0.016 * sin(t * 2.1 + 2.1), 0.018 * cos(t * 1.6 + 1.0));
+  vec2 o2 = vec2(0.015 * sin(t * 1.4 + 4.2), 0.016 * cos(t * 2.6 + 3.0));
 
-  float r0 = 0.15 + 0.025 * sin(t * 2.4);
-  float r1 = 0.135 + 0.022 * sin(t * 1.9 + 1.5);
-  float r2 = 0.125 + 0.024 * sin(t * 2.8 + 3.1);
+  float r0 = 0.15 + 0.007 * sin(t * 2.4);
+  float r1 = 0.142 + 0.006 * sin(t * 1.9 + 1.5);
+  float r2 = 0.138 + 0.006 * sin(t * 2.8 + 3.1);
 
   vec2 c0 = center + o0;
   vec2 c1 = center + o1;
@@ -72,14 +74,11 @@ vec4 main(vec2 fragCoord) {
   vec3 irid = (u_color0.rgb * s0 + u_color1.rgb * s1 + u_color2.rgb * s2)
             / (s0 + s1 + s2);
 
-  // specular: a small fixed skylight catching the upper-left
-  vec2 specPos = center + vec2(-0.055, -0.075);
-  float spec = smoothstep(0.075, 0.015, length(uv - specPos));
-
-  // transparent body, luminous rim, white catch-light
-  vec3 color = irid * (0.55 + 0.45 * rim) + vec3(spec * 0.9);
+  // no catch-light (2026-07-22 "가운데 흰색 점은 없애기": at bead
+  // size the specular read as a stray white dot) — the rim glow
+  // alone carries the glassiness
+  vec3 color = irid * (0.55 + 0.45 * rim);
   float alpha = edge * (0.3 + 0.55 * rim);
-  alpha = clamp(alpha + spec * 0.7, 0.0, 1.0);
   return vec4(color * alpha, alpha);
 }
 `;

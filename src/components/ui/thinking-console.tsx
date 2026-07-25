@@ -81,6 +81,9 @@ export function ThinkingConsole({
 }) {
   if (!done) {
     // Rolling two-line ticker: only the latest lines, one line each.
+    // The plate opens EMPTY at its full task-card size the instant a
+    // send happens (2026-07-22 sequence: "빈 콘솔이... 프롬프트랑
+    // 동시에") — steps then fill it in place, no growing jitter.
     const visible = lines.slice(-2);
     return (
       <View
@@ -89,6 +92,7 @@ export function ThinkingConsole({
           borderRadius: 16,
           paddingHorizontal: 16,
           paddingVertical: 12,
+          minHeight: 78,
         }}>
         {visible.map((line) => (
           <Animated.Text
@@ -158,13 +162,12 @@ function DoneLog({
         onPress={toggle}
         hitSlop={8}
         style={({ pressed }) => ({
-          // 52 = the composer field's exact height, so the docked
-          // console rides the SAME top/bottom lines beside it
-          // (2026-07-17 "라인이 안맞아") — the old alignSelf flex-end
-          // was for the retired top-right float and dragged it low
-          width: 52,
-          height: 52,
-          borderRadius: 16,
+          // sits inline in the composer's bottom row, matching the
+          // white input line's height/radius (2026-07-24 "채팅이랑
+          // 같은 사이즈 라인으로")
+          width: 48,
+          height: 48,
+          borderRadius: 13,
           backgroundColor: PANEL_BG,
           alignItems: 'center',
           justifyContent: 'center',

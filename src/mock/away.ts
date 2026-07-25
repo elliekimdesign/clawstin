@@ -18,6 +18,9 @@ export type AwayHighlight = {
    * (2026-07-21 merge: WYWA and LAST ACTION are two states of the
    * same card, so away-time rows carry their own undo) */
   undoKey?: string;
+  /** WHERE it happened (2026-07-22 row grammar: front = who, back =
+   * where + when): the product glyph trailing before the age */
+  app?: 'gmail' | 'github' | 'drive' | 'calendar';
 };
 
 /** One folded rule repeat, revealed only by expanding the "+N routine
@@ -29,6 +32,8 @@ export type AwayRoutineRun = {
   threadId: string;
   /** the member whose rule ran — face mark, same as highlights */
   agentId?: string;
+  /** WHERE it ran — trailing product glyph, same as highlights */
+  app?: 'gmail' | 'github' | 'drive' | 'calendar';
 };
 
 /** The away delta as a DIGEST, not a ledger, split by WHO initiated
@@ -57,6 +62,7 @@ export const AWAY_DIGEST: AwayDigest = {
       threadId: 't3',
       unread: true,
       agentId: 'quill',
+      app: 'calendar',
     },
     {
       key: 'pr-block',
@@ -65,13 +71,14 @@ export const AWAY_DIGEST: AwayDigest = {
       threadId: 't2',
       undoKey: 'Blocked 10:00–10:30 for PR review',
       agentId: 'muppet',
+      app: 'calendar',
     },
   ],
   // the three overnight github-pr-review quiet checks (activity a8-a10)
   routines: [
-    { key: 'r1', label: 'PR watch, quiet check', ago: '10h', threadId: 't2', agentId: 'muppet' },
-    { key: 'r2', label: 'PR watch, quiet check', ago: '13h', threadId: 't2', agentId: 'muppet' },
-    { key: 'r3', label: 'PR watch, quiet check', ago: '15h', threadId: 't2', agentId: 'muppet' },
+    { key: 'r1', label: 'PR watch, quiet check', ago: '10h', threadId: 't2', agentId: 'muppet', app: 'github' },
+    { key: 'r2', label: 'PR watch, quiet check', ago: '13h', threadId: 't2', agentId: 'muppet', app: 'github' },
+    { key: 'r3', label: 'PR watch, quiet check', ago: '15h', threadId: 't2', agentId: 'muppet', app: 'github' },
   ],
   asked: [
     {
@@ -84,6 +91,7 @@ export const AWAY_DIGEST: AwayDigest = {
       // "내 꺼 경우에도"): Crop the operator booked it — same checked
       // face icon; the tab split already says who asked
       agentId: 'pilot',
+      app: 'calendar',
     },
   ],
 };

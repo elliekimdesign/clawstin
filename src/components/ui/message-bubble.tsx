@@ -2,6 +2,8 @@ import { ReactNode, useState } from 'react';
 import { NativeSyntheticEvent, Text, TextLayoutEventData, View } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { fontFamily, spacing } from '@/theme/theme';
+import { ClawstinMark } from './clawstin-mark';
+import { CrewPixel } from './crew-pixel';
 import { FrostedGlassFill } from './frosted-glass-fill';
 import { ThinkingBlob } from './thinking-blob';
 
@@ -17,6 +19,10 @@ type Props = {
    * is being thought about — it vanishes the instant a fresh send
    * starts and reappears once the new reply settles */
   showBlob?: boolean;
+  /** the crew member whose FACE leads the reply (2026-07-22 "문장의
+   * 시작은 모두 페이스로"): assigned work answers with its member's
+   * face; ownerless replies front the Clawstin mark instead */
+  agentId?: string;
   /** optional content rendered below the text (e.g. an inline approval card) */
   children?: ReactNode;
 };
@@ -48,7 +54,7 @@ const BODY_STYLE = {
  * re-wrapping the text. Other participating crews will be revealed on tap
  * later; no counts, no extra faces.
  */
-export function MessageBubble({ from, text, proactive, caption, showBlob, children }: Props) {
+export function MessageBubble({ from, text, proactive, caption, showBlob, agentId, children }: Props) {
   const isUser = from === 'user';
 
   if (isUser) {
@@ -72,13 +78,15 @@ export function MessageBubble({ from, text, proactive, caption, showBlob, childr
               // v3 (2026-07-17, mosaic desk): the sent prompt wears the
               // COMPOSER's own frosted glass at the board's 14 radius —
               // what you typed stays in the material you typed it in
+              // one radius family in chat (2026-07-22 "radius가
+              // 비슷하게": the board sections' 16, everywhere)
               maxWidth: '86%',
-              borderRadius: 14,
+              borderRadius: 16,
               overflow: 'hidden',
               paddingHorizontal: 14,
               paddingVertical: 9,
             }}>
-            <FrostedGlassFill flat radius={14} tint="rgba(255,255,255,0.8)" />
+            <FrostedGlassFill flat radius={16} tint="rgba(255,255,255,0.8)" />
             <Text
               style={{
                 color: '#16181C',
@@ -96,7 +104,12 @@ export function MessageBubble({ from, text, proactive, caption, showBlob, childr
   }
 
   return (
-    <AgentMessage text={text} proactive={proactive} caption={caption} showBlob={showBlob}>
+    <AgentMessage
+      text={text}
+      proactive={proactive}
+      caption={caption}
+      showBlob={showBlob}
+      agentId={agentId}>
       {children}
     </AgentMessage>
   );
@@ -124,12 +137,14 @@ function AgentMessage({
   proactive,
   caption,
   showBlob,
+  agentId,
   children,
 }: {
   text?: string;
   proactive?: boolean;
   caption?: string;
   showBlob?: boolean;
+  agentId?: string;
   children?: ReactNode;
 }) {
   const capText = caption ?? (proactive ? 'CREW UPDATE' : null);
@@ -148,32 +163,62 @@ function AgentMessage({
   // RULE: no rails, no boxes — every answer (text or card) sits flush on
   // the same left edge as the user's prompt. Alignment does the grouping;
   // a data card's own border is all the framing it needs.
+  // FULL WIDTH (2026-07-22 "모든 공간 다 쓰기"): replies stretch to the
+  // screen's own edge padding — the round tool dropdown is the one
+  // layout that keeps its own width, and it lives elsewhere.
   return (
-    <View style={{ alignSelf: 'flex-start', maxWidth: '92%', marginBottom: spacing.lg }}>
+    <View style={{ alignSelf: 'stretch', marginBottom: spacing.lg }}>
       {capText ? <SystemCaption label={capText} /> : null}
       {text ? (
+        // the sentence STARTS with a face (2026-07-22): assigned work
+        // answers as its crew member; ownerless replies answer as
+        // Clawstin herself — who is speaking reads before what.
+        // The whole reply RISES in from below (2026-07-22 sequence:
+        // "부드럽게 띄어올리듯이") once the console finishes.
         <Animated.View
-          entering={FadeIn.duration(240).springify().damping(14).withInitialValues({
-            transform: [{ translateY: -6 }],
+          entering={FadeIn.duration(320).springify().damping(16).withInitialValues({
+            transform: [{ translateY: 16 }],
           })}
-          // extra right padding reserves room for the blob so it never
-          // gets clipped past the bubble's own maxWidth
-          style={{ paddingRight: showBlob ? 30 : 0 }}>
-          <Text style={BODY_STYLE} onTextLayout={onTextLayout}>
-            {text}
-          </Text>
-          {showBlob && lastLineEnd ? (
-            <Animated.View
-              entering={FadeIn.duration(260)}
-              exiting={FadeOut.duration(150)}
-              style={{
-                position: 'absolute',
-                left: lastLineEnd.x + 6,
-                top: lastLineEnd.y - 2,
-              }}>
-              <ThinkingBlob size={28} />
-            </Animated.View>
-          ) : null}
+          style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
+          {/* the face rides a white profile chip (2026-07-22 "챗
+              프로필처럼": bare pixels on the field read colorless and
+              harsh) and tops out level with the first text line */}
+          <View
+            style={{
+              marginTop: 1,
+              width: 22,
+              height: 22,
+              borderRadius: 11,
+              backgroundColor: 'rgba(255,255,255,0.92)',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}>
+            {agentId ? (
+              <CrewPixel id={agentId} size={15} />
+            ) : (
+              <ClawstinMark size={15} />
+            )}
+          </View>
+          <View
+            // extra right padding reserves room for the blob so it never
+            // gets clipped past the bubble's own width
+            style={{ flex: 1, paddingRight: showBlob ? 30 : 0 }}>
+            <Text style={BODY_STYLE} onTextLayout={onTextLayout}>
+              {text}
+            </Text>
+            {showBlob && lastLineEnd ? (
+              <Animated.View
+                entering={FadeIn.duration(260)}
+                exiting={FadeOut.duration(150)}
+                style={{
+                  position: 'absolute',
+                  left: lastLineEnd.x + 6,
+                  top: lastLineEnd.y - 2,
+                }}>
+                <ThinkingBlob size={36} />
+              </Animated.View>
+            ) : null}
+          </View>
         </Animated.View>
       ) : null}
       {children ? <View style={{ marginTop: text ? spacing.md : 0 }}>{children}</View> : null}

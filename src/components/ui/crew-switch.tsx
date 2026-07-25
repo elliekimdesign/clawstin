@@ -28,6 +28,17 @@ import { darkChat, fontFamily, fontSize, spacing } from '@/theme/theme';
 const PILL_H = 40;
 const SLOT_W = 92; // per-name slot width in the collapsed strip
 
+// The crew names' own voice (2026-07-24 "typography가 off해서 튄다"): the
+// pixel bitmap retired here too — machine register carried by Helvetica at
+// small size, uppercase, wide tracking, exactly like every other system
+// label. Pixel geometry (cell 1.25) is gone, so widths are measured/estimated
+// against THIS type instead.
+const NAME_SIZE = 11.5;
+const NAME_TRACKING = 1.4;
+/** rough advance per uppercase Helvetica char at NAME_SIZE, incl. tracking */
+const NAME_CHAR_W = NAME_SIZE * 0.66 + NAME_TRACKING;
+const nameWidth = (s: string) => Math.ceil(s.length * NAME_CHAR_W);
+
 // Our own pixel crew (the Muppet photos are retired): route key ->
 // crew-pixel character id.
 const PIXEL_BY_ROUTE: Record<CrewKey, string> = {
@@ -146,7 +157,10 @@ export function CrewSwitch({
   // here (cognitive load): all four fit on screen, so the row never needs
   // to scroll. Avatars appear on the collapsed badge after selection.
   const expandedSlotWidths = useMemo(
-    () => CREW_LIST.map((c) => Math.max(SLOT_W * 0.72, c.name.length * 8 + 22)),
+    () =>
+      CREW_LIST.map((c) =>
+        Math.max(SLOT_W * 0.72, nameWidth(c.name.toUpperCase()) + 26)
+      ),
     []
   );
   const expandedOffsets = useMemo(() => {
@@ -168,7 +182,7 @@ export function CrewSwitch({
   // don't jitter the box.
   const badgeName =
     selected === null
-      ? 'NEW CHAT'
+      ? 'NEW TASK'
       : (CREW_LIST.find((c) => c.key === selected)?.name ?? '').toUpperCase();
   const pinned = manual && selected !== null;
   // LIGHT badge geometry: ONE padding rule for every label, and the
@@ -178,12 +192,14 @@ export function CrewSwitch({
   // Widths land via onTextLayout; a per-char estimate covers the
   // first frame.
   const lightLabel =
-    selected === null ? 'New chat' : (CREW_LIST.find((c) => c.key === selected)?.name ?? '');
+    selected === null ? 'New task' : (CREW_LIST.find((c) => c.key === selected)?.name ?? '');
   const lightNameW =
     lightNameWs[lightLabel] ?? Math.ceil(lightLabel.length * 7.6) + 4;
+  // faceless marquee (2026-07-22 "전광판처럼": the reply's own face
+  // carries identity now — the pill is text-only status)
   const restW = light
-    ? 10 + 20 + 8 + lightNameW + (pinned ? 10 + 21 : 12) + 2 * BORDER
-    : 10 + 20 + 8 + pixelTextWidth(badgeName, 1.25, true) + (pinned ? 35 : 12) + 2 * BORDER;
+    ? 14 + lightNameW + (pinned ? 10 + 21 : 12) + 2 * BORDER
+    : 14 + nameWidth(badgeName) + (pinned ? 35 : 12) + 2 * BORDER;
 
   // Pure "render whatever `selected` is" — all pacing (how long each crew
   // is shown before the next one) is decided upstream in the store's
@@ -318,11 +334,11 @@ export function CrewSwitch({
             overflow: 'hidden',
           }}>
           {light ? (
-            // v2 (2026-07-17 "파란색이 겹쳐서... 밝은회색계열로"):
-            // blue glass sank into the blue tile field — a bright
-            // neutral-gray cut of the same glass instead, so the pill
-            // lifts off the desk and the ink names keep their contrast
-            <FrostedGlassFill flat radius={14} tint="rgba(242,245,248,0.78)" />
+            // v3 (2026-07-24 "배경을 밑에 채팅 필드랑 같게"): the pill
+            // BLENDS with the blue field now — a whisper of white veil
+            // over the desk blue, not a bright gray box. The names go
+            // white to read on it (chat-text grammar).
+            <FrostedGlassFill flat radius={14} tint="rgba(255,255,255,0.14)" />
           ) : null}
           {/* Collapsed layer: fixed centered capsule + picker-wheel strip.
               Stays mounted and cross-fades out while the expanded row fades
@@ -366,18 +382,9 @@ export function CrewSwitch({
                   // the pin ✕ owns the right inset
                   flexDirection: 'row',
                   alignItems: 'center',
-                  paddingLeft: 10,
+                  paddingLeft: 14,
                   gap: 8,
                 }}>
-                {selected === null ? (
-                  <ClawstinMark size={20} tint={light ? '#16181C' : '#EAF4FF'} />
-                ) : (
-                  <CrewPixel
-                    id={PIXEL_BY_ROUTE[selected]}
-                    size={20}
-                    ink={light ? '#16181C' : '#EAF4FF'}
-                  />
-                )}
                 {light ? (
                   // compose voice: plain Helvetica, no pixel bitmap;
                   // measured so the pill hugs with the shared paddings
@@ -392,7 +399,7 @@ export function CrewSwitch({
                       fontSize: 13,
                       fontFamily: fontFamily.semibold,
                       letterSpacing: 0.2,
-                      color: '#16181C',
+                      color: 'rgba(255,255,255,0.95)',
                     }}>
                     {lightLabel}
                   </Text>
@@ -400,7 +407,7 @@ export function CrewSwitch({
                   <PixelText
                     text={
                       selected === null
-                        ? 'NEW CHAT'
+                        ? 'NEW TASK'
                         : (CREW_LIST.find((c) => c.key === selected)?.name ?? '').toUpperCase()
                     }
                     cell={1.25}

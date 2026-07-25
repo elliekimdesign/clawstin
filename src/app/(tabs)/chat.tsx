@@ -290,18 +290,10 @@ export default function ActivityScreen() {
               borderBottomColor: rowDivider,
             }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-              <Text
-                style={{
-                  fontSize: 12,
-                  fontFamily: fontFamily.mono,
-                  letterSpacing: 0.3,
-                  color: rowDim,
-                }}>
-                Activity
-              </Text>
               {/* TYPE lens (2026-07-22, Notion-filter reference): the
-                  ledger splits chat turns from task runs, in the
-                  title strip's machine voice */}
+                  ledger splits chat turns from task runs. The lens IS
+                  the title now — the "Activity" word was a duplicate
+                  of the tab's own name ("중복 없애기") */}
               {(['all', 'chat', 'task'] as const).map((k) => (
                 <Pressable key={k} onPress={() => setTypeFilter(k)} hitSlop={8}>
                   <Text

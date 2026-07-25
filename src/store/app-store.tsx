@@ -35,6 +35,7 @@ import { PENDING_PRS } from '@/mock/github';
 import { initialInfra, InfraEndpoint } from '@/mock/infra';
 import { BackgroundTask, initialBackground } from '@/mock/background';
 import { initialSchedules, Schedule } from '@/mock/schedules';
+import { DINNER_COPY, DINNER_REROUTE_STAGES } from '@/mock/dinner-graph';
 import { initialServices, ServiceStatus } from '@/mock/services';
 import { initialThreads, Thread } from '@/mock/threads';
 
@@ -54,7 +55,11 @@ const nextId = (prefix: string) => `${prefix}-${counter++}`;
 // reads as calm and deliberate rather than flickering, regardless of how
 // fast the (fake) backend actually resolves. Middle of the 1.2-1.5s range
 // the pattern calls for.
-const CREW_HOLD_MS = 1300;
+/** DEMO PACE (2026-07-22 "데모 때문에 약간 느려야"): one dial that
+ * slows every scripted beat — crew holds, console steps, reply
+ * arrival. 1 = real-time feel; 1.6 = presentation pace. */
+export const DEMO_PACE = 1.6;
+const CREW_HOLD_MS = Math.round(1300 * DEMO_PACE);
 
 /**
  * Visit each crew in `stages` in order, holding CREW_HOLD_MS on each before
@@ -201,6 +206,8 @@ type Store = {
   /** create a new thread (optionally seeded with a first user message), returns its id */
   createThread: (seedText?: string) => string;
   sendMessage: (threadId: string, text: string) => void;
+  /** the flip demo's correction beat (see mock/dinner-graph) */
+  runDinnerReroute: (threadId: string, userText: string) => void;
   resolveChatApproval: (
     threadId: string,
     messageId: string,
@@ -325,7 +332,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const thinkingPlan = useRef<{ threadId: string; lines: string[] } | null>(null);
 
   /** Stream `lines` into the Thinking Console one by one. */
-  const runThinking = useCallback((threadId: string, lines: string[], stepMs = 800) => {
+  const runThinking = useCallback((threadId: string, lines: string[], stepMs = Math.round(800 * DEMO_PACE)) => {
     thinkingTimers.current.forEach(clearTimeout);
     thinkingTimers.current = [];
     thinkingPlan.current = { threadId, lines };
@@ -881,7 +888,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         // The boot lines live in the Thinking Console (unfolds on entry,
         // folds once read) — the greeting bubble no longer repeats them.
         runThinking(id, [gatewayLine, toolsLine]);
-        thinkingTimers.current.push(setTimeout(() => finishThinking(id), 2 * 800 + 900));
+        thinkingTimers.current.push(setTimeout(() => finishThinking(id), Math.round((2 * 800 + 900) * DEMO_PACE)));
 
         if (connectedTools.length === 0) {
           greeting = {
@@ -1005,6 +1012,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
             th.id === threadId ? { ...th, title: bornTitle ?? th.title } : th
           )
         );
+        // EVERY thread is findable (2026-07-24 "다시 들어갈 수 있게"):
+        // a thread born empty (greeting-only) gets its ledger row the
+        // moment its first real ask lands — the Activity feed is the
+        // complete history and the way back in
+        const bornNow = new Date();
+        setActivity((prev) => [
+          {
+            id: nextId('a'),
+            time: `${String(bornNow.getHours()).padStart(2, '0')}:${String(bornNow.getMinutes()).padStart(2, '0')}`,
+            day: 'today' as const,
+            ago: 'now',
+            prompt: trimmed,
+            agentId: 'muppet',
+            threadId,
+          },
+          ...prev,
+        ]);
       }
       if (t?.outcome && !CONTINUATION_RE.test(trimmed)) {
         const title = trimmed.length > 32 ? `${trimmed.slice(0, 31)}…` : trimmed;
@@ -1043,6 +1067,56 @@ export function AppProvider({ children }: { children: ReactNode }) {
       respond(threadId, trimmed, bornTitle);
     },
     [appendToThread, respond, threads]
+  );
+
+  // THE DINNER REROUTE BEAT (2026-07-22 flip demo, see mock/dinner-graph):
+  // fired when the user corrects a HELD run ("Jenna is vegetarian").
+  // Appends the user's fix + the ack, narrates the re-run through the
+  // console, then lands the closing reply with the send-invite approval.
+  const runDinnerReroute = useCallback(
+    (threadId: string, userText: string) => {
+      appendToThread(threadId, { id: nextId('c'), from: 'user', text: userText });
+      appendToThread(threadId, {
+        id: nextId('c'),
+        from: 'agent',
+        text: DINNER_COPY.reroute,
+      });
+      setTypingThreadId(threadId);
+      setCrewBusy(true);
+      focusCrew('researcher');
+      const lines = DINNER_REROUTE_STAGES.map((s) => `${s.label}  ${s.ms}`);
+      runThinking(threadId, lines);
+      const doneAt = Math.round(800 * DEMO_PACE) * (lines.length + 1) + 900;
+      setTimeout(() => {
+        finishThinking(threadId);
+        setTypingThreadId(null);
+        setCrewBusy(false);
+        appendToThread(threadId, {
+          id: nextId('c'),
+          from: 'agent',
+          text: DINNER_COPY.closing,
+          approval: {
+            id: 'ap-dinner-invite',
+            icon: 'mail',
+            title: DINNER_COPY.approvalTitle,
+            detail: 'Verdura, Friday 7 PM. The draft speaks in your voice.',
+            risk: 'write',
+            policy: 'Needs your approval',
+            allowlisted: true,
+            age: 'now',
+            threadId,
+            actionLabel: 'Send invite',
+            denyLabel: 'Not yet',
+            scopeOverride: 'Gmail WRITE',
+            items: [
+              { label: 'To Jenna', detail: 'dinner invite, Friday 7 PM' },
+              { label: 'Verdura', detail: 'table for two, booked' },
+            ],
+          },
+        });
+      }, doneAt);
+    },
+    [appendToThread, focusCrew, runThinking, finishThinking]
   );
 
   // When approving inside chat, also flip permission + remove the inline card,
@@ -1401,6 +1475,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       markThreadRead,
       createThread,
       sendMessage,
+      runDinnerReroute,
       resolveChatApproval,
       schedules,
       runScheduleOnce,
@@ -1461,6 +1536,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       markThreadRead,
       createThread,
       sendMessage,
+      runDinnerReroute,
       resolveChatApproval,
       schedules,
       runScheduleOnce,

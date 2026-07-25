@@ -252,7 +252,7 @@ export default function SettingsScreen() {
               textShadowColor: 'rgba(22,24,28,0.18)',
               textShadowRadius: 4,
             }}>
-            Settings
+            System
           </Text>
         </View>
 

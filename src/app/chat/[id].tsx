@@ -15,13 +15,25 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import Animated, { FadeIn, FadeInDown, FadeOut, FadeOutUp } from 'react-native-reanimated';
+import Animated, {
+  Easing,
+  FadeIn,
+  FadeInDown,
+  FadeOut,
+  FadeOutUp,
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Svg, { Path, Rect } from 'react-native-svg';
 
 import { ApprovalCard } from '@/components/ui/approval-card';
 import { type SeedPhase } from '@/components/ui/new-chat-seed';
 import { CrewSwitch } from '@/components/ui/crew-switch';
 import { AquaBg } from '@/components/ui/aqua-bg';
+import { BackstageFlip, useDinnerRun } from '@/components/ui/backstage-flip';
 import { ButterBg } from '@/components/ui/butter-bg';
 import { CloudBg } from '@/components/ui/cloud-bg';
 import { FrostedGlassFill } from '@/components/ui/frosted-glass-fill';
@@ -35,9 +47,7 @@ import { PRConsole } from '@/components/ui/pr-console';
 import { ResultCard } from '@/components/ui/result-card';
 import { ScheduleProposalCard } from '@/components/ui/schedule-proposal-card';
 import { ScheduleCard } from '@/components/ui/schedule-card';
-import { SuggestionChips } from '@/components/ui/suggestion-chips';
 import { ThinkingConsole } from '@/components/ui/thinking-console';
-import { ToolSwitch } from '@/components/ui/tool-switch';
 import { WeekStrip } from '@/components/ui/week-strip';
 import { routeCrew, type CrewKey } from '@/mock/crew-routing';
 import { UNDOABLES } from '@/mock/undoables';
@@ -86,11 +96,12 @@ export function ChatThreadView({
     crewBusy,
     selectCrew,
     focusCrew,
+    // flip demo (2026-07-22): the backstage correction beat
+    runDinnerReroute,
   } = useAppStore();
   const [draft, setDraft] = useState(initialDraft ?? '');
   // compose-new binds to a real thread on the first send
   const [boundId, setBoundId] = useState<string | null>(null);
-  const [attachOpen, setAttachOpen] = useState(false);
   const [calOpen, setCalOpen] = useState(false);
   // header tool context: user-pinned override wins over the thread's own
   const [toolPinned, setToolPinned] = useState<string | null>(null);
@@ -100,7 +111,6 @@ export function ChatThreadView({
   const [calRail, setCalRail] = useState(false);
   // compose-only TOOLS rail (2026-07-17 "tools 들이 아래 동그랗게"):
   // the header's right circle drops the tool doors below it
-  const [toolsRail, setToolsRail] = useState(false);
   const toggleCalRail = () => {
     LayoutAnimation.configureNext(LayoutAnimation.create(220, 'easeInEaseOut', 'opacity'));
     setCalRail((v) => !v);
@@ -109,6 +119,12 @@ export function ChatThreadView({
   const scrollRef = useRef<ScrollView>(null);
 
   const effId = boundId ?? id;
+  // a screen that changes identity (new chat, bound thread) always
+  // opens CLEAN — no inherited calendar panel (2026-07-24 "항상 새로
+  // 열었을 때는 뉴 창으로")
+  useEffect(() => {
+    setCalOpen(false);
+  }, [effId]);
   const thread = composeNew && !boundId ? undefined : getThread(effId);
 
   // Opening the thread picks up the delivery: the Done shelf's unread
@@ -123,6 +139,19 @@ export function ChatThreadView({
   }, [effId, !thread, markThreadRead, threadCrew, focusCrew]);
 
   const activeToolKey = toolPinned ?? thread?.tool ?? 'calendar';
+  // the prompt's related tool, as a header context icon (2026-07-24
+  // "해당하는 프롬프트 관련된 거를 동그란 아이콘으로"): only on a
+  // bound thread that actually touched a tool
+  const TOOL_ICON: Record<string, React.ComponentProps<typeof Ionicons>['name']> = {
+    calendar: 'calendar-clear-outline',
+    contacts: 'people-outline',
+    github: 'logo-github',
+    gmail: 'mail-outline',
+  };
+  const contextToolIcon =
+    thread && thread.messages.some((m) => m.from === 'user')
+      ? TOOL_ICON[activeToolKey] ?? null
+      : null;
 
   const isTyping = typingThreadId === effId;
   const thinkingHere = thinking?.threadId === effId ? thinking : null;
@@ -134,6 +163,74 @@ export function ChatThreadView({
   // composer. Seeded threads arrive folded; folding/unfolding reflows
   // the chat naturally (LayoutAnimation in the console's toggle).
   const [consoleFolded, setConsoleFolded] = useState(true);
+
+  // ── BACKSTAGE FLIP (2026-07-22, memory/flip-crew-graph): tap the
+  // LIVE console on the dinner task and the whole screen flips to the
+  // crew handoff graph. Hold freezes the run; the correction happens
+  // back on the front side.
+  const dinner = useDinnerRun();
+  const [backstage, setBackstage] = useState(false);
+  const flipSV = useSharedValue(0);
+  const isDinnerThread = /dinner|jenna/i.test(thread?.title ?? '');
+  const openBackstage = () => {
+    if (dinner.phase === 'idle') dinner.start();
+    setBackstage(true);
+    flipSV.value = withTiming(1, { duration: 650, easing: Easing.inOut(Easing.cubic) });
+  };
+  const closeBackstage = () => {
+    flipSV.value = withTiming(
+      0,
+      { duration: 650, easing: Easing.inOut(Easing.cubic) },
+      (finished) => {
+        if (finished) runOnJS(setBackstage)(false);
+      }
+    );
+  };
+  // Hold lands → carry the user back to the chat to type the fix
+  useEffect(() => {
+    if (dinner.phase === 'held' && backstage) {
+      const t = setTimeout(closeBackstage, 1100);
+      return () => clearTimeout(t);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dinner.phase]);
+  // the ANALOG TV mark (2026-07-22 "아날로그 티비 마크"): a little
+  // CRT with rabbit ears riding the console's empty right side — the
+  // anytime on/off switch for the backstage screen behind the chat
+  const TvMark = () => (
+    <Pressable
+      onPress={openBackstage}
+      hitSlop={12}
+      style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}>
+      <Svg width={22} height={18} viewBox="0 0 22 18">
+        <Path
+          d="M 11 7 L 6 1.5 M 11 7 L 16 1.5"
+          stroke="rgba(255,255,255,0.55)"
+          strokeWidth={1.4}
+          strokeLinecap="round"
+        />
+        <Rect
+          x={2.5}
+          y={7}
+          width={17}
+          height={9.5}
+          rx={2.5}
+          stroke="rgba(255,255,255,0.55)"
+          strokeWidth={1.4}
+          fill="none"
+        />
+        <Rect x={16} y={10} width={1.6} height={1.6} fill="rgba(255,255,255,0.55)" />
+        <Rect x={16} y={13} width={1.6} height={1.6} fill="rgba(255,255,255,0.55)" />
+      </Svg>
+    </Pressable>
+  );
+
+  const frontFlipStyle = useAnimatedStyle(() => ({
+    transform: [{ perspective: 1200 }, { rotateY: `${flipSV.value * 180}deg` }],
+  }));
+  const backFlipStyle = useAnimatedStyle(() => ({
+    transform: [{ perspective: 1200 }, { rotateY: `${(flipSV.value - 1) * 180}deg` }],
+  }));
   useEffect(() => {
     // fresh runs open loud, seeded histories arrive quiet
     setConsoleFolded(!thinkingHere);
@@ -197,6 +294,14 @@ export function ChatThreadView({
   const onSend = () => {
     const text = draft.trim();
     if (!text) return;
+    // the flip demo's correction: a held run + the missing context →
+    // the reroute beat (ack, re-run, closing + send-invite approval)
+    if (thread && isDinnerThread && dinner.phase === 'held' && /vegetarian|vegan/i.test(text)) {
+      runDinnerReroute(thread.id, text);
+      dinner.resume();
+      setDraft('');
+      return;
+    }
     if (!thread) {
       if (!composeNew) return;
       // undo speaks to the original executor in the original thread
@@ -287,6 +392,10 @@ export function ChatThreadView({
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: darkChat.base }} edges={['top', 'bottom']}>
+      {/* FRONT of the card: the whole chat, flippable */}
+      <Animated.View
+        style={[{ flex: 1, backfaceVisibility: 'hidden' }, frontFlipStyle]}
+        pointerEvents={backstage ? 'none' : 'auto'}>
       {/* blue desk: light status icons */}
       {/* v5 (2026-07-17, mosaic desk): white icons on the blue field,
           dark on the light colorways */}
@@ -328,25 +437,30 @@ export function ChatThreadView({
           <Animated.View
             entering={FadeIn.duration(150)}
             exiting={FadeOut.duration(120)}
-            style={{ width: 48, alignItems: 'flex-start' }}>
+            // both side slots share ONE fixed width (2026-07-24 "어떤
+            // 상황에서도 가운데"): equal sides = the pill can't drift
+            style={{ width: 88, alignItems: 'flex-start' }}>
             {showBack ? (
-            // the Settings screen's exact back button: solid white
-            // chip, ink chevron — one back button across the app
+            // the nav bar's material (2026-07-22 "네비게이션 애플
+            // 시스템 스타일이랑 똑같아야"): the back circle is clear
+            // Liquid Glass like the tab capsule — same size as before
             <Pressable
               // deep-linked chats have no history: fall back to Home
               onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
               hitSlop={10}
               style={({ pressed }) => ({
-                // sized to match the header's other circles (the
-                // 40pt history/tool chips) — was 30
                 width: 40,
                 height: 40,
                 borderRadius: 999,
-                backgroundColor: 'rgba(255,255,255,0.85)',
                 alignItems: 'center',
                 justifyContent: 'center',
                 opacity: pressed ? 0.6 : 1,
               })}>
+              <GlassView
+                glassEffectStyle="clear"
+                colorScheme="light"
+                style={[StyleSheet.absoluteFill, { borderRadius: 999 }]}
+              />
               <Ionicons name="chevron-back" size={19} color="#16181C" />
             </Pressable>
             ) : onShowHistory ? (
@@ -384,13 +498,20 @@ export function ChatThreadView({
           <Animated.View
             entering={FadeIn.duration(150)}
             exiting={FadeOut.duration(120)}
-            style={{ width: 48, alignItems: 'flex-end' }}>
-            {composeNew && !thread ? (
-              // empty new chat: TOOLS door (2026-07-17 "이부분은
-              // tools로") — tapping drops the round tool doors below,
-              // settings riding last. History lives in Activity.
+            style={{
+              width: 88,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'flex-end',
+              gap: 8,
+            }}>
+            {/* the prompt's related TOOL, as a context circle beside
+                the + (2026-07-24 "옆에 해당하는 프롬프트 관련된 거"):
+                calendar here — the tool circle we had, now a context
+                mark, not the header's main action */}
+            {contextToolIcon ? (
               <Pressable
-                onPress={() => setToolsRail((v) => !v)}
+                onPress={() => setCalOpen(true)}
                 hitSlop={8}
                 style={({ pressed }) => ({
                   width: 40,
@@ -405,31 +526,32 @@ export function ChatThreadView({
                   shadowRadius: 8,
                   shadowOffset: { width: 0, height: 3 },
                 })}>
-                {/* the badge's own grained glass (2026-07-17 "여기
-                    스타일 색깔도... 비슷하게"), not flat white. Icons
-                    in INK, one color across every circle ("검정이
-                    낫지 않을까") — accent-blue made the filled GitHub
-                    glyph read as a stray black. */}
                 <FrostedGlassFill flat radius={20} tint="rgba(242,245,248,0.82)" />
-                <Ionicons name="apps-outline" size={18} color="rgba(22,24,28,0.7)" />
+                <Ionicons name={contextToolIcon} size={18} color="rgba(22,24,28,0.7)" />
               </Pressable>
-            ) : (
-              // bound thread: a single tool circle, always the active
-              // tool's icon (2026-07-16, row-unfold retired)
-              <ToolSwitch
-                tool={activeToolKey}
-                calOpen={calOpen}
-                onCalendarTap={() => {
-                  if (calOpen) {
-                    setCalOpen(false);
-                  } else if (stripTarget != null) {
-                    toggleCalRail();
-                  } else {
-                    setCalOpen(true);
-                  }
-                }}
-              />
-            )}
+            ) : null}
+            {/* ALWAYS the New chat + (2026-07-24 "항상 뉴 챗 버튼으로") */}
+            <Pressable
+              onPress={() =>
+                router.replace({ pathname: '/chat/[id]', params: { id: 'new' } })
+              }
+              hitSlop={8}
+              style={({ pressed }) => ({
+                width: 40,
+                height: 40,
+                borderRadius: 999,
+                overflow: 'hidden',
+                alignItems: 'center',
+                justifyContent: 'center',
+                opacity: pressed ? 0.7 : 1,
+                shadowColor: '#16181C',
+                shadowOpacity: 0.12,
+                shadowRadius: 8,
+                shadowOffset: { width: 0, height: 3 },
+              })}>
+              <FrostedGlassFill flat radius={20} tint="rgba(242,245,248,0.82)" />
+              <Ionicons name="add" size={22} color="rgba(22,24,28,0.7)" />
+            </Pressable>
           </Animated.View>
         ) : null}
       </View>
@@ -464,15 +586,38 @@ export function ChatThreadView({
                 right: spacing.lg,
                 zIndex: 20,
               }}>
-              <ThinkingConsole
-                threadId={thinkingHere.threadId}
-                lines={thinkingHere.lines}
-                done={thinkingHere.done}
-                failed={thinkingHere.failed}
-                folded={false}
-                onToggleFold={() => setConsoleFolded(true)}
-              />
+              {/* mid-run, the console is the DOOR to backstage
+                  (2026-07-22): tap flips; done consoles keep their
+                  fold tap untouched */}
+              <Pressable
+                disabled={!isDinnerThread || thinkingHere.done}
+                onPress={openBackstage}>
+                <ThinkingConsole
+                  threadId={thinkingHere.threadId}
+                  lines={thinkingHere.lines}
+                  done={thinkingHere.done}
+                  failed={thinkingHere.failed}
+                  folded={false}
+                  onToggleFold={() => setConsoleFolded(true)}
+                />
+              </Pressable>
             </Animated.View>
+          ) : null}
+
+          {/* the anytime BACKSTAGE switch (2026-07-22 "언제든지
+              켜지고 꺼지게"): the analog TV riding top-right under the
+              tool circle, above whatever the console is doing */}
+          {isDinnerThread && !backstage ? (
+            <View
+              pointerEvents="box-none"
+              style={{
+                position: 'absolute',
+                top: consoleTop + 10,
+                right: spacing.lg + 12,
+                zIndex: 30,
+              }}>
+              <TvMark />
+            </View>
           ) : null}
 
           {/* Seeded run log: the background run that produced this
@@ -535,57 +680,6 @@ export function ChatThreadView({
             </Animated.View>
           ) : null}
 
-          {/* compose TOOLS rail (2026-07-17): the header's tools
-              circle drops the tool doors below it, one by one —
-              settings (환경설정) rides last */}
-          {toolsRail && composeNew && !thread ? (
-            <View
-              style={{
-                position: 'absolute',
-                top: spacing.sm,
-                right: spacing.md,
-                gap: 10,
-                zIndex: 30,
-              }}>
-              {(
-                [
-                  { icon: 'calendar-clear-outline', action: 'calendar' },
-                  { icon: 'logo-github', action: 'github' },
-                  { icon: 'people-outline', action: 'contacts' },
-                  { icon: 'settings-outline', action: 'settings' },
-                ] as const
-              ).map((r, i) => (
-                <Animated.View key={r.icon} entering={FadeInDown.delay(i * 90).duration(220)}>
-                  <Pressable
-                    onPress={() => {
-                      setToolsRail(false);
-                      if (r.action === 'settings') router.push('/settings');
-                      else Alert.alert('Coming soon');
-                    }}
-                    hitSlop={6}
-                    style={({ pressed }) => ({
-                      width: 40,
-                      height: 40,
-                      borderRadius: 999,
-                      overflow: 'hidden',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      opacity: pressed ? 0.7 : 1,
-                      shadowColor: '#16181C',
-                      shadowOpacity: 0.12,
-                      shadowRadius: 8,
-                      shadowOffset: { width: 0, height: 3 },
-                    })}>
-                    {/* the badge's grained glass, one circle at a time;
-                        ink glyphs, one color for every button */}
-                    <FrostedGlassFill flat radius={20} tint="rgba(242,245,248,0.82)" />
-                    <Ionicons name={r.icon} size={17} color="rgba(22,24,28,0.7)" />
-                  </Pressable>
-                </Animated.View>
-              ))}
-            </View>
-          ) : null}
-
           {/* the calendar rail: starts right under the header, in the
               column both the console and the strip ceded */}
           {calRail && stripTarget != null && !calOpen ? (
@@ -642,9 +736,16 @@ export function ChatThreadView({
               // clear the floating console at rest (it overlays the
               // scroll; content passes behind it once you scroll). A
               // docked (folded) console frees the top — content rises.
-              paddingTop: consoleExpandedVisible
-                ? consoleH + consoleTop + spacing.md
-                : spacing.lg,
+              // When a FLOW console (PR card / week strip) already
+              // occupies the top, the absolute console overlays THAT,
+              // so reserving consoleH again doubled the gap
+              // (2026-07-24 "간격이 왜 크게 나오지")
+              paddingTop:
+                consoleExpandedVisible &&
+                !(prReveal?.threadId === effId && !calOpen) &&
+                !(stripTarget != null && !calOpen)
+                  ? consoleH + consoleTop + spacing.md
+                  : spacing.lg,
               // room to scroll past the floating command pill: the
               // conversation flows BEHIND it, no wall
               paddingBottom: 118,
@@ -719,6 +820,18 @@ export function ChatThreadView({
                   text={m.text}
                   proactive={m.proactive}
                   caption={m.caption}
+                  // the reply's face MUST match the marquee (2026-07-22
+                  // "오퍼레이터가 나와야 해"): both derive from the same
+                  // routing state — the thread's own agent when it has
+                  // one, else whoever the pill currently names
+                  agentId={
+                    thread.agentId ??
+                    (crewSelected
+                      ? { researcher: 'scout', writer: 'quill', triage: 'pilot', orchestrator: 'muppet' }[
+                          crewSelected
+                        ]
+                      : undefined)
+                  }
                   showBlob={isLastAgentMessage && !isTyping}>
                 {m.approval ? (
                   <ApprovalCard
@@ -748,12 +861,9 @@ export function ChatThreadView({
                 ) : null}
                 {m.pipeline ? <PipelineCard pipeline={m.pipeline} /> : null}
                 {m.result ? <ResultCard result={m.result} /> : null}
-                {m.suggestions ? (
-                  <SuggestionChips
-                    suggestions={m.suggestions}
-                    onPick={(text) => sendMessage(thread.id, text)}
-                  />
-                ) : null}
+                {/* suggestion chips retired (2026-07-24 "앞에
+                    프롬프트 나오는 것도 지워" — the composer alone
+                    invites; behavior is freeform now) */}
                 </MessageBubble>
                 )}
               </View>
@@ -794,6 +904,7 @@ export function ChatThreadView({
                 days={calendarDays}
                 initialDate={calendarReveal?.date ?? null}
                 highlightTitle={calendarReveal?.title ?? null}
+                onClose={() => setCalOpen(false)}
               />
             </Animated.View>
           ) : null}
@@ -811,25 +922,21 @@ export function ChatThreadView({
               marginHorizontal: spacing.lg,
               marginBottom: spacing.sm,
               flexDirection: 'row',
-              alignItems: 'center',
+              // bottom-aligned so the docked >_ console sits level with
+              // the white input line, not floating against the tall
+              // chips column (2026-07-24 "흰색 콘솔 옆에 잘 정리")
+              alignItems: 'flex-end',
               gap: 8,
             }}>
           <View
             style={{
               flex: 1,
-              // the Home ask bar's expanded FIELD skin, exactly (2026-
-              // 07-16 "챗 봇안에는 그게 똑같이"): square writable glass
-              // v2 (2026-07-17 "유리 재질... 일관되게"): the folder
-              // cards' glass skin at the board's 16 radius — the
-              // full-round pill retired with the plain white veil
-              height: 52,
+              // the field grew into a COLUMN (2026-07-24 "높이를 키워서
+              // 안에 위로 인라인으로"): the tool chips ride INSIDE the
+              // composer, in a row above the input line
               borderRadius: 16,
               overflow: 'hidden',
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: spacing.sm,
-              paddingLeft: 16,
-              paddingRight: 7,
+              paddingHorizontal: 7,
             }}>
               {GLASS_AVAILABLE ? (
                 <GlassView
@@ -839,13 +946,110 @@ export function ChatThreadView({
                   pointerEvents="none"
                 />
               ) : null}
-              <FrostedGlassFill flat radius={16} tint="rgba(255,255,255,0.8)" />
-              {/* attachments live INSIDE the field now (2026-07-17
-                  "얘를 그냥 안쪽 채팅으로 / 이거 빼고"): the slash
-                  chip retired, the + a bare ink glyph like the mic */}
+              {/* the outer band blends with the blue field (2026-07-24
+                  "배경 컬러가 여기랑 맞아야"): only a whisper of veil,
+                  the desk blue reads through; the white input row below
+                  provides the two-band separation */}
+              <FrostedGlassFill flat radius={16} tint="rgba(255,255,255,0.22)" />
+              {/* TOOL CHIPS inside the composer (2026-07-24 v2): a
+                  small scrollable row of SQUARISH OUTLINE chips —
+                  border-only (no fill) so they read as tappable/
+                  selectable; ALWAYS visible from the start (not toggled
+                  by the +). System is the odd one out: icon-only. */}
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+                contentContainerStyle={{
+                  gap: 6,
+                  paddingTop: 10,
+                  paddingHorizontal: 6,
+                }}>
+                {(
+                  [
+                    { icon: 'calendar-clear-outline', label: 'Calendar', action: 'calendar' },
+                    { icon: 'logo-github', label: 'GitHub', action: 'github' },
+                    { icon: 'people-outline', label: 'Contacts', action: 'contacts' },
+                    { icon: 'add', label: 'Add more', action: 'settings' },
+                  ] as const
+                ).map((r) => (
+                  <Pressable
+                    key={r.action}
+                    onPress={() => {
+                      if (r.action === 'settings') router.push('/settings');
+                      else Alert.alert('Coming soon');
+                    }}
+                    hitSlop={4}
+                    style={({ pressed }) => ({
+                      height: 30,
+                      // squarer chips (2026-07-24 "알약 말고 네모난"):
+                      // small radius, not a pill. Tools = OUTLINE only;
+                      // System (no label) = a GRAY-FILLED square well,
+                      // set apart from the tool chips
+                      width: r.label ? undefined : 30,
+                      borderRadius: 8,
+                      borderWidth: r.label ? 1 : 0,
+                      borderColor: 'rgba(22,24,28,0.22)',
+                      backgroundColor: r.label ? undefined : 'rgba(22,24,28,0.08)',
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 5,
+                      paddingHorizontal: r.label ? 10 : 0,
+                      opacity: pressed ? 0.5 : 1,
+                    })}>
+                    <Ionicons name={r.icon} size={r.label ? 13 : 15} color="rgba(22,24,28,0.7)" />
+                    {r.label ? (
+                      <Text
+                        style={{
+                          fontSize: 12,
+                          fontFamily: fontFamily.medium,
+                          color: 'rgba(22,24,28,0.7)',
+                        }}>
+                        {r.label}
+                      </Text>
+                    ) : null}
+                  </Pressable>
+                ))}
+              </ScrollView>
+              {/* BOTTOM ROW (2026-07-24 "채팅이랑 같은 사이즈 라인으로"):
+                  the white input surface + the docked >_ console sit
+                  side by side, same line height. When a run docks, the
+                  input shrinks and the console takes its slot beside it. */}
+              <View
+                style={{
+                  marginTop: 8,
+                  marginBottom: 6,
+                  flexDirection: 'row',
+                  alignItems: 'stretch',
+                  gap: 8,
+                }}>
+              {/* the input's own WHITE surface (brighter than the chips
+                  band above) */}
+              <View
+                style={{
+                  flex: 1,
+                  minHeight: 48,
+                  borderRadius: 13,
+                  overflow: 'hidden',
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: spacing.sm,
+                  paddingLeft: 9,
+                }}>
+                <View
+                  pointerEvents="none"
+                  style={[
+                    StyleSheet.absoluteFill,
+                    { backgroundColor: 'rgba(255,255,255,0.92)' },
+                  ]}
+                />
+              {/* the + is "add more" (2026-07-24): straight to System
+                  settings where the full tool list lives — the inline
+                  chips are the quick doors, this is everything else */}
               <Pressable
                 hitSlop={10}
-                onPress={() => setAttachOpen((v) => !v)}
+                onPress={() => router.push('/settings')}
                 style={({ pressed }) => ({
                   width: 30,
                   height: 30,
@@ -859,17 +1063,24 @@ export function ChatThreadView({
               <TextInput
                 onChangeText={setDraft}
                 autoFocus={composeNew}
-                onFocus={() => setAttachOpen(false)}
+
                 placeholder="What needs doing?"
                 placeholderTextColor="rgba(22,24,28,0.5)"
+                multiline
                 style={{
                   flex: 1,
-                  paddingVertical: spacing.md,
-                  fontSize: 15,
+                  // more room to type (2026-07-24 "창 자체를 조금 더
+                  // 여유있게"): a taller, roomier input line
+                  minHeight: 52,
+                  maxHeight: 130,
+                  paddingVertical: 14,
+                  fontSize: 16,
+                  lineHeight: 22,
                   fontFamily: fontFamily.regular,
                   color: '#16181C',
                 }}
                 returnKeyType="send"
+                blurOnSubmit
                 onSubmitEditing={onSend}>
                 {/* the crew-color tag styling retired (2026-07-17
                     "컬러테그도") — a slash call still routes, the text
@@ -894,99 +1105,53 @@ export function ChatThreadView({
                   color={sysColor.accent}
                 />
               </Pressable>
+              </View>
+              {/* docked run console beside the input (2026-07-24): same
+                  line height, sits in the slot the input shrinks to give */}
+              {consoleDocked ? (
+                thinkingHere ? (
+                  <ThinkingConsole
+                    threadId={thinkingHere.threadId}
+                    lines={thinkingHere.lines}
+                    done={thinkingHere.done}
+                    failed={thinkingHere.failed}
+                    folded
+                    onToggleFold={() => setConsoleFolded(false)}
+                  />
+                ) : (
+                  <ThinkingConsole
+                    threadId={effId}
+                    lines={bootLog}
+                    done
+                    folded
+                    onToggleFold={() => setConsoleFolded(false)}
+                  />
+                )
+              ) : null}
+              </View>
           </View>
-          {/* the composer's RIGHT SLOT is where the run console docks
-              (2026-07-17 "콘솔 오는 위치가 오른쪽"): the folded >_
-              tucks in beside the field at the field's own radius;
-              empty until a run has happened */}
-          {consoleDocked ? (
-            thinkingHere ? (
-              <ThinkingConsole
-                threadId={thinkingHere.threadId}
-                lines={thinkingHere.lines}
-                done={thinkingHere.done}
-                failed={thinkingHere.failed}
-                folded
-                onToggleFold={() => setConsoleFolded(false)}
-              />
-            ) : (
-              <ThinkingConsole
-                threadId={effId}
-                lines={bootLog}
-                done
-                folded
-                onToggleFold={() => setConsoleFolded(false)}
-              />
-            )
-          ) : null}
           </View>
           </View>
         </View>
 
-        {/* Attachment popover (+ button): Camera / Photos / Files */}
-        {attachOpen ? (
-          <>
-            <Pressable
-              onPress={() => setAttachOpen(false)}
-              style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 20 }}
-            />
-            <Animated.View
-              entering={FadeInDown.duration(160)}
-              style={{
-                position: 'absolute',
-                left: spacing.lg + 6,
-                bottom: 64,
-                zIndex: 21,
-                minWidth: 180,
-                shadowColor: '#16181C',
-                shadowOpacity: 0.16,
-                shadowRadius: 18,
-                shadowOffset: { width: 0, height: 6 },
-                elevation: 10,
-                paddingVertical: spacing.xs,
-              }}>
-              {/* frosted card (2026-07-17 compose v2): the folder
-                  cards' glass skin, flat — a popover is a card, not a
-                  folder */}
-              <FrostedGlassFill flat radius={16} tint="rgba(255,255,255,0.85)" />
-              {(
-                [
-                  { icon: 'camera-outline', label: 'Camera' },
-                  { icon: 'image-outline', label: 'Photos' },
-                  { icon: 'folder-outline', label: 'Files' },
-                ] as const
-              ).map((item) => (
-                <Pressable
-                  key={item.label}
-                  onPress={() => {
-                    setAttachOpen(false);
-                    Alert.alert('Coming soon');
-                  }}
-                  style={({ pressed }) => ({
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: spacing.sm,
-                    paddingVertical: spacing.md,
-                    paddingHorizontal: spacing.lg,
-                    opacity: pressed ? 0.5 : 1,
-                  })}>
-                  <Ionicons name={item.icon} size={18} color="rgba(22,24,28,0.65)" />
-                  <Text
-                    style={{
-                      fontSize: fontSize.body,
-                      fontFamily: fontFamily.regular,
-                      color: '#16181C',
-                    }}>
-                    {item.label}
-                  </Text>
-                </Pressable>
-              ))}
-            </Animated.View>
-          </>
-        ) : null}
-
-
       </KeyboardAvoidingView>
+      </Animated.View>
+      {/* BACK of the card: the crew handoff graph */}
+      {backstage ? (
+        <Animated.View
+          style={[
+            StyleSheet.absoluteFill,
+            { backfaceVisibility: 'hidden' },
+            backFlipStyle,
+          ]}>
+          <BackstageFlip
+            taskTitle={thread?.title ?? 'dinner with Jenna'}
+            run={dinner}
+            onClose={closeBackstage}
+            onOpenCrew={() => closeBackstage()}
+          />
+        </Animated.View>
+      ) : null}
     </SafeAreaView>
   );
 }

@@ -23,7 +23,7 @@ export function PRConsole() {
     <View
       style={{
         backgroundColor: PANEL_BG,
-        borderRadius: 20,
+        borderRadius: 16,
         borderWidth: 1,
         borderColor: 'rgba(255,255,255,0.28)',
         paddingHorizontal: 16,

@@ -62,12 +62,16 @@ export function MonthOverlay({
   days,
   initialDate,
   highlightTitle,
+ onClose,
 }: {
   days: CalendarDay[];
   /** preselect this day (e.g. right after a booking) */
   initialDate?: number | null;
   /** the freshly booked event blinks in softly */
   highlightTitle?: string | null;
+  /** renders the ✕ in the panel's corner — the panel must always
+   * be closable no matter how it was opened (2026-07-24) */
+  onClose?: () => void;
 }) {
   const [selected, setSelected] = useState<number | null>(initialDate ?? null);
   useEffect(() => {
@@ -106,19 +110,34 @@ export function MonthOverlay({
         backgroundColor: PANEL_BG,
         borderWidth: 1,
         borderColor: 'rgba(255,255,255,0.28)',
-        borderRadius: 28,
+        borderRadius: 16,
         paddingVertical: spacing.lg,
         paddingHorizontal: spacing.xl,
       }}>
-      <Text
+      <View
         style={{
-          color: LABEL,
-          fontSize: fontSize.caption,
-          fontFamily: fontFamily.medium,
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
           marginBottom: spacing.md,
         }}>
-        {CAL_MONTH}
-      </Text>
+        <Text
+          style={{
+            color: LABEL,
+            fontSize: fontSize.caption,
+            fontFamily: fontFamily.medium,
+          }}>
+          {CAL_MONTH}
+        </Text>
+        {onClose ? (
+          <Pressable
+            onPress={onClose}
+            hitSlop={12}
+            style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}>
+            <Text style={{ color: LABEL, fontSize: 15 }}>✕</Text>
+          </Pressable>
+        ) : null}
+      </View>
 
       <View style={{ flexDirection: 'row' }}>
         {WEEKDAY_SHORT.map((w) => (

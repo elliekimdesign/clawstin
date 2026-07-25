@@ -91,7 +91,7 @@ export function WeekStrip({
         backgroundColor: STRIP_BG,
         // no hairline: over chat text the pale edge read as a stray
         // background line — the solid navy alone carries the shape
-        borderRadius: 20,
+        borderRadius: 16,
         paddingVertical: spacing.lg,
         paddingHorizontal: spacing.xl,
       }}>

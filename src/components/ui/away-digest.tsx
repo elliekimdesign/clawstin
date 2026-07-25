@@ -11,13 +11,21 @@ import { fontFamily, fontSize, fontWeight, spacing, sysColor } from '@/theme/the
 import { CrewPixel } from './crew-pixel';
 import { FrostedGlassFill } from './frosted-glass-fill';
 import { MosaicDot } from './mosaic-dot';
-import { TabFlapBg } from './tab-flap';
 
 const INK = '#16181C';
 const INK_DIM = 'rgba(22,24,28,0.55)';
 const INK_GHOST = 'rgba(22,24,28,0.46)';
 const DIVIDER = 'rgba(22,24,28,0.08)';
 const TAB_GAP = 18;
+
+/** WHERE glyphs for the row grammar's trailing slot (2026-07-22):
+ * one small product icon before the age — never a text label here */
+const APP_GLYPH = {
+  gmail: 'mail-outline',
+  github: 'logo-github',
+  drive: 'folder-outline',
+  calendar: 'calendar-clear-outline',
+} as const;
 // the flap's diagonal cut runs 26px; the trailing inactive label
 // clears it (18px is enough when the near edge is straight)
 const CUT = 26;
@@ -48,6 +56,31 @@ function DoneFace({ id }: { id: string }) {
   );
 }
 
+/** your OWN completed asks (2026-07-24): the unset-profile person —
+ * you are not a crew member, so the mark is the blank avatar, wearing
+ * the same done-check badge as the faces. */
+function OwnFace() {
+  return (
+    <View style={{ width: 18, height: 18 }}>
+      {/* icon fills the box, same grid as DoneFace (2026-07-24
+          "얼라인이 안 맞아") */}
+      <Ionicons name="person-circle" size={18} color="rgba(22,24,28,0.4)" />
+      <Text
+        style={{
+          position: 'absolute',
+          top: -6,
+          right: -7,
+          color: sysColor.action,
+          fontSize: 10,
+          lineHeight: 11,
+          fontWeight: '800',
+        }}>
+        ✓
+      </Text>
+    </View>
+  );
+}
+
 const easeNext = () =>
   LayoutAnimation.configureNext({
     duration: 280,
@@ -57,17 +90,12 @@ const easeNext = () =>
   });
 
 /**
- * The away delta as a TWO-TAB folder (2026-07-21): same silhouette,
- * two provenances, named by WHO initiated (the "YOU/CREW" rename):
- * CREW = routine agents acting alone (rules and schedules); YOU =
- * one-off chat-input work, completed. The active tab is the frosted
- * flap; the inactive one sits shaded on the ghost strip behind,
- * exactly where a closed folder's second tab would peek.
- *
- * Still a digest, not a ledger: per-tab computed headline, promoted
- * rows only, rule repeats folded under +N MORE (HANDLED side). The
- * undo rail rides the rows inline. No dismiss and no fold (both were
- * tried): the card stays for the session; details live in Activity.
+ * The away delta as ONE folder (2026-07-24 "crew you 없이 그냥
+ * 하나로"): the Crew/You tab split retired — a single COMPLETED list,
+ * merged by recency. Provenance moved onto the row mark instead:
+ * crew-initiated rows wear the member's face, your own asks wear the
+ * unset-profile avatar. Still a digest, not a ledger: rule repeats
+ * fold under +N DONE, undo rides the rows, details live in Activity.
  */
 export function AwayDigestCard({
   digest,
@@ -84,29 +112,15 @@ export function AwayDigestCard({
   onOpenThread: (threadId: string) => void;
   onUndo: (u: Undoable) => void;
 }) {
-  const [tab, setTab] = useState<'auto' | 'asked'>('auto');
-  const [handledW, setHandledW] = useState(0);
-  const [askedW, setAskedW] = useState(0);
+  const [labelW, setLabelW] = useState(0);
   const [routinesOpen, setRoutinesOpen] = useState(false);
   const [armedRevert, setArmedRevert] = useState<string | null>(null);
   // which row is swiped open: its time readout hides while the Undo
   // key is out (2026-07-22 "숫자정보는 사라지게")
   const [swipedKey, setSwipedKey] = useState<string | null>(null);
 
-  // tab footprints in the flap-measure grammar: 18 + label + 18. The
-  // ACTIVE tab always wears the front-left flap (2026-07-21 "asked가
-  // 앞으로 오고"): selecting a tab brings its folder forward, so the
-  // flap stays put and the labels trade places instead.
-  const W1 = handledW ? TAB_GAP + handledW + TAB_GAP : 110;
-  const W2 = askedW ? TAB_GAP + askedW + TAB_GAP : 90;
+  const flapW = labelW ? TAB_GAP + labelW + TAB_GAP : 122;
 
-  const switchTab = (t: 'auto' | 'asked') => {
-    if (t === tab) return;
-    easeNext();
-    setTab(t);
-    setArmedRevert(null);
-    setRoutinesOpen(false);
-  };
   const toggleRoutines = () => {
     // the height glides via LayoutAnimation, but each row makes its own
     // ENTRANCE (2026-07-21 "리스트마다 다라락"): no `create` here so the
@@ -119,9 +133,17 @@ export function AwayDigestCard({
     setRoutinesOpen((v) => !v);
   };
 
-  const rows = tab === 'auto' ? digest.auto : digest.asked;
-  const total =
-    tab === 'auto' ? digest.auto.length + digest.routines.length : digest.asked.length;
+  // merged single list (2026-07-24): crew work and your own asks in
+  // one COMPLETED river, newest first (ago strings parsed to minutes)
+  const agoMin = (s: string) => {
+    const m = s.match(/(\d+)\s*([mhd])/);
+    if (!m) return 0;
+    return Number(m[1]) * (m[2] === 'm' ? 1 : m[2] === 'h' ? 60 : 1440);
+  };
+  const rows = [
+    ...digest.auto.map((h) => ({ ...h, own: false })),
+    ...digest.asked.map((h) => ({ ...h, own: true })),
+  ].sort((a, b) => agoMin(a.ago) - agoMin(b.ago));
 
   return (
     <Animated.View
@@ -141,53 +163,21 @@ export function AwayDigestCard({
             The flap NEVER moves: the active tab's label sits inside it
             at front-left, the inactive one waits behind on the ghost
             strip, past the diagonal cut. */}
-        <FrostedGlassFill radius={16} tabWidth={tab === 'auto' ? W1 : W2} />
+        <FrostedGlassFill radius={16} tabWidth={flapW} />
         <View style={{ height: 26, flexDirection: 'row', alignItems: 'center' }}>
-          {(tab === 'auto' ? (['auto', 'asked'] as const) : (['asked', 'auto'] as const)).map(
-            (k, i) => (
-              <View key={k} style={{ flexDirection: 'row', alignItems: 'center' }}>
-                {/* second label clears the front flap's diagonal */}
-                {i === 1 ? <View style={{ width: TAB_GAP + CUT }} /> : null}
-                <Pressable
-                  hitSlop={10}
-                  onPress={() => switchTab(k)}
-                  style={({ pressed }) =>
-                    k === tab
-                      ? { opacity: pressed ? 0.6 : 1 }
-                      : {
-                          // the waiting tab is a BUTTON in the flap's
-                          // own shape (2026-07-21 "쉐입을 이거랑
-                          // 같이"): mini flap silhouette, shaded
-                          height: 26,
-                          justifyContent: 'center',
-                          paddingLeft: 12,
-                          paddingRight: 12 + CUT,
-                          opacity: pressed ? 0.6 : 1,
-                        }
-                  }>
-                  {k !== tab ? (
-                    <TabFlapBg
-                      w={(k === 'auto' ? handledW || 60 : askedW || 44) + 24 + CUT * 2}
-                    />
-                  ) : null}
-                  <Text
-                    onTextLayout={(e) => {
-                      const w = Math.ceil(e.nativeEvent.lines[0]?.width ?? 0);
-                      if (k === 'auto' && w !== handledW) setHandledW(w);
-                      if (k === 'asked' && w !== askedW) setAskedW(w);
-                    }}
-                    style={{
-                      fontSize: 12,
-                      fontFamily: fontFamily.mono,
-                      letterSpacing: 0.3,
-                      color: k === tab ? INK_DIM : INK_GHOST,
-                    }}>
-                    {k === 'auto' ? 'Crew' : 'You'}
-                  </Text>
-                </Pressable>
-              </View>
-            )
-          )}
+          <Text
+            onTextLayout={(e) => {
+              const w = Math.ceil(e.nativeEvent.lines[0]?.width ?? 0);
+              if (w && w !== labelW) setLabelW(w);
+            }}
+            style={{
+              fontSize: 12,
+              fontFamily: fontFamily.mono,
+              letterSpacing: 0.3,
+              color: INK_DIM,
+            }}>
+            Completed
+          </Text>
           <View style={{ flex: 1 }} />
           {/* corner grammar (2026-07-22, same as the hero): +HIDDEN
               count, never the list size — but DONE stays, since the
@@ -195,7 +185,7 @@ export function AwayDigestCard({
               nothing folded = a plain "DONE" stamp. */}
           <Pressable
             hitSlop={12}
-            disabled={!(tab === 'auto' && digest.routines.length > 0)}
+            disabled={digest.routines.length === 0}
             onPress={toggleRoutines}
             style={({ pressed }) => ({
               flexDirection: 'row',
@@ -209,11 +199,11 @@ export function AwayDigestCard({
                 letterSpacing: 0.3,
                 color: INK_DIM,
               }}>
-              {tab === 'auto' && digest.routines.length > 0 && !routinesOpen
+              {digest.routines.length > 0 && !routinesOpen
                 ? `+${digest.routines.length} DONE`
                 : 'DONE'}
             </Text>
-            {tab === 'auto' && digest.routines.length > 0 ? (
+            {digest.routines.length > 0 ? (
               <Ionicons
                 name={routinesOpen ? 'chevron-up' : 'chevron-down'}
                 size={11}
@@ -244,26 +234,43 @@ export function AwayDigestCard({
                 borderTopColor: DIVIDER,
                 opacity: pressed ? 0.5 : 1,
               })}>
-              {/* provenance mark (2026-07-21): crew-initiated rows wear
-                  the responsible member's FACE; user-asked rows keep
-                  the blue mosaic dot */}
+              {/* provenance mark (2026-07-24): crew-initiated rows
+                  wear the responsible member's FACE; your OWN asks
+                  wear the unset-profile avatar ("프로필 설정 안 된
+                  이모지") — the empty person, since you have no crew
+                  face */}
               <View style={{ width: 20, alignItems: 'flex-start' }}>
-                {h.agentId ? (
+                {h.own ? (
+                  <OwnFace />
+                ) : h.agentId ? (
                   <DoneFace id={h.agentId} />
                 ) : (
                   <MosaicDot color={sysColor.action} />
                 )}
               </View>
               <View style={{ flex: 1 }}>
-                <Text
-                  numberOfLines={1}
-                  style={{
-                    fontSize: fontSize.body,
-                    fontFamily: fontFamily.regular,
-                    color: INK,
-                  }}>
-                  {h.label}
-                </Text>
+                {/* row grammar v2 (2026-07-22 "아이콘을 문장 끝으로"):
+                    the WHERE glyph rides the end of the sentence, not
+                    the time cluster — the age stands alone */}
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text
+                    numberOfLines={1}
+                    style={{
+                      flexShrink: 1,
+                      fontSize: fontSize.body,
+                      fontFamily: fontFamily.regular,
+                      color: INK,
+                    }}>
+                    {h.label}
+                  </Text>
+                  {h.app ? (
+                    <Ionicons
+                      name={APP_GLYPH[h.app] ?? 'apps-outline'}
+                      size={12}
+                      color={INK_DIM}
+                    />
+                  ) : null}
+                </View>
                 {/* the armed row states what stays done — reversibility
                     honesty travels with the swipe key */}
                 {armed && undoable?.irreversible ? (
@@ -278,7 +285,7 @@ export function AwayDigestCard({
                   the row is swiped open. */}
               <Text
                 style={{
-                  fontSize: 10,
+                  fontSize: 11,
                   fontFamily: fontFamily.mono,
                   color: INK_DIM,
                   opacity: swipedKey === h.key ? 0 : 1,
@@ -342,7 +349,7 @@ export function AwayDigestCard({
             );
           })}
         </View>
-        {tab === 'auto' && routinesOpen
+        {routinesOpen
           ? digest.routines.map((r, idx) => (
               // expanded repeats are CHILDREN of the rule row above
               // (2026-07-22 "들여쓰기해서 안으로"): indented past the
@@ -363,20 +370,36 @@ export function AwayDigestCard({
                   borderTopColor: DIVIDER,
                   opacity: pressed ? 0.5 : 1,
                 })}>
-                <Text
-                  numberOfLines={1}
+                {/* glyph rides the sentence end here too (2026-07-22
+                    "아이콘을 문장 끝으로"); the age stands alone */}
+                <View
                   style={{
                     flex: 1,
-                    fontSize: fontSize.body,
-                    fontFamily: fontFamily.regular,
-                    color: INK,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 6,
                   }}>
-                  {r.label}
-                </Text>
-                {/* no check here (2026-07-22 "뜬금없는데"): these are
-                    sub-entries — the parent row's badge already says
-                    done for the whole group; children just carry time */}
-                <Text style={{ fontSize: 10, fontFamily: fontFamily.mono, color: INK_DIM }}>
+                  <Text
+                    numberOfLines={1}
+                    style={{
+                      flexShrink: 1,
+                      fontSize: fontSize.body,
+                      fontFamily: fontFamily.regular,
+                      color: INK,
+                    }}>
+                    {r.label}
+                  </Text>
+                  {r.app ? (
+                    <Ionicons
+                      name={APP_GLYPH[r.app] ?? 'apps-outline'}
+                      size={12}
+                      color={INK_DIM}
+                    />
+                  ) : null}
+                </View>
+                {/* no check here (2026-07-22 "뜬금없는데"): sub-entries
+                    just carry time */}
+                <Text style={{ fontSize: 11, fontFamily: fontFamily.mono, color: INK_DIM }}>
                   {r.ago}
                 </Text>
               </Pressable>

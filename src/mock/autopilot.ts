@@ -30,11 +30,25 @@ export const AUTOPILOT_RULES: AutopilotRule[] = [
     runs: 4,
     undone: 0,
     threadId: 't2',
-    next: 'on new PR',
+    // "when ..." language (2026-07-22): event rules answer the same
+    // "when does this run?" slot as schedule cadences
+    next: 'when a PR arrives',
     recent: [
       { label: 'Blocked 10:00–10:30 for auth-service #482', ago: '2m' },
       { label: 'Quiet overnight, nothing new waiting', ago: '10h' },
     ],
+  },
+  // a second github rule so the Routines board can show its category
+  // grouping (2026-07-22): rules sharing an app fold under one header
+  {
+    key: 'github-release-notes',
+    app: 'github',
+    name: 'Release notes draft',
+    runs: 2,
+    undone: 0,
+    threadId: 't2',
+    next: 'when main merges',
+    recent: [{ label: 'Drafted notes for v0.4.1', ago: '1d' }],
   },
 ];
 

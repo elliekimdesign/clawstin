@@ -127,13 +127,13 @@ export function ScheduleCard({
                   // the compose family's grained glass at the board's
                   // 14 radius (2026-07-17 "디자인 업데이트" — the
                   // solid white pill was the last old-language button)
-                  borderRadius: 14,
+                  borderRadius: 16,
                   overflow: 'hidden',
                   paddingVertical: 7,
                   paddingHorizontal: spacing.md,
                   opacity: pressed ? 0.85 : 1,
                 })}>
-                <FrostedGlassFill flat radius={14} tint="rgba(255,255,255,0.92)" />
+                <FrostedGlassFill flat radius={16} tint="rgba(255,255,255,0.92)" />
                 <Text
                   style={{
                     color: darkChat.onLight,
