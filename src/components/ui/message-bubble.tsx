@@ -28,15 +28,25 @@ const NUDGE = '#F0812F';
  * every sentence starts this far in from the scroll's edge padding. Set by
  * the agent row's own face chip (22) + gap (8) — the caption and the child
  * cards indent to match it, since they have no face to push them. */
-const TEXT_COL = 34;
+// 34 -> 16 -> 4 (2026-07-25 "너무 띄어서 글씨가 시작해 왼쪽에서"): 34 cleared
+// the old leading face chip. The ScrollView ALREADY pads spacing.lg (14) down
+// each side, so a further 16 here stacked into ~30px of dead margin before the
+// first letter. This is now just a hair of optical inset on top of the
+// scroll's own padding. Must stay equal to TEXT_COL in app/chat/[id].tsx.
+const TEXT_COL = 4;
 
 const BODY_STYLE = {
   // v3 (2026-07-17, mosaic blue desk + "컨텐츠는 흰색으로"): the field
   // is the desk blue again, so agent replies speak in white — the same
   // way Home's own text sits on the desk
-  color: 'rgba(255,255,255,0.96)',
-  fontSize: 16,
-  lineHeight: 24,
+  // INK, not white (2026-07-25): the mosaic field went pale, so a white
+  // voice measured 1.29:1. Mirrors darkChat.text.
+  color: '#16181C',
+  // 16 -> 17.5 (2026-07-25 "본문 바디 글씨를 조금더 크게"): this is the
+  // screen's reading text, so it should outrank the mono step labels and the
+  // header pill rather than match them
+  fontSize: 17.5,
+  lineHeight: 25,
   fontFamily: fontFamily.regular,
 } as const;
 
@@ -170,45 +180,61 @@ function AgentMessage({
           entering={FadeIn.duration(320).springify().damping(16).withInitialValues({
             transform: [{ translateY: 16 }],
           })}
-          // ONE TEXT COLUMN (2026-07-24 "전광판에 나오는 거랑 똑같은 데서
-          // 시작"): this row DEFINES the column — face chip (22) + gap (8)
-          // puts its text 30px in, and the mast/index/cards were moved to
-          // match. Pulling this row left instead would have shoved the face
-          // flush against the screen edge.
-          style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
-          {/* the face rides a white profile chip (2026-07-22 "챗
-              프로필처럼": bare pixels on the field read colorless and
-              harsh) and tops out level with the first text line */}
+          // THE FACE LEADS AGAIN, but SMALL (2026-07-25 "이모지를 글씨 앞에
+          // 넣기"): it briefly signed the END of the reply, which read as a
+          // stray dot floating after the last line. Back at the front it says
+          // who is speaking before you read what they said — the original
+          // 2026-07-22 instinct — except at 18px instead of the old 26px
+          // chip, so the text column only steps in a little.
+          style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 7 }}>
+          {/* the face rides a white profile chip ("챗 프로필처럼", 2026-07-22:
+              bare pixels on the blue field read colorless and harsh) and tops
+              out level with the first text line */}
           <View
             style={{
-              marginTop: 1,
-              width: 26,
-              height: 26,
-              borderRadius: 13,
+              marginTop: 3,
+              // 18 -> 23 chip (2026-07-25 "이 페이스 사이즈는 앞에 홈탭에
+              // 나오는 애사이즈만큼 하거나 약간 더 크게해도돼"): Home's board
+              // rows draw their crew faces at FACE = 21, and this reply chip
+              // was sitting under that. A hair larger than Home is fine here —
+              // the chat has one face per reply, not a dense column of them.
+              width: 23,
+              height: 23,
+              borderRadius: 11.5,
               backgroundColor: 'rgba(255,255,255,0.92)',
               alignItems: 'center',
               justifyContent: 'center',
             }}>
-            {/* a touch bigger inside the SAME chip (2026-07-24 "얼굴 조금만
-                더 크게 아주조금만"): the chip stays 22 so the 30px text
-                column (chip + gap) doesn't move — only the face fills more
-                of it, 15 → 17 */}
-            {agentId ? (
-              <CrewPixel id={agentId} size={20} />
-            ) : (
-              <ClawstinMark size={20} />
-            )}
+            {agentId ? <CrewPixel id={agentId} size={19} /> : <ClawstinMark size={19} />}
           </View>
-          <View style={{ flex: 1 }}>
-            <Text style={BODY_STYLE}>{text}</Text>
-          </View>
+          <Text style={[BODY_STYLE, { flex: 1 }]}>{text}</Text>
         </Animated.View>
       ) : null}
-      {/* cards keep the same left edge as the sentence above them — the reply
-          and its evidence read as one block (2026-07-24). They still run to
-          the full right margin. */}
+      {/* cards align to the reply's TEXT, not its face (2026-07-25 "글씨 밑으로
+          대답 시작부분에 맞춰서 더 정렬해서 크기를 줄여서... 페이스부분까지
+          나오는게 아니야"): they used to start at TEXT_COL, i.e. the face
+          column, so every card hung one step further left than the sentence it
+          belonged to and read as a sibling of the reply rather than its
+          evidence. +30 clears the face chip (23) and its gap (7), putting the
+          card's left edge exactly under the first letter above it. The right
+          edge pulls in too, so the card is visibly NARROWER than the text
+          block — subordinate to it. */}
       {children ? (
-        <View style={{ marginTop: text ? spacing.md : 0, paddingLeft: TEXT_COL }}>
+        <View
+          style={{
+            marginTop: text ? spacing.md : 0,
+            // 30, NOT TEXT_COL + 30 (2026-07-25 "여기 버튼길이가 글씨
+            // 시작부분보다 짧네"): the reply row above pays TEXT_COL once
+            // already, so adding it again here pushed the card 4px right of the
+            // sentence. 30 = the face chip (23) + its gap (7), which is exactly
+            // the offset from the row's edge to the first letter.
+            paddingLeft: 30,
+            // TEXT_COL, not +8 (2026-07-25 "이 네모 끝이 프롬프트 오른쪽 선
+            // 끝이랑 안맞아. 약간더 길어도디"): the extra 8 left the card's
+            // right edge 8px short of the ask pane's, so the two surfaces did
+            // not share a right margin. They line up exactly now.
+            paddingRight: TEXT_COL,
+          }}>
           {children}
         </View>
       ) : null}

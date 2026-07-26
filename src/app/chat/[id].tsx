@@ -13,6 +13,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import Animated, {
@@ -24,7 +25,9 @@ import Animated, {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ApprovalCard } from '@/components/ui/approval-card';
+import { AskPaneCorners } from '@/components/ui/ask-pane-corners';
 import { type SeedPhase } from '@/components/ui/new-chat-seed';
+import { ConsoleFace } from '@/components/ui/console-face';
 import { CrewSwitch } from '@/components/ui/crew-switch';
 import { AquaBg } from '@/components/ui/aqua-bg';
 import { ButterBg } from '@/components/ui/butter-bg';
@@ -36,13 +39,11 @@ import { MintBg } from '@/components/ui/mint-bg';
 import { MonthOverlay } from '@/components/ui/month-overlay';
 import { DraftCard } from '@/components/ui/draft-card';
 import { MessageBubble } from '@/components/ui/message-bubble';
-import { PromptMast } from '@/components/ui/prompt-mast';
 import { PipelineCard } from '@/components/ui/pipeline-card';
 import { PRConsole } from '@/components/ui/pr-console';
 import { ResultCard } from '@/components/ui/result-card';
 import { ScheduleProposalCard } from '@/components/ui/schedule-proposal-card';
 import { ScheduleCard } from '@/components/ui/schedule-card';
-import { ThinkingBlob } from '@/components/ui/thinking-blob';
 import { ThinkingConsole } from '@/components/ui/thinking-console';
 import { WeekStrip } from '@/components/ui/week-strip';
 import { routeCrew, type CrewKey } from '@/mock/crew-routing';
@@ -52,12 +53,6 @@ import { brandBlue, darkChat, fontFamily, fontSize, radius, shadow, spacing , sy
 
 const GLASS_AVAILABLE = Platform.OS === 'ios' && isGlassEffectAPIAvailable();
 
-/** First-frame stand-in for the prompt mast's height, before onLayout
- * measures it: one line of 16/22 type plus its 14px padding. Only used for
- * the occluder plate and the scroll-index line, both of which re-derive from
- * the real measurement a frame later. */
-const MAST_MIN_H = 50;
-
 /** THE TEXT COLUMN (2026-07-24 "전광판에 나오는 거랑 똑같은 데서 시작"):
  * every sentence on this screen — the mast's own words, the gray index lines,
  * the replies, the NEW TASK marker — starts this far in from the scroll's
@@ -65,7 +60,29 @@ const MAST_MIN_H = 50;
  * because that face can't be shoved to the screen edge; the mast's padding
  * matches it. Grew 30 -> 34 when the face did (2026-07-24 "페이스부분들 더
  * 약간 크게하고 필요하면 글씨들 더 오른쪽으로"). Mirrors message-bubble.tsx. */
-const TEXT_COL = 34;
+// The thread's left inset, ON TOP of the ScrollView's own spacing.lg (14)
+// edge padding. 34 (mast orb slot) -> 16 -> 4 (2026-07-25 "너무 띄어서 글씨가
+// 시작해 왼쪽에서"): the two were stacking into ~30px of dead margin before
+// the first letter. Must stay equal to TEXT_COL in message-bubble.tsx.
+// prompt-mast.tsx is unused as of 2026-07-25 but kept in the tree for its
+// design history, the way acid-swoosh-bg.tsx was.
+const TEXT_COL = 4;
+
+/** how far the run panel reaches UP past its wrapper to cover the header row
+ * (2026-07-25). The header is paddingVertical spacing.sm (8) around a 40px
+ * button row, so 56 clears it with a little margin. */
+const HEADER_BLEED = 56;
+
+/** ONE vertical rhythm for the thread (2026-07-25 "간격이 일정하지 않음"): the
+ * gap above an ask and the gap below it must be equal, or turns read as
+ * lopsided. Above = the reply block's own marginBottom (spacing.lg 14) PLUS the
+ * ask's marginTop, so the ask contributes TURN_GAP - 14. Below = the meta row's
+ * marginBottom, which is TURN_GAP outright. Change this, not the pieces. */
+const TURN_GAP = 30;
+
+/** the run panel wears the >_ key's own dark face, so opening the panel reads
+ * as the same object expanding rather than a separate surface appearing. */
+const RUN_PANEL_BG = '#0E1626';
 
 /** The conversation view for one thread. Rendered two ways: pushed over
  * the tabs (with a back button) and inside the Chat tab's slider
@@ -103,6 +120,7 @@ export function ChatThreadView({
     sendDraft,
     runScheduleOnce,
     confirmSchedule,
+    runArchive,
     crewSelected,
     crewManual,
     crewBusy,
@@ -126,7 +144,10 @@ export function ChatThreadView({
     setCalRail((v) => !v);
   };
   const [crewExpanded, setCrewExpanded] = useState(false);
+  const { height: winH } = useWindowDimensions();
   const scrollRef = useRef<ScrollView>(null);
+  /** the run panel's own scroller — parked at the bottom (newest run) */
+  const runScrollRef = useRef<ScrollView>(null);
 
   const effId = boundId ?? id;
   // a screen that changes identity (new chat, bound thread) always
@@ -167,14 +188,16 @@ export function ChatThreadView({
   const thinkingHere = thinking?.threadId === effId ? thinking : null;
   // the floating console's measured height, so the scroll's content
   // starts below it at rest but slides BEHIND it when scrolling
-  // the pinned prompt mast's measured height — the console stacks under
-  // it, and the scroll clears both
-  const [mastH, setMastH] = useState(0);
   // console fold: expanded = full log floating up top (chat slides
   // behind); folded = a small circle docked at the right, above the
   // composer. Seeded threads arrive folded; folding/unfolding reflows
   // the chat naturally (LayoutAnimation in the console's toggle).
   const [consoleFolded, setConsoleFolded] = useState(true);
+  // the pinned RUN PANEL under the header (2026-07-25): opened by the
+  // composer's >_ key, it shows the ask in small type plus the live parse /
+  // execute / synthesize steps. Closed by default — the thread is the main
+  // event; this is the machine's side of it, on demand.
+  const [runPanelOpen, setRunPanelOpen] = useState(false);
 
   // BACKSTAGE FLIP retired 2026-07-24 ("티비 기능자체도 다 삭제해도
   // 플립하면 나오는것들"): the analog-TV mark, the flip-side crew graph it
@@ -238,66 +261,22 @@ export function ChatThreadView({
   // and swaps as you scroll, like a sticky section header. So the small gray
   // prompt lines came BACK into the thread (they're the anchors this indexes),
   // and the mast stopped stacking every ask at once.
-  const [activePromptId, setActivePromptId] = useState<string | null>(null);
-  // measured y of each in-thread prompt line, keyed by message id
-  const promptTops = useRef<Record<string, number>>({});
-  const activePrompt =
-    currentTaskPrompts.find((p) => p.id === activePromptId) ??
-    currentTaskPrompts[currentTaskPrompts.length - 1];
-
-  // Pick the ask whose ANSWER fills the screen right now: the last prompt
-  // line that has scrolled up past the pinned band. Cheap comparison against
-  // measured offsets, so it runs fine on every scroll frame.
-  //
-  // While the thread still FITS on screen there is nothing to index, so the
-  // mast shows the newest ask (2026-07-24 "첫화면에서는 스크롤이 안넘어가기
-  // 때문에 가장 마지막에 프롬프트 친게 나오면돼"). Tracking only takes over
-  // once the content actually overflows — otherwise a short thread would pin
-  // whichever ask happened to sit above the fold.
-  const onScrollIndex = (y: number, viewH: number, contentH: number) => {
-    // Nothing to index, or parked AT THE BOTTOM: the mast shows the newest
-    // ask (2026-07-24 "항상 가장최근에 쓴 프롬프트가 그대로 오는거야"). The
-    // bottom case is the bug fix — sending a message calls scrollToEnd, whose
-    // scroll event then overwrote the "show newest" reset with whatever ask
-    // happened to sit above the fold, so a fresh prompt never took the mast.
-    const atBottom = y + viewH >= contentH - 24;
-    if (contentH <= viewH + 4 || atBottom) {
-      setActivePromptId(null); // null = "just show the newest"
-      return;
-    }
-    const line = y + mastTop + (mastH || MAST_MIN_H);
-    let next: string | null = null;
-    currentTaskPrompts.forEach((p) => {
-      const top = promptTops.current[p.id];
-      if (top != null && top <= line) next = p.id;
-    });
-    // above the first prompt, hold the first one rather than blanking
-    const resolved = next ?? currentTaskPrompts[0]?.id ?? null;
-    if (resolved !== activePromptId) setActivePromptId(resolved);
-  };
-
-  // A FRESH ask takes the mast and HOLDS it (2026-07-24 "최신 프롬프트를 치면
-  // 그게 계속 떠잇어야해"): sending scrolls the thread to the bottom, and the
-  // index would otherwise keep pointing at whatever you had scrolled to.
-  // Clearing to null hands the mast back to "newest", and normal scroll
-  // tracking resumes the moment you scroll again.
+  // THE SCROLL INDEX IS GONE (2026-07-25): activePromptId, promptTops and
+  // onScrollIndex existed ONLY to decide which ask the pinned mast should
+  // name. With the mast removed the whole mechanism is dead weight — and it
+  // was the source of the contradiction Ellie flagged, since the pinned copy
+  // renamed itself mid-scroll while the thread below said something else.
+  // still needed: the run console attaches to the NEWEST ask only, so older
+  // finished turns don't replay their steps
   const newestPromptId = currentTaskPrompts[currentTaskPrompts.length - 1]?.id;
-  useEffect(() => {
-    setActivePromptId(null);
-  }, [newestPromptId]);
-  // a different thread's offsets must not survive into this one — they'd
-  // point the index at rows that no longer exist
-  useEffect(() => {
-    promptTops.current = {};
-    setActivePromptId(null);
-  }, [effId]);
+  // the ask the run panel labels itself with — always the newest, since that
+  // is the one the console is narrating
+  const activeAsk = currentTaskPrompts[currentTaskPrompts.length - 1]?.text;
 
-  const mastTop = spacing.sm;
-  // only RESERVE the band while a mast is actually up: a stale mastH
-  // from a previous thread would leave the console floating in a gap
-  const mastVisible = currentTaskPrompts.length > 0 && !calOpen;
-  const mastBand = mastVisible && mastH ? mastH + spacing.sm : 0;
-  const consoleTop = mastTop + mastBand;
+  // THE MAST IS GONE (2026-07-25) — nothing is pinned over the thread any
+  // more, so there is no band to reserve and no measured height to track.
+  // consoleTop is now just the top inset the calendar rail hangs from.
+  const consoleTop = spacing.sm;
   const consoleDone = thinkingHere ? thinkingHere.done : bootLog.length > 0;
   const consoleDocked = consoleDone && consoleFolded;
   // ONE source for whichever log the console is showing (2026-07-24): a live
@@ -442,14 +421,24 @@ export function ChatThreadView({
   }, [called?.key, threadCrew, crewBusy, seedPhase]);
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: darkChat.base }} edges={['top', 'bottom']}>
+    /* the safe-area fill follows the RUN PANEL (2026-07-25 "버튼 누를떄는 여기도
+       변화시키기"): the panel bleeds up over the header, but the notch/status
+       band above it is painted by this SafeAreaView — so it stayed pale and cut
+       a light stripe across the dark plate. It now switches with the panel. */
+    <SafeAreaView
+      style={{
+        flex: 1,
+        backgroundColor: runPanelOpen ? RUN_PANEL_BG : darkChat.base,
+      }}
+      edges={['top', 'bottom']}>
       {/* the whole chat. Was the flippable FRONT of a card until the
           backstage flip retired (2026-07-24); now a plain wrapper. */}
       <Animated.View style={{ flex: 1 }}>
       {/* blue desk: light status icons */}
       {/* v5 (2026-07-17, mosaic desk): white icons on the blue field,
           dark on the light colorways */}
-      <StatusBar style={darkChat.background === 'desk' ? 'light' : 'dark'} />
+      {/* light glyphs on the dark run panel, dark on the pale field */}
+      <StatusBar style={runPanelOpen ? 'light' : 'dark'} />
       {/* Background art follows the active chat colorway (see chatThemes) */}
       {darkChat.background === 'aqua' ? (
         <AquaBg />
@@ -618,91 +607,20 @@ export function ChatThreadView({
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}>
         <View style={{ flex: 1 }}>
-          {/* THE MASK behind the pinned band (2026-07-24 "여기사이 글씨가
-              보이는데 안보이게"): the mast floats with 8px of air above it
-              and 14px down each side, and the thread scrolls THROUGH those
-              gaps — so sentences were sliding past in the seam between the
-              header and the mast. A desk-blue plate spanning the full width
-              swallows them. It reads as nothing (same color as the field);
-              it's purely an occluder, so it sits just under the mast. */}
-          {currentTaskPrompts.length && !calOpen ? (
-            <View
-              pointerEvents="none"
-              style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                // covers the air above AND the seam right below the box; on
-                // the very first frame mastH is still 0, so fall back to the
-                // mast's own min height rather than flashing an 8px sliver
-                height: mastTop + (mastH || MAST_MIN_H) + spacing.xs,
-                backgroundColor: darkChat.base,
-                // just under the mast (21). This plate is now the ONLY thing
-                // stopping the thread showing through, since the mast's face
-                // went translucent to match the crew pill (2026-07-24) — its
-                // height tracks the measured mast, so it grows with the
-                // console that now lives inside it.
-                zIndex: 20,
-              }}
-            />
-          ) : null}
-          {/* PROMPT MAST: the current task's asks, pinned in the band
-              between the crew pill and the console (2026-07-24). Hidden
-              while the month view is open, like the console — a panel
-              that big owns the screen. */}
-          {currentTaskPrompts.length && !calOpen ? (
-            <View
-              style={{
-                position: 'absolute',
-                top: mastTop,
-                left: spacing.lg,
-                right: spacing.lg,
-                zIndex: 21,
-              }}>
-              <PromptMast
-                prompt={activePrompt?.text}
-                // the at-rest orb in the mast's FACE slot (2026-07-24): the
-                // "you typed this" counterpart to the crew face on replies.
-                // 36 canvas for a ~22 visible orb — it draws itself inset,
-                // so the canvas runs larger than the mark you see.
-                blob={
-                  !isTyping && (thread?.messages.some((m) => m.from === 'agent') ?? false) ? (
-                    <ThinkingBlob size={36} />
-                  ) : null
-                }
-                // The run console lives INSIDE the mast either way
-                // (2026-07-24): folded, a small square on the ask's line;
-                // expanded, the full log directly below on the text column.
-                dock={
-                  consoleDocked && consoleSource ? (
-                    <ThinkingConsole
-                      threadId={consoleSource.threadId}
-                      lines={consoleSource.lines}
-                      done={consoleSource.done}
-                      failed={consoleSource.failed}
-                      folded
-                      compactDock
-                      onToggleFold={() => setConsoleFolded(false)}
-                    />
-                  ) : null
-                }
-                below={
-                  !consoleDocked && consoleSource ? (
-                    <ThinkingConsole
-                      threadId={consoleSource.threadId}
-                      lines={consoleSource.lines}
-                      done={consoleSource.done}
-                      failed={consoleSource.failed}
-                      folded={false}
-                      onToggleFold={() => setConsoleFolded(true)}
-                    />
-                  ) : null
-                }
-                onLayout={(e) => setMastH(Math.ceil(e.nativeEvent.layout.height))}
-              />
-            </View>
-          ) : null}
+          {/* The occluder plate went with the mast (2026-07-25): it existed
+              only to swallow thread text sliding through the gaps around a
+              floating pinned box. With nothing pinned, nothing to hide. */}
+          {/* THE PROMPT MAST IS GONE (2026-07-25 "굉장히 헷갈리거는거같아
+              체계도 없고"). It was a sticky index naming whichever answer you
+              had scrolled to — a reasonable idea that produced a screen where
+              the SAME ask appeared twice (once pinned, once in the thread),
+              and where the pinned copy actively contradicted what was
+              on-screen because it renamed itself mid-scroll. Two labels
+              claiming "your prompt" with no stated relationship is the whole
+              source of the confusion.
+              The thread now carries its own structure instead: one TURN =
+              your ask, the run steps that answered it, then the reply. A turn
+              is self-explaining, so nothing needs pinning above it. */}
           {/* Both console states moved INSIDE the prompt mast (2026-07-24):
               the free-floating overlay that used to sit under the mast, and
               the folded >_ that hid in the composer's corner, are now the
@@ -776,6 +694,115 @@ export function ChatThreadView({
               ))}
             </View>
           ) : null}
+          {/* THE RUN PANEL (2026-07-25 "누르면 챗 프롬프트 친거 위로 항상
+              가장위에... 화면을 켜서 보여지게하기"): a pinned readout in the
+              band between the header and the first message, opened by the
+              composer's >_ key. Two things, in the order she asked for them:
+              the ask in small type, then what the machine is doing with it.
+              It OVERLAYS the scroll (absolute, zIndex 25) so the thread slides
+              beneath and the panel always shows the current run no matter how
+              far down you have read. A desk-blue plate behind it stops thread
+              text ghosting through the gaps. */}
+          {runPanelOpen && consoleSource ? (
+            <Animated.View
+              entering={FadeIn.duration(180)}
+              exiting={FadeOut.duration(140)}
+              style={{
+                position: 'absolute',
+                // REACHES UP BEHIND THE HEADER (2026-07-25 "뒤에 중간에
+                // 페인트안된곳고 페인트해주기 아이콘잇는 부분"): the panel lives
+                // inside the content wrapper, which starts BELOW the header row,
+                // so at top:0 it left the header's own band unpainted and the
+                // plate appeared to float in a gap. HEADER_BLEED lifts it over
+                // that row and the same amount comes back as paddingTop, so the
+                // content stays put while the fill covers the icons' strip.
+                top: -HEADER_BLEED,
+                left: 0,
+                right: 0,
+                zIndex: 25,
+                // the CONSOLE BUTTON's own dark face (2026-07-25 "컬러 콘솔
+                // 버튼이랑같은색으로하기"): this panel is what the >_ key opens,
+                // so it wears the key's colour — one object, two states.
+                backgroundColor: RUN_PANEL_BG,
+                paddingTop: HEADER_BLEED + spacing.sm,
+                paddingBottom: 12,
+                paddingHorizontal: spacing.lg,
+              }}>
+              {/* A RECEIPT ROLL (2026-07-25 "해당하는 탭 열였을때 모든 프롬프트랑
+                  그 과정을 다 영수증 히스토리처럼 보여줘야해서 위로 올리면 그
+                  기록들이 다 똑같이 나오게해줘"): every finished run on this
+                  thread, oldest at the top, then the live one last. It used to
+                  show only the current run, because the store's `thinking` holds
+                  one run and is overwritten on the next send — finished runs are
+                  now archived per thread (see runArchive in app-store).
+                  maxHeight caps it at half the screen so the panel can never
+                  swallow the whole thread; inside that it scrolls. */}
+              <ScrollView
+                style={{ maxHeight: winH * 0.5 }}
+                showsVerticalScrollIndicator={false}
+                // opens parked at the BOTTOM: the newest run is what you just
+                // asked about, and older ones are what you scroll up to find
+                ref={runScrollRef}
+                onContentSizeChange={() =>
+                  runScrollRef.current?.scrollToEnd({ animated: false })
+                }>
+                {(runArchive[effId] ?? []).map((rec, ri) => (
+                  <View key={`arch-${ri}`} style={{ marginBottom: 18 }}>
+                    {rec.ask ? (
+                      <Text
+                        numberOfLines={1}
+                        style={{
+                          fontSize: 12,
+                          lineHeight: 17,
+                          fontFamily: fontFamily.regular,
+                          color: 'rgba(255,255,255,0.6)',
+                          marginBottom: 8,
+                        }}>
+                        {rec.ask}
+                      </Text>
+                    ) : null}
+                    <ThinkingConsole
+                      threadId={`${effId}-arch-${ri}`}
+                      lines={rec.lines}
+                      done
+                      failed={rec.failed}
+                      folded={false}
+                      stepsOnly
+                      onDark
+                    />
+                  </View>
+                ))}
+                {/* the LIVE run last — the one still writing itself */}
+                <View>
+                  {activeAsk ? (
+                    <Text
+                      numberOfLines={1}
+                      style={{
+                        fontSize: 12,
+                        lineHeight: 17,
+                        fontFamily: fontFamily.regular,
+                        // LIGHT on the dark panel: the panel took the console
+                        // key's near-black face, so its own text inverts
+                        color: 'rgba(255,255,255,0.6)',
+                        marginBottom: 8,
+                      }}>
+                      {activeAsk}
+                    </Text>
+                  ) : null}
+                  <ThinkingConsole
+                    threadId={consoleSource.threadId}
+                    lines={consoleSource.lines}
+                    done={consoleSource.done}
+                    failed={consoleSource.failed}
+                    folded={false}
+                    onToggleFold={() => setRunPanelOpen(false)}
+                    stepsOnly
+                    onDark
+                  />
+                </View>
+              </ScrollView>
+            </Animated.View>
+          ) : null}
           <ScrollView
             ref={scrollRef}
             contentContainerStyle={{
@@ -789,10 +816,11 @@ export function ChatThreadView({
               // ONE thing to clear now (2026-07-24): the console lives inside
               // the mast, so the mast's own measured height already covers
               // both and there's no second surface to reserve for.
-              // mastBand already carries spacing.sm of air below the box, so
+              // no pinned band any more (2026-07-25), so the thread just
+              // starts on the normal edge inset
               // adding spacing.md again stacked ~20px of dead space between
               // the mast and the first line ("여기사이가 여전히 거리가 멀어").
-              paddingTop: mastBand ? mastTop + mastBand : spacing.lg,
+              paddingTop: spacing.lg,
               // room to scroll past the floating command pill: the
               // conversation flows BEHIND it, no wall. Raised 118 → 150
               // (2026-07-24 "지금 너무 챗 콘솔이랑 가까"): the reply's
@@ -801,16 +829,8 @@ export function ChatThreadView({
               paddingBottom: 150,
             }}
             showsVerticalScrollIndicator={false}
-            // drives the mast index (2026-07-24): 16/s is plenty for a label
-            // swap and keeps the JS bridge quiet
-            scrollEventThrottle={64}
-            onScroll={(e) =>
-              onScrollIndex(
-                e.nativeEvent.contentOffset.y,
-                e.nativeEvent.layoutMeasurement.height,
-                e.nativeEvent.contentSize.height
-              )
-            }
+            // no onScroll handler any more (2026-07-25): it only fed the
+            // pinned mast's index, which is gone
             onContentSizeChange={scrollToEnd}>
             {/* unbound new chat: an EMPTY stage (2026-07-17 — starter
                 chips, the routing gauge, and the crew dots all
@@ -823,18 +843,9 @@ export function ChatThreadView({
               // boundary. The gray index lines already mark where each ask
               // landed, and a genuinely NEW task still gets its NEW TASK line.
               return (
-              <View
-                key={m.id}
-                // measured HERE, not on the Text: this wrapper is a direct
-                // child of the scroll content, so its y IS the scroll offset
-                // the mast index compares against
-                onLayout={
-                  m.from === 'user' && m.text && !m.taskDivider
-                    ? (e) => {
-                        promptTops.current[m.id] = e.nativeEvent.layout.y;
-                      }
-                    : undefined
-                }>
+              // no onLayout measuring any more (2026-07-25): these offsets
+              // fed the pinned mast's scroll index, which is gone
+              <View key={m.id}>
                 {/* CHOP boundary as a LINE OF TEXT (2026-07-24 "이 디자인
                     제거하고... 프롬프트의 대답글 시작에 맞춰서 줄로 텍스트로"):
                     the centered blue-milk chip flanked by two rules was
@@ -843,15 +854,32 @@ export function ChatThreadView({
                     as the replies below it (the 22px face chip + its 8px
                     gap), so the thread keeps a single text column. */}
                 {m.taskDivider ? (
-                  <View style={{ marginTop: spacing.xl, marginBottom: spacing.md }}>
+                  /* A BAND ACROSS THE SCREEN (2026-07-25 "뉴 테스크는 아예 화면을
+                     가로지르는 섹션이 나와서 중간에 말하기. 근데 가로지르는
+                     배경색은 배경색이랑 비슷한거 눈에 덜튀는거"): it was a
+                     left-aligned mono line, which read as one more row in the
+                     thread rather than a boundary between tasks. Full-bleed
+                     (negative margins cancel the scroll's padding) with the text
+                     CENTRED, so it visibly cuts the thread in two.
+                     The fill is a hair off the field — near enough to stay quiet,
+                     different enough to register as a surface. */
+                  <View
+                    style={{
+                      marginLeft: -spacing.lg,
+                      marginRight: -spacing.lg,
+                      marginTop: spacing.xl,
+                      marginBottom: spacing.lg,
+                      paddingVertical: 11,
+                      alignItems: 'center',
+                      backgroundColor: 'rgba(255,255,255,0.34)',
+                    }}>
                     <Text
                       numberOfLines={1}
                       style={{
-                        marginLeft: TEXT_COL,
                         fontFamily: fontFamily.mono,
                         fontSize: 11,
                         letterSpacing: 0.8,
-                        color: darkChat.textTertiary,
+                        color: 'rgba(22,24,28,0.5)',
                       }}>
                       {`NEW TASK  ${m.taskDivider}`}
                     </Text>
@@ -868,28 +896,133 @@ export function ChatThreadView({
                     can name whichever answer you've scrolled to. The mast
                     used to hide these lines to avoid a duplicate; showing
                     one ask at a time up top is what makes both readable. */}
-                {!m.taskDivider && m.from === 'user' ? (
-                  m.text ? (
+                {/* THE ASK OPENS A TURN (2026-07-25 rework): every ask
+                    prints, no exceptions — the "hide the newest because the
+                    mast shows it" rule died with the mast. It leads its turn
+                    on the RIGHT at full reading size, so turn-taking is
+                    legible at a glance: right = you, left = crew. The old
+                    13px/50%-white treatment made your own words the faintest
+                    thing on screen, which is why the thread read as a wall of
+                    agent monologue with stray gray labels in it. */}
+                {!m.taskDivider && m.from === 'user' && m.text ? (
+                  /* YOUR ASK WEARS THE FOLDER'S WHITE (2026-07-25 "여기를 폴더
+                     흰색처럼 감싸기... 레디어스 없는 사각으로"): plain text on
+                     the pale mosaic left your own words indistinguishable from
+                     the crew's. A white pane makes the turn's opening legible
+                     at a glance. SQUARE, radius 0 — explicitly asked for, and
+                     it sets the ask apart from the folder cards below, which
+                     are all rounded. Full-bleed to both screen edges (negative
+                     margins cancel the scroll's own padding) so it reads as a
+                     band across the thread, not a floating chip. */
+                  <View
+                    style={{
+                      // RIGHT-ALIGNED, SHRINK TO FIT (2026-07-25 "얘를 이렇게
+                      // 전체다 쓰지말고 오른쪽 정렬로 쓰기", per the Claude
+                      // reference): the pane ran the full width, so your ask and
+                      // the crew's reply were the same shape and the thread had
+                      // no sense of turn-taking. alignSelf flex-end + maxWidth
+                      // makes it take only the width its text needs and sit on
+                      // the right — the oldest chat convention there is — while
+                      // replies stay full-width on the left.
+                      alignSelf: 'flex-end',
+                      maxWidth: '84%',
+                      marginRight: TEXT_COL,
+                      // 30 -> 16 (2026-07-25 "두번째 프롬프트가 너무 멀리나와서
+                      // 간격이 일정하지 않음"): the reply block above already
+                      // pays marginBottom spacing.lg (14), so a 30 top margin
+                      // here STACKED into a 44px gap above every ask while the
+                      // gap below one was only 18. 16 + 14 = 30 above, and the
+                      // meta row's 18 below — near enough to read as one rhythm.
+                      // TURN_GAP - 14: the reply block above already pays
+                      // spacing.lg (14), so this makes the total gap TURN_GAP.
+                      // Before this it was a flat 30, stacking to 44 above an
+                      // ask while below one was only 18.
+                      marginTop: mi === 0 ? 8 : TURN_GAP - 14,
+                      marginBottom: 16,
+                      // 14, not 30 (2026-07-25 "글씨 시작이 더 앞에서 시작해야해
+                      // 왜 떨어져서 나오지"): a previous pass padded to 30 to
+                      // line the ask's text up with the REPLY's text, which
+                      // sits past the crew face chip. But the ask has no face,
+                      // so matching that column just pushed your own words
+                      // needlessly inward. The pane's own left edge is the
+                      // reference now — the reply's face is what hangs out
+                      // further left, which is the point of a speaker mark.
+                      paddingLeft: 14,
+                      paddingRight: 14,
+                      // 12 -> 9 (2026-07-25 "위아래여백을 조금만더 짧게하기"):
+                      // once the pane shrank to fit its text, the generous
+                      // vertical padding made a one-line ask read as a tall box
+                      paddingVertical: 9,
+                      // SQUARE, radius 0 ("레디어스 없는 사각으로") — which also
+                      // sets it apart from the folder cards, all of which round
+                      backgroundColor: 'rgba(255,255,255,0.86)',
+                    }}>
+                    <AskPaneCorners />
                     <Text
                       style={{
-                        // on the shared text column, level with the mast's
-                        // own words and the replies below (2026-07-24)
-                        marginLeft: TEXT_COL,
-                        // tight to the answer it labels (2026-07-24 "간격을
-                        // 더 가깝게"): the index line and its reply are one
-                        // unit, so the air belongs ABOVE the pair, not
-                        // between them
-                        marginTop: spacing.md,
-                        marginBottom: 2,
-                        fontSize: 13,
-                        lineHeight: 19,
+                        // matches the reply body (2026-07-25): your words and
+                        // the crew's are the same register, one reading size
+                        fontSize: 17.5,
+                        lineHeight: 25,
                         fontFamily: fontFamily.regular,
-                        color: 'rgba(255,255,255,0.5)',
+                        color: darkChat.text,
                       }}>
                       {m.text}
                     </Text>
-                  ) : null
+                  </View>
                 ) : null}
+                {/* META ROW, OUTSIDE the pane (2026-07-25 "이 안에 포함시키지
+                    말고 밖에 작게 보여주기"): edit + copy for YOUR ask only — a
+                    crew reply is not yours to edit. It sat inside the white pane
+                    first, which made the pane taller and put chrome in a reading
+                    surface. Out here it hangs under the pane as quiet meta, and
+                    the pane goes back to holding nothing but the sentence. */}
+                {!m.taskDivider && m.from === 'user' && m.text ? (
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'flex-end',
+                      gap: 13,
+                      // hugs the pane's own right edge, which is now flush with
+                      // TEXT_COL since the pane right-aligned (2026-07-25)
+                      marginRight: TEXT_COL + 2,
+                      marginTop: -10,
+                      // matches the gap ABOVE an ask, so a turn sits centred in
+                      // its own air rather than crowded on one side
+                      marginBottom: TURN_GAP,
+                    }}>
+                    {/* NO timestamp yet: ChatMessage has no time field (see
+                        src/mock/chat.ts) and inventing one would print a fake.
+                        When messages carry a real `at`, it goes in this slot. */}
+                    <Pressable
+                      hitSlop={10}
+                      onPress={() => setDraft(m.text ?? '')}
+                      style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}>
+                      {/* EDIT reloads the ask into the composer rather than
+                          mutating history — the thread is a record, and an
+                          in-place rewrite would erase what the crew answered. */}
+                      <Ionicons name="pencil-outline" size={13} color="rgba(22,24,28,0.4)" />
+                    </Pressable>
+                    <Pressable
+                      hitSlop={10}
+                      onPress={() => Alert.alert('Copied', m.text ?? '')}
+                      style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}>
+                      {/* COPY is a stub Alert: expo-clipboard is not installed,
+                          and adding a native dep for one icon forces a rebuild.
+                          Swap for Clipboard.setStringAsync when one lands. */}
+                      <Ionicons name="copy-outline" size={13} color="rgba(22,24,28,0.4)" />
+                    </Pressable>
+                  </View>
+                ) : null}
+                {/* NO run readout in the thread any more (2026-07-25 "프롬프트
+                    밑에서 3 steps 이런건 안나와도 될거같아"): the steps used to
+                    hang under the newest ask, first as a live log and then as a
+                    "N steps" summary row. Both are gone — the composer's >_ key
+                    opens the pinned run panel instead, and that panel scrolls
+                    back through EVERY prompt's run, which the per-row version
+                    could never do (it only ever knew the newest). One place to
+                    look for the machine's side of things. */}
                 {m.taskDivider || m.from === 'user' ? null : (
                 <MessageBubble
                   from={m.from}
@@ -1043,11 +1176,20 @@ export function ChatThreadView({
                   pointerEvents="none"
                 />
               ) : null}
-              {/* the outer band blends with the blue field (2026-07-24
-                  "배경 컬러가 여기랑 맞아야"): only a whisper of veil,
-                  the desk blue reads through; the white input row below
-                  provides the two-band separation */}
-              <FrostedGlassFill flat radius={16} tint="rgba(255,255,255,0.22)" />
+              {/* HOME'S DESK BLUE (2026-07-25 "이 콘솔부분 배경 컬러를 홈탭에
+                  파란색같은느낌으로해줘... 챗 인풋섹션말고 그 뒤에 배경"): the
+                  band behind the input, NOT the input itself and NOT the whole
+                  chat field. It was a white veil (0.22, then 0.62) trying to
+                  separate itself from the pale mosaic. Home's #4E83B8 does that
+                  properly AND ties the composer to the board's own blue — the
+                  white input row and the dark >_ key both read cleanly on it. */}
+              <View
+                pointerEvents="none"
+                style={[
+                  StyleSheet.absoluteFill,
+                  { backgroundColor: '#4E83B8', borderRadius: 16 },
+                ]}
+              />
               {/* TOOL CHIPS inside the composer (2026-07-24 v2): a
                   small scrollable row of SQUARISH OUTLINE chips —
                   border-only (no fill) so they read as tappable/
@@ -1073,8 +1215,13 @@ export function ChatThreadView({
                   <Pressable
                     key={r.action}
                     onPress={() => {
+                      // TOGGLE (2026-07-25 "버튼 클릭가능하고 다시 누르면 풀리기
+                      // 가능하게 해줘"): tapping a tool selects it, tapping the
+                      // same one again clears the selection. Previously every
+                      // chip just raised "Coming soon", so nothing could be
+                      // picked. "Add more" is not a tool — it still navigates.
                       if (r.action === 'settings') router.push('/settings');
-                      else Alert.alert('Coming soon');
+                      else setToolPinned((cur) => (cur === r.action ? null : r.action));
                     }}
                     hitSlop={4}
                     style={({ pressed }) => ({
@@ -1085,9 +1232,30 @@ export function ChatThreadView({
                       // set apart from the tool chips
                       width: r.label ? undefined : 30,
                       borderRadius: 8,
-                      borderWidth: r.label ? 1 : 0,
-                      borderColor: 'rgba(22,24,28,0.22)',
-                      backgroundColor: r.label ? undefined : 'rgba(22,24,28,0.08)',
+                      // FILLED with the folder's white (2026-07-25 "여기칩들
+                      // 배경은 우리 폴더에서 흰색부분한거 배경으로 넣어줘"): the
+                      // chips were OUTLINE-only, which worked while the band
+                      // behind them was near-white. On Home's desk blue an
+                      // outline chip has no body, so the ink label had nothing
+                      // to sit on. They now wear the same white pane material
+                      // the folder cards use, and the outline is dropped —
+                      // the fill IS the edge.
+                      borderWidth: 0,
+                      // SECONDARY WEIGHT (2026-07-25 "밑에챗창보다는 약간
+                      // 기본이 조금더 탁하거나 글라스 느낌이나야해. 같은 무게가
+                      // 아니어야한다는거야. 보조느낌"): at 0.9 the chips matched
+                      // the input row's own white and the two rows carried equal
+                      // weight. 0.42 makes them read as translucent glass over
+                      // the blue — present, tappable, but clearly the assisting
+                      // row rather than the primary one. Selected fills solid so
+                      // a picked tool still reads unambiguously.
+                      // SELECTED = the >_ key's own dark face (2026-07-25
+                      // "클릭햇을때배경이 이거랑같게 해주기"): accent blue read
+                      // as just another blue on a blue band. The near-black key
+                      // colour is unmistakable, and it ties a picked tool to the
+                      // console key sitting a row below it.
+                      backgroundColor:
+                        toolPinned === r.action ? RUN_PANEL_BG : 'rgba(255,255,255,0.42)',
                       flexDirection: 'row',
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -1095,13 +1263,18 @@ export function ChatThreadView({
                       paddingHorizontal: r.label ? 10 : 0,
                       opacity: pressed ? 0.5 : 1,
                     })}>
-                    <Ionicons name={r.icon} size={r.label ? 13 : 15} color="rgba(22,24,28,0.7)" />
+                    <Ionicons
+                      name={r.icon}
+                      size={r.label ? 13 : 15}
+                      color={toolPinned === r.action ? '#FFFFFF' : 'rgba(22,24,28,0.78)'}
+                    />
                     {r.label ? (
                       <Text
                         style={{
                           fontSize: 12,
                           fontFamily: fontFamily.medium,
-                          color: 'rgba(22,24,28,0.7)',
+                          color:
+                            toolPinned === r.action ? '#FFFFFF' : 'rgba(22,24,28,0.78)',
                         }}>
                         {r.label}
                       </Text>
@@ -1203,10 +1376,33 @@ export function ChatThreadView({
                 />
               </Pressable>
               </View>
-              {/* the docked run console MOVED into the prompt mast
-                  (2026-07-24 "여기 흰색창 안에 오른쪽으로 숨기기") — it used
-                  to hide in this composer corner, a long way from the run it
-                  narrates. See the PromptMast's dock/below slots. */}
+              {/* THE RUN KEY, OUTSIDE the input (2026-07-25 "바깥쪽오른쪽으로
+                  챗콘솔을 줄이고 저 자리를 만드는거야"): a sibling of the white
+                  surface, not a control inside it — the input is flex:1, so
+                  this key SHORTENS it and takes the freed slot on the right.
+                  It belongs to the machine, not to what you are typing, so it
+                  keeps its own dark face out on the desk. Tapping opens the
+                  pinned run panel under the header.
+                  This is where it lived before 2026-07-24, when it was moved
+                  into the mast and then into the thread. */}
+              {consoleSource ? (
+                <Pressable
+                  hitSlop={8}
+                  onPress={() => setRunPanelOpen((v) => !v)}
+                  style={({ pressed }) => ({
+                    width: 48,
+                    borderRadius: 13,
+                    backgroundColor: runPanelOpen ? '#1B2942' : '#0E1626',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    opacity: pressed ? 0.8 : 1,
+                  })}>
+                  <ConsoleFace
+                    size={13}
+                    color={consoleSource.failed ? sysColor.degraded : '#7ED9A0'}
+                  />
+                </Pressable>
+              ) : null}
               </View>
           </View>
           </View>

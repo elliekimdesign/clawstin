@@ -17,6 +17,11 @@ uniform float u_time;
 uniform vec4 u_color0;
 uniform vec4 u_color1;
 uniform vec4 u_color2;
+// 0 = the calm bead tuned on 2026-07-22; 1 = LIVELY (2026-07-25 "움직이는
+// 걸로 바꾸기"). Scales the wander, the radius pulse and the fill so the
+// mark visibly moves and stops reading as a static hollow ring at chip
+// size. One shader, two energies — the calm cut is still used elsewhere.
+uniform float u_life;
 
 // classic metaball field: sum of 1/distance falloffs, thresholded
 float ball(vec2 uv, vec2 center, float r) {
@@ -41,13 +46,23 @@ vec4 main(vec2 fragCoord) {
   // a third of their old reach and radius pulses cut to a quarter, so
   // the silhouette only whispers off round and the size barely
   // swells; the anchored center never reads as drifting
-  vec2 o0 = vec2(0.018 * sin(t * 1.7), 0.015 * cos(t * 2.3));
-  vec2 o1 = vec2(0.016 * sin(t * 2.1 + 2.1), 0.018 * cos(t * 1.6 + 1.0));
-  vec2 o2 = vec2(0.015 * sin(t * 1.4 + 4.2), 0.016 * cos(t * 2.6 + 3.0));
+  // wander + pulse scale with u_life. The first lively cut used w=4x and
+  // it lost its anchor (2026-07-25 "너무 중심없이 움직여서 약간만 중심
+  // 챙기면서움직이기") — the balls roamed far enough that the mass drifted
+  // around the frame instead of churning in place. Wander is now only
+  // 1.8x (a visible squirm, still tethered), while the radius pulse keeps
+  // most of its lift at 3.5x — BREATHING is what reads as alive, and it
+  // costs nothing in centre-drift.
+  float w = 1.0 + 0.8 * u_life;
+  float p = 1.0 + 2.5 * u_life;
 
-  float r0 = 0.15 + 0.007 * sin(t * 2.4);
-  float r1 = 0.142 + 0.006 * sin(t * 1.9 + 1.5);
-  float r2 = 0.138 + 0.006 * sin(t * 2.8 + 3.1);
+  vec2 o0 = vec2(0.018 * w * sin(t * 1.7), 0.015 * w * cos(t * 2.3));
+  vec2 o1 = vec2(0.016 * w * sin(t * 2.1 + 2.1), 0.018 * w * cos(t * 1.6 + 1.0));
+  vec2 o2 = vec2(0.015 * w * sin(t * 1.4 + 4.2), 0.016 * w * cos(t * 2.6 + 3.0));
+
+  float r0 = 0.15 + 0.007 * p * sin(t * 2.4);
+  float r1 = 0.142 + 0.006 * p * sin(t * 1.9 + 1.5);
+  float r2 = 0.138 + 0.006 * p * sin(t * 2.8 + 3.1);
 
   vec2 c0 = center + o0;
   vec2 c1 = center + o1;
@@ -78,7 +93,14 @@ vec4 main(vec2 fragCoord) {
   // size the specular read as a stray white dot) — the rim glow
   // alone carries the glassiness
   vec3 color = irid * (0.55 + 0.45 * rim);
-  float alpha = edge * (0.3 + 0.55 * rim);
+  // FILL THE MIDDLE as u_life rises (2026-07-25): the glass bead's
+  // see-through core is what made it read as a hollow ring at 22px —
+  // only the rim was ever opaque. Lively lifts the base alpha so the
+  // body is solid and the churn inside it is actually visible; the calm
+  // cut keeps its original transparency.
+  float baseA = 0.3 + 0.6 * u_life;
+  float alpha = edge * (baseA + 0.55 * (1.0 - u_life) * rim + 0.3 * u_life * rim);
+  alpha = clamp(alpha, 0.0, 1.0);
   return vec4(color * alpha, alpha);
 }
 `;
@@ -95,14 +117,38 @@ function vec4(hex: string): number[] {
 // stays aquaos
 const COLORS = [vec4('#CFE8FC'), vec4('#5E9AE0'), vec4('#8FE8CF')];
 
-export function ThinkingBlob({ size = 34 }: { size?: number }) {
+/** BRIGHTER, happier cut (2026-07-25 "색깔을 더 밝고 즐거운색으로해도돼"):
+ * used where the blob sits on a DARK face — inside the folded console chip
+ * — so the desk-blue original would sink into it. Same three-stop idea, but
+ * each lifted toward light: ice, a clear sky blue, and a mint that reads as
+ * energy rather than the muted seafoam above. Still blue-family, no purple
+ * or pink, per the standing rule. */
+const COLORS_BRIGHT = [vec4('#EAF6FF'), vec4('#57B8FF'), vec4('#7FF3D0')];
+
+export function ThinkingBlob({
+  size = 34,
+  bright,
+  lively,
+}: {
+  size?: number;
+  /** the lifted palette for dark faces (the folded console chip) */
+  bright?: boolean;
+  /** visibly churning + solid-bodied, for the console chip (2026-07-25).
+   * The default stays the calm, near-static glass bead tuned 2026-07-22 —
+   * that restraint was deliberate for the at-rest mark, so this is opt-in
+   * rather than a change to every blob on the app. */
+  lively?: boolean;
+}) {
   const clock = useClock();
+  const palette = bright ? COLORS_BRIGHT : COLORS;
+  const life = lively ? 1 : 0;
   const uniforms = useDerivedValue(() => ({
     u_resolution: [size, size],
     u_time: clock.value / 1000,
-    u_color0: COLORS[0],
-    u_color1: COLORS[1],
-    u_color2: COLORS[2],
+    u_color0: palette[0],
+    u_color1: palette[1],
+    u_color2: palette[2],
+    u_life: life,
   }));
 
   if (!effect) return <View style={{ width: size, height: size }} />;

@@ -96,6 +96,85 @@ export type ThinkingState = {
   failed?: boolean;
 };
 
+
+/** REALISTIC RUN NARRATION (2026-07-25 "이부분을 진짜 llm에 쳣을때 나올것같은
+ * 스타일로 진짜처럼 리얼하게 만들어줘. 다 세개씩 딱딱잇으니가 이상해").
+ *
+ * Every calendar ask used to emit the SAME three lines with the SAME three
+ * timings, so the run panel's history read as a photocopy. Real runs differ in
+ * three ways, and this reproduces all three:
+ *   1. STEP COUNT varies — a simple ask resolves in 3, a messier one takes 5
+ *      (a retry, a second tool, a disambiguation).
+ *   2. TIMINGS are never round. 0.2s every time is a tell; real latencies
+ *      scatter, and the slow step is usually the tool call.
+ *   3. WORDING follows the actual ask — the parse step quotes what it parsed.
+ *
+ * Deterministic, NOT random: seeded off the ask text so the same prompt always
+ * narrates the same way. A demo that reshuffles on every render looks broken,
+ * and Math.random would also make the archive change under you as you scroll.
+ */
+function seedFrom(text: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < text.length; i++) {
+    h ^= text.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return Math.abs(h);
+}
+
+/** a latency that looks measured rather than authored: 2 decimals, never .0 */
+function jitter(seed: number, i: number, lo: number, hi: number): string {
+  const n = (seed >> (i * 3)) % 1000;
+  const v = lo + (n / 999) * (hi - lo);
+  const s = v.toFixed(2);
+  return `${s.endsWith('0') ? v.toFixed(2).slice(0, -1) + '3' : s}s`;
+}
+
+export function narrateCalendarRun(ask: string, title: string, intent: string): string[] {
+  const seed = seedFrom(ask + intent);
+  const t = (i: number, lo: number, hi: number) => jitter(seed, i, lo, hi);
+  const lines: string[] = [];
+
+  lines.push(`parse & plan  "${title}"  ${t(0, 0.11, 0.34)}`);
+
+  // a resolve step, but only sometimes — an ask that already names a person
+  // does not need one, and that variation is most of what sells it
+  if (seed % 3 === 0) {
+    lines.push(`resolve  Contacts, 1 match  ${t(1, 0.28, 0.71)}`);
+  }
+
+  lines.push(
+    intent === 'check'
+      ? `execute  Calendar, pulling events  ${t(2, 0.74, 1.62)}`
+      : `execute  Calendar, checking conflicts  ${t(2, 0.83, 1.71)}`
+  );
+
+  // the messy path: a retry. Real tool calls fail and get repeated.
+  if (seed % 5 === 0) {
+    lines.push(`execute  Calendar, retry after timeout  ${t(3, 1.12, 2.44)}`);
+  }
+
+  lines.push(
+    intent === 'check'
+      ? `synthesize  building the day view  ${t(4, 0.21, 0.58)}`
+      : `synthesize  lining up open slots  ${t(4, 0.24, 0.62)}`
+  );
+
+  return lines;
+}
+
+/** one FINISHED run, kept for the run panel's receipt history (2026-07-25) */
+export type RunRecord = {
+  /** the ask that triggered it, when known — the panel labels each block */
+  ask?: string;
+  lines: string[];
+  failed?: boolean;
+};
+
+/** how many finished runs to keep PER THREAD. A receipt roll should be long
+ * enough to scroll but must not grow unbounded in a long session. */
+const RUN_ARCHIVE_CAP = 40;
+
 // Console lines carry NO wall-clock timestamps: steps land within the same
 // second, so a [HH:MM:SS] prefix adds zero information while eating 11
 // chars of a narrow mobile line. Task-run lines end with a per-step
@@ -199,6 +278,8 @@ type Store = {
   typingThreadId: string | null;
   /** live backend narration shown in the chat's Thinking Console */
   thinking: ThinkingState | null;
+  /** finished runs per thread, oldest first — the run panel's history */
+  runArchive: Record<string, RunRecord[]>;
   /** set right after a booking so the chat pops the month view open on
    * that date with the fresh event highlighted */
   calendarReveal: { date: number; title: string; seq: number } | null;
@@ -323,8 +404,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setCrewManual(false);
   }, []);
   const [threads, setThreads] = useState<Thread[]>(initialThreads);
+  /** mirror of `threads` for callbacks that must read the latest without
+   * taking it as a dependency (runThinking captures the ask at run start) */
+  const threadsRef = useRef<Thread[]>(initialThreads);
+  useEffect(() => {
+    threadsRef.current = threads;
+  }, [threads]);
   const [typingThreadId, setTypingThreadId] = useState<string | null>(null);
   const [thinking, setThinking] = useState<ThinkingState | null>(null);
+  /** RUN ARCHIVE (2026-07-25 "모든 프롬프트랑 그 과정을 다 영수증
+   * 히스토리처럼 보여줘야해서 위로 올리면 그 기록들이 다 똑같이 나오게"):
+   * `thinking` only ever holds the CURRENT run and is overwritten on the next
+   * send, so the run panel could never show history. Every finished run is now
+   * appended here, keyed by thread, oldest first — the panel scrolls back
+   * through them like a receipt roll. Memory is bounded per thread (see
+   * RUN_ARCHIVE_CAP) so a long session cannot grow without limit. */
+  const [runArchive, setRunArchive] = useState<Record<string, RunRecord[]>>({});
   const [calendarReveal, setCalendarReveal] = useState<{
     date: number;
     title: string;
@@ -333,13 +428,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [activeTool, setActiveTool] = useState<'calendar' | 'github' | 'both'>('calendar');
   const [prReveal, setPrReveal] = useState<{ threadId: string } | null>(null);
   const thinkingTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
-  const thinkingPlan = useRef<{ threadId: string; lines: string[] } | null>(null);
+  const thinkingPlan = useRef<{ threadId: string; lines: string[]; ask?: string } | null>(null);
 
   /** Stream `lines` into the Thinking Console one by one. */
   const runThinking = useCallback((threadId: string, lines: string[], stepMs = Math.round(800 * DEMO_PACE)) => {
     thinkingTimers.current.forEach(clearTimeout);
     thinkingTimers.current = [];
-    thinkingPlan.current = { threadId, lines };
+    // capture the ask NOW so the archive can label this run without every
+    // finishThinking call site having to pass it (there are eight)
+    const askText = (() => {
+      const t = threadsRef.current.find((x) => x.id === threadId);
+      const mine = (t?.messages ?? []).filter((m) => m.from === 'user' && m.text);
+      return mine[mine.length - 1]?.text;
+    })();
+    thinkingPlan.current = { threadId, lines, ask: askText };
     setThinking({ threadId, lines: [], done: false });
     lines.forEach((line, i) => {
       thinkingTimers.current.push(
@@ -356,10 +458,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   /** The reply landed: flush any lines still queued and fold the console.
    * `failed` marks runs that STOPPED on errors (amber footer). */
-  const finishThinking = useCallback((threadId: string, failed = false) => {
+  const finishThinking = useCallback((threadId: string, failed = false, ask?: string) => {
     thinkingTimers.current.forEach(clearTimeout);
     thinkingTimers.current = [];
     const plan = thinkingPlan.current;
+    // archive it BEFORE the next run overwrites `thinking`
+    const archived = plan?.threadId === threadId ? plan.lines : [];
+    if (archived.length) {
+      setRunArchive((prev) => {
+        const rows = [
+          ...(prev[threadId] ?? []),
+          { ask: ask ?? plan?.ask, lines: archived, failed },
+        ];
+        return { ...prev, [threadId]: rows.slice(-RUN_ARCHIVE_CAP) };
+      });
+    }
     setThinking((prev) =>
       prev && prev.threadId === threadId
         ? {
@@ -741,17 +854,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
         // flow (the reply itself is the "resolve & prompt" stage).
         runThinking(
           threadId,
-          parsed.intent === 'check'
-            ? [
-                'parse & plan  schedule request  0.2s',
-                'execute  Calendar, pulling events  1.1s',
-                'synthesize  building the day view  0.4s',
-              ]
-            : [
-                `parse & plan  "${parsed.title}"  0.2s`,
-                'execute  Calendar, checking conflicts  1.2s',
-                'synthesize  lining up open slots  0.4s',
-              ]
+          narrateCalendarRun(
+            userText,
+            parsed.intent === 'check' ? 'schedule request' : parsed.title,
+            parsed.intent
+          )
         );
         // Transition Hold: Operator holds first, then Orchestrator visibly
         // takes over (auto wins for the calendar flow — there's no standalone
@@ -1485,6 +1592,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       threads,
       typingThreadId,
       thinking,
+      runArchive,
       calendarReveal,
       activeTool,
       prReveal,
@@ -1546,6 +1654,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       threads,
       typingThreadId,
       thinking,
+      runArchive,
       calendarReveal,
       activeTool,
       prReveal,

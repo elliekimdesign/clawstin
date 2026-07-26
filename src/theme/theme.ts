@@ -189,21 +189,25 @@ export const chatThemes: Record<'darkGreen' | 'skyBlue' | 'skyBlueOs' | 'mintOs'
     // the mosaic-tile field's own desk blue (2026-07-17) — the
     // SafeAreaView fill must agree with the field or a seam shows at
     // any edge it doesn't cover (status bar, load flash)
-    base: '#4E83B8',
-    // WHITE voice (2026-07-17 "전체 모든 문장 흰색"): the field went
-    // back to the desk blue, so every sentence in the conversation —
-    // replies, card content, meta — speaks white. Light surfaces pin
-    // their own ink locally (onLight).
-    text: 'rgba(255,255,255,0.96)',
-    textSecondary: 'rgba(255,255,255,0.78)',
-    textTertiary: 'rgba(255,255,255,0.6)',
-    // translucent glass tints stay in the blue family; on the blue
-    // field they read as quiet lifted panes
-    glassBg: 'rgba(255,255,255,0.1)',
-    glassBorder: 'rgba(255,255,255,0.35)',
-    surface: 'rgba(255,255,255,0.12)',
-    solidSurface: '#2E5079',
-    divider: 'rgba(255,255,255,0.25)',
+    base: '#D8E4EF',
+    // INK voice (2026-07-25 "배경을 좀더 흰색에 가까운거로하기"): the mosaic
+    // field was lifted 78% toward white, which killed the white voice this
+    // theme had carried since 2026-07-17 — white measured 1.29:1 on the pale
+    // field. Ink measures 13.76:1, so the conversation now speaks ink, the
+    // same #16181C the board uses. The white era lives in git.
+    text: '#16181C',
+    textSecondary: 'rgba(22,24,28,0.72)',
+    textTertiary: 'rgba(22,24,28,0.52)',
+    // glass tints inverted with the field: on a pale plane a white veil is
+    // invisible, so the lifted panes tint with ink instead
+    glassBg: 'rgba(22,24,28,0.05)',
+    glassBorder: 'rgba(22,24,28,0.14)',
+    // a WHITE lift, not an ink veil (2026-07-25): on the pale mosaic an ink
+    // wash turned every card grey. Cards should read as panes lifted OFF the
+    // field, which on a light plane means brighter than it, not darker.
+    surface: 'rgba(255,255,255,0.72)',
+    solidSurface: '#C2D3E4',
+    divider: 'rgba(22,24,28,0.14)',
     onLight: '#2E4F73',
     success: '#5FD9A4',
     background: 'desk',

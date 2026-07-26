@@ -37,7 +37,11 @@ export function ScheduleCard({
       style={{
         minWidth: 232,
         backgroundColor: darkChat.surface,
-        borderRadius: radius.lg,
+        // SQUARE (2026-07-25 "여기나오는것도 모두 둥근거 안하고 사각으로하기"):
+        // matches the ask pane's radius-0 edge, so every surface the thread
+        // introduces this session is square while the older folder cards on
+        // Home keep their rounding
+        borderRadius: 0,
         borderWidth: 1,
         borderColor: darkChat.glassBorder,
         padding: spacing.lg,
@@ -101,7 +105,7 @@ export function ScheduleCard({
         <Text
           style={{
             marginTop: spacing.md,
-            color: 'rgba(255,255,255,0.9)',
+            color: darkChat.text,
             fontSize: fontSize.small,
             fontFamily: fontFamily.semibold,
           }}>
@@ -127,13 +131,13 @@ export function ScheduleCard({
                   // the compose family's grained glass at the board's
                   // 14 radius (2026-07-17 "디자인 업데이트" — the
                   // solid white pill was the last old-language button)
-                  borderRadius: 16,
+                  borderRadius: 0,
                   overflow: 'hidden',
                   paddingVertical: 7,
                   paddingHorizontal: spacing.md,
                   opacity: pressed ? 0.85 : 1,
                 })}>
-                <FrostedGlassFill flat radius={16} tint="rgba(255,255,255,0.92)" />
+                <FrostedGlassFill flat radius={0} tint="rgba(255,255,255,0.92)" />
                 <Text
                   style={{
                     color: darkChat.onLight,

@@ -1,6 +1,5 @@
-import { GlassView, isGlassEffectAPIAvailable } from 'expo-glass-effect';
 import { ReactNode, useEffect, useState } from 'react';
-import { LayoutChangeEvent, Platform, StyleSheet, Text, View } from 'react-native';
+import { LayoutChangeEvent, Text, View } from 'react-native';
 import Animated, {
   Easing,
   FadeIn,
@@ -9,13 +8,9 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-import { FrostedGlassFill } from '@/components/ui/frosted-glass-fill';
 import { fontFamily } from '@/theme/theme';
 
 const OPEN_TIMING = { duration: 300, easing: Easing.out(Easing.cubic) };
-
-/** Liquid Glass is iOS 26+; the white veil under it is the fallback. */
-const GLASS_AVAILABLE = Platform.OS === 'ios' && isGlassEffectAPIAvailable();
 
 /**
  * The PROMPT MAST — an INDEX, not a transcript (2026-07-24 "그게 인덱스라서
@@ -32,21 +27,15 @@ const GLASS_AVAILABLE = Platform.OS === 'ios' && isGlassEffectAPIAvailable();
  */
 export function PromptMast({
   prompt,
-  blob,
-  dock,
   below,
   onLayout,
 }: {
   /** the ask this index is currently pointing at */
   prompt?: string;
-  /** the at-rest ThinkingBlob, riding beside the ask (2026-07-24) */
-  blob?: ReactNode;
-  /** the FOLDED console: a small square on the mast's right edge, riding the
-   * ask's own line (2026-07-24 "접었을때 오른쪽 네모로"). The full-width
-   * one-line bar this replaced took a whole row to say "Done". */
-  dock?: ReactNode;
-  /** the EXPANDED console, opening downward inside the box on the shared
-   * text column */
+  /** optional extra content under the label+prompt. The run console USED to
+   * ride here (both folded and expanded); as of 2026-07-25 it lives down in
+   * the thread instead, so this is currently unused by chat/[id].tsx and
+   * kept only as a slot. */
   below?: ReactNode;
   onLayout?: (e: LayoutChangeEvent) => void;
 }) {
@@ -81,72 +70,57 @@ export function PromptMast({
   // outranks the thread's replies, it just does it with weight and the taller
   // box rather than by being a size of its own.
   const body = (
-    // The shared text column (34) is set by the REPLY's own geometry — face
-    // chip (26) + gap (8) — because a speaker mark can't be dragged to the
-    // screen edge without looking cramped. So the mast's words move right to
-    // meet the replies, not the other way round.
     <View>
+      {/* RIGHT-ALIGNED (2026-07-25 "오른쪽 정렬로 보여주는건 어때? 대답은
+          왼쪽지금처럼하고"): your words hug the right edge, the crew's
+          replies stay left — author by SIDE, the oldest convention in chat.
+          It also means the label and the prompt read as one right-hand
+          block instead of competing with the reply column below. */}
       <View
         style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          // the reply row's own gap, so the text lands on the same column
-          gap: 8,
-          // the orb takes the FACE's slot when present (2026-07-24 "글시작
-          // 점 왼쪽에 두라고 크루 얼굴나오는거처럼"): on replies a crew face
-          // marks who spoke, so on the mast the orb marks "this is the part
-          // YOU typed". Same 34px column either way — the orb supplies it
-          // when it's there, padding when it isn't.
-          // 4 + slot 22 + gap 8 = the 34 column (measured on device
-          // 2026-07-24: at pad 8 / slot 26 the text landed on 42, nine px
-          // right of every other line). A small pad keeps the orb off the
-          // glass edge; the orb runs a touch smaller than the crew face,
-          // which is right — it's a status mark, not a portrait.
-          paddingLeft: blob ? 4 : 34,
-          // Matched to the COMPOSER's input row (2026-07-24 "사이즈가 전체적
-          // 으로 너무 큰거같아... 여기 느낌이랑 비슷하게"): same 52 min height
-          // and the same tight right inset the mic keeps, so the pinned ask
-          // and the field it came from are one size. paddingVertical 14 made
-          // the box read much taller than the composer at the same type size.
-          paddingRight: dock ? 8 : 16,
-          minHeight: 52,
-          paddingVertical: 10,
+          paddingLeft: 16,
+          paddingRight: 16,
+          paddingTop: 8,
+          paddingBottom: 10,
+          alignItems: 'flex-end',
         }}>
-        {/* the speaker mark for YOUR side. Its canvas draws the orb inset, so
-            it's given a 22 footprint with the overflow bleeding symmetrically
-            outside it. */}
-        {blob ? (
-          <View
-            style={{
-              width: 22,
-              height: 22,
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}>
-            {blob}
-          </View>
-        ) : null}
+        {/* THE LABEL is the whole idea (2026-07-25): a user should not have
+            to infer from a shape what this band holds. Mono + caps + wide
+            tracking is the machine-label voice used for every other section
+            eyebrow in the app (GITHUB, SUGGESTED, PARSE & PLAN), so this
+            reads as a section header rather than a piece of content. */}
+        <Text
+          style={{
+            fontFamily: fontFamily.mono,
+            fontSize: 9.5,
+            letterSpacing: 1,
+            color: 'rgba(255,255,255,0.62)',
+            marginBottom: 5,
+          }}>
+          YOUR PROMPT
+        </Text>
         <Text
           numberOfLines={2}
           style={{
-            flex: 1,
             fontSize: 16,
             lineHeight: 22,
-            fontFamily: fontFamily.medium,
-            color: '#16181C',
+            textAlign: 'right',
+            // regular, not medium (2026-07-25 "굵은글씨 말고 그냥 기본글씨"):
+            // it is a quotation of what you typed, not a headline
+            fontFamily: fontFamily.regular,
+            // WHITE now, not ink: with the glass card gone these words sit
+            // straight on the desk blue, where #16181C would sink
+            color: '#FFFFFF',
           }}>
           {prompt}
         </Text>
-        {/* folded: the small square rides the ask's own line */}
-        {dock ? <View style={{ marginLeft: 10 }}>{dock}</View> : null}
       </View>
-      {/* the console opens downward INSIDE the box, starting on the SAME
-          left edge as the ask above it and as the cards down in the thread
-          (2026-07-24 "여기 시작하는거랑 똑같이"): it was hugging the mast's
-          outer edge, so it started left of every other block on screen and
-          broke the single text column. */}
+      {/* the divider between "your side" and the thread scrolling beneath.
+          This is the ONLY chrome left — it does the job the card's whole
+          border and blur used to do, with one line. */}
+      <View style={{ height: 1, backgroundColor: 'rgba(255,255,255,0.22)' }} />
       {below ? (
-        <View style={{ paddingLeft: 34, paddingRight: 16, paddingBottom: 14 }}>
+        <View style={{ paddingLeft: 16, paddingRight: 16, paddingBottom: 14 }}>
           {below}
         </View>
       ) : null}
@@ -155,37 +129,16 @@ export function PromptMast({
 
   return (
     <View onLayout={onLayout}>
-      <Animated.View
-        style={[
-          {
-            // the input box's curve — every white glass box here shares it
-            borderRadius: 13,
-            overflow: 'hidden',
-          },
-          boxStyle,
-        ]}>
-        {/* THE CREW PILL'S OWN MATERIAL (2026-07-24 "이런 배경으로"): the
-            solid white panel read as a foreign slab on the blue desk, so the
-            mast now wears exactly what the header pill above it wears —
-            Apple's clear Liquid Glass over a 14% white veil, gated because
-            the glass API is iOS 26+ and the veil is also the fallback.
-            The text stays DARK: on this face ink measures 5.6:1 against
-            white's 3.1:1, so the translucency costs nothing in legibility.
-            The occluder plate behind the mast (see chat/[id].tsx) is what
-            keeps the scrolling thread from showing through now that this
-            face is no longer opaque. */}
-        {GLASS_AVAILABLE ? (
-          <GlassView
-            glassEffectStyle="clear"
-            colorScheme="light"
-            style={[StyleSheet.absoluteFill, { borderRadius: 13 }]}
-            pointerEvents="none"
-          />
-        ) : null}
-        {/* noRim (2026-07-24 "아웃라인없애고 배경 지금처럼 블러로만"): the
-            white hairline drew a hard edge around a surface whose whole point
-            is softness — the blur alone now says "this is a pane". */}
-        <FrostedGlassFill flat noRim radius={13} tint="rgba(255,255,255,0.14)" />
+      <Animated.View style={[{ overflow: 'hidden' }, boxStyle]}>
+        {/* NO CARD (2026-07-25 "저 박스가 눈에 거슬리는데... 아 여기 내
+            프롬프트가 전부 오는곳이구나 하고 유저가 이해할수있게"): the glass
+            box was asked to be three things at once — a content card, a
+            scroll INDEX that swaps as you move, and the console's housing —
+            and a card shape can only say the first. So the card is gone and
+            the LABEL does the explaining: "YOUR PROMPT" is unambiguous in a
+            way a rounded rectangle never was, and a section header is the
+            honest shape for something that renames itself on scroll.
+            One hairline below divides it from the thread sliding beneath. */}
         {/* keyed on the text so a swap cross-fades instead of hard-cutting */}
         <Animated.View key={prompt} entering={FadeIn.duration(180)}>
           {body}
