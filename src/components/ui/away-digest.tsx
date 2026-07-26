@@ -30,14 +30,22 @@ const APP_GLYPH = {
 // clears it (18px is enough when the near edge is straight)
 const CUT = 26;
 
+/** row avatar size — 21 after seven passes on 2026-07-25
+ * (16 → 20 → 26 → 24 → 27 → 24 → 21, "얼굴더 작게 하기 약간만더"). Must stay
+ * equal to the FACE const in (tabs)/index.tsx: the digest rows and the board
+ * rows read as one list, so the two drifting apart is what makes the column
+ * ragged. The slots holding these are 25 (= FACE + 4, so the badge can
+ * overhang). */
+const FACE = 21;
+
 /** the face's DONE variant (2026-07-22 "체크 마크를 넣은 페이스"): the
  * member's pixel face wearing a tiny ready-green check cell at its
  * top-right — the avatar-badge grammar, in mosaic squares. The face
  * icon now has two states: plain (pending) and checked (done). */
 function DoneFace({ id }: { id: string }) {
   return (
-    <View style={{ width: 16, height: 16 }}>
-      <CrewPixel id={id} size={16} />
+    <View style={{ width: FACE, height: FACE }}>
+      <CrewPixel id={id} size={FACE} />
       {/* bare check, no plate (2026-07-22 "배경 없게"): the glyph
           itself carries the ready green */}
       <Text
@@ -56,15 +64,19 @@ function DoneFace({ id }: { id: string }) {
   );
 }
 
-/** your OWN completed asks (2026-07-24): the unset-profile person —
- * you are not a crew member, so the mark is the blank avatar, wearing
- * the same done-check badge as the faces. */
+/** your OWN completed asks: fronted by the EXECUTING CREW's face, wearing
+ * the same done-check badge as DoneFace. Identical shape to DoneFace now —
+ * kept as its own function because the rows mean different things (yours vs
+ * crew-initiated) and DoneFace takes a dynamic member id. */
 function OwnFace() {
   return (
-    <View style={{ width: 18, height: 18 }}>
-      {/* icon fills the box, same grid as DoneFace (2026-07-24
-          "얼라인이 안 맞아") */}
-      <Ionicons name="person-circle" size={18} color="rgba(22,24,28,0.4)" />
+    <View style={{ width: FACE, height: FACE }}>
+      {/* the EXECUTING CREW's face, not Ellie's photo (2026-07-25 "내 사진은
+          안쓰고 그냥 픽셀 대표 이미지로해(그 프롬프트 실행하는 대표 크루)"):
+          every row here is her ask by definition, so her face carried no
+          information — the executor's does. muppet (Orchestrator) is the
+          default owner for asks with no assigned member. */}
+      <CrewPixel id="muppet" size={FACE} />
       <Text
         style={{
           position: 'absolute',
@@ -180,9 +192,11 @@ export function AwayDigestCard({
           </Text>
           <View style={{ flex: 1 }} />
           {/* corner grammar (2026-07-22, same as the hero): +HIDDEN
-              count, never the list size — but DONE stays, since the
-              Crew/You tabs don't name the state. Open = "DONE ˄";
-              nothing folded = a plain "DONE" stamp. */}
+              count, never the list size. 2026-07-25 ("done 빼고 숫자만"):
+              the word DONE is gone — the "Completed" title on this same
+              strip already says the state, so it was said twice. Now
+              just "+3 ˅"; when nothing is folded there is no number to
+              show, so the chevron stands alone. */}
           <Pressable
             hitSlop={12}
             disabled={digest.routines.length === 0}
@@ -192,23 +206,24 @@ export function AwayDigestCard({
               alignItems: 'center',
               opacity: pressed ? 0.5 : 1,
             })}>
-            <Text
-              style={{
-                fontSize: 10,
-                fontFamily: fontFamily.mono,
-                letterSpacing: 0.3,
-                color: INK_DIM,
-              }}>
-              {digest.routines.length > 0 && !routinesOpen
-                ? `+${digest.routines.length} DONE`
-                : 'DONE'}
-            </Text>
+            {digest.routines.length > 0 && !routinesOpen ? (
+              <Text
+                style={{
+                  fontSize: 10,
+                  fontFamily: fontFamily.mono,
+                  letterSpacing: 0.3,
+                  color: INK_DIM,
+                }}>
+                {`+${digest.routines.length}`}
+              </Text>
+            ) : null}
             {digest.routines.length > 0 ? (
               <Ionicons
                 name={routinesOpen ? 'chevron-up' : 'chevron-down'}
                 size={11}
                 color={INK_DIM}
-                style={{ marginLeft: 3 }}
+                // only gap the chevron when a "+N" sits before it
+                style={routinesOpen ? undefined : { marginLeft: 3 }}
               />
             ) : null}
           </Pressable>
@@ -236,10 +251,10 @@ export function AwayDigestCard({
               })}>
               {/* provenance mark (2026-07-24): crew-initiated rows
                   wear the responsible member's FACE; your OWN asks
-                  wear the unset-profile avatar ("프로필 설정 안 된
-                  이모지") — the empty person, since you have no crew
-                  face */}
-              <View style={{ width: 20, alignItems: 'flex-start' }}>
+                  wear YOUR PHOTO (2026-07-25) — a real face against
+                  their drawn ones, same 16px grid so the column reads
+                  as one straight edge */}
+              <View style={{ width: 25, alignItems: 'flex-start' }}>
                 {h.own ? (
                   <OwnFace />
                 ) : h.agentId ? (

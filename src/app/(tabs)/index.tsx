@@ -41,6 +41,7 @@ import { CrewPixel } from '@/components/ui/crew-pixel';
 import { FrostedGlassFill } from '@/components/ui/frosted-glass-fill';
 import { MosaicDot } from '@/components/ui/mosaic-dot';
 import { TaskSheet, type TaskSheetRow } from '@/components/ui/task-sheet';
+import { UserFace } from '@/components/ui/user-face';
 import { PixelText } from '@/components/ui/pixel-text';
 import { RasterCloud } from '@/components/ui/analog-key';
 import { MosaicCheck } from '@/components/ui/mosaic-check';
@@ -558,6 +559,20 @@ function LiquidCard({
   );
 }
 
+/** row avatar size, ONE dial for the whole board (2026-07-25 "프로필을
+ * 조금만더 크게" → "전체적으로 원형을 더 크게" → "아주약간만 작게"):
+ * 16 → 20 → 26 → 24. The ask was the CIRCLE being bigger, not the face
+ * inside it being zoomed — so this const is the only thing that
+ * changes; the photo asset keeps its original framing. NOTE the header
+ * lockup's UserFace is LARGER on purpose (28 at the time of writing):
+ * brand size was approved bigger, then nudged up once more, while the
+ * dense list rows came back a step to 24. Do not "unify" the two.
+ * Crew faces and YOUR photo must move together —
+ * they sit in the same column, so bumping one alone is what makes a
+ * list look ragged. away-digest.tsx has its own FACE const for the same
+ * reason; keep the two numbers equal. */
+const FACE = 21;
+
 /** the face's YOUR-TURN variant (2026-07-22 "핑크 동그라미"): the
  * member's pixel face wearing a small pink dot at its top-right —
  * the same avatar-badge grammar as the digest's DoneFace check,
@@ -567,8 +582,8 @@ function LiquidCard({
  * badge, not a highlighter. Used nowhere else on the board. */
 function AskFace({ id }: { id: string }) {
   return (
-    <View style={{ width: 16, height: 16 }}>
-      <CrewPixel id={id} size={16} />
+    <View style={{ width: FACE, height: FACE }}>
+      <CrewPixel id={id} size={FACE} />
       <View
         style={{
           position: 'absolute',
@@ -615,16 +630,29 @@ function ConsoleFace({ color }: { color: string }) {
   );
 }
 
-/** YOUR OWN pending asks (2026-07-24 "크루 아닌 거는 프로필로"): the
- * unset-profile person instead of a crew face — same aqua "needs you"
- * dot as AskFace, because the ask still waits on you. */
+/** YOUR OWN pending asks: fronted by the EXECUTING CREW's face, with the
+ * same aqua "needs you" dot as AskFace because the ask still waits on you.
+ *
+ * 2026-07-25, four passes, ending here: the row first wore Ellie's plain
+ * photo, which read as a foreign material beside the drawn faces
+ * ("이질감이들어서"); a hand-drawn pixel face of her was rejected for not
+ * looking like her ("이게 나라는게 없는데"); a duotone cut of the real photo
+ * got closer; and then the framing itself changed — "내 사진은 안쓰고 그냥
+ * 픽셀 대표 이미지로해(그 프롬프트 실행하는 대표 크루)". The row's mark is
+ * about WHO IS DOING THE WORK, not who asked. Since every row on this board
+ * is Ellie's by definition, her face carried no information; the executor's
+ * does. Defaults to muppet, the Orchestrator, when no member is assigned.
+ *
+ * This makes ProfileFace a thin wrapper over the same shape as AskFace —
+ * kept separate only because the two are semantically different rows and
+ * AskFace takes a dynamic id.
+ *
+ * Ellie's photo still runs in the Home header lockup, where it identifies
+ * the ACCOUNT rather than an executor. See src/mock/user.ts. */
 function ProfileFace() {
   return (
-    <View style={{ width: 18, height: 18 }}>
-      {/* the icon fills the box (no centering offset) so it sits on
-          the same baseline grid as the crew pixel faces (2026-07-24
-          "얼라인이 안 맞아") */}
-      <Ionicons name="person-circle" size={18} color="rgba(22,24,28,0.4)" />
+    <View style={{ width: FACE, height: FACE }}>
+      <CrewPixel id="muppet" size={FACE} />
       <View
         style={{
           position: 'absolute',
@@ -958,21 +986,36 @@ export default function HomeScreen() {
                     presence dot on the wordmark (2026-07-16) — tap the
                     lockup to open System Status; the dot goes amber/red
                     when a service is degraded/down. */}
-                {/* faux-weight shadow only, eased 2.2 → 1.3 (2026-07-16
-                    "글로우 조금더 약하게") — barely thicker than the
-                    bare serif, no halo */}
-                <Text
-                  style={{
-                    color: '#FFFFFF',
-                    fontSize: 23,
-                    letterSpacing: 0.5,
-                    fontFamily: 'InstrumentSerif-Regular',
-                    textShadowColor: '#FFFFFF',
-                    textShadowRadius: 1.3,
-                    textShadowOffset: { width: 0, height: 0 },
-                  }}>
-                  Clawstin
-                </Text>
+                {/* YOUR photo left of the wordmark (2026-07-25 "내사진을
+                    클로스틴 여기 왼쪽에 넣어줘") — this is YOU, the
+                    account, not the pixel-girl mascot chip that was cut
+                    from this exact slot on 2026-07-15 for reading as
+                    clutter. A round photo sits quieter beside the serif
+                    than the square mark did, and it earns its place by
+                    saying whose board this is. */}
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 9 }}>
+                  {/* ring on: at brand size the hairline keeps the photo
+                      from bleeding into the blue desk at its pale edges */}
+                  {/* 26 → 28 (2026-07-25 "아주약간만더 크게 아주 약간만"):
+                      one small step at brand size, deliberately still
+                      larger than the 24 used in dense list rows */}
+                  <UserFace size={28} ring />
+                  {/* faux-weight shadow only, eased 2.2 → 1.3 (2026-07-16
+                      "글로우 조금더 약하게") — barely thicker than the
+                      bare serif, no halo */}
+                  <Text
+                    style={{
+                      color: '#FFFFFF',
+                      fontSize: 23,
+                      letterSpacing: 0.5,
+                      fontFamily: 'InstrumentSerif-Regular',
+                      textShadowColor: '#FFFFFF',
+                      textShadowRadius: 1.3,
+                      textShadowOffset: { width: 0, height: 0 },
+                    }}>
+                    Clawstin
+                  </Text>
+                </View>
                 {/* status = the LIVE CONSOLE CHIP (2026-07-24
                     "running console should come on the home tab...
                     instead of the system part"): the header carries
@@ -1222,7 +1265,7 @@ export default function HomeScreen() {
                     {/* EVERY hero row fronts its executor's face
                         (2026-07-22 "전부 크루 페이스로"): Crop is on
                         the dinner — plain face = pending */}
-                    <View style={{ width: 20, alignItems: 'flex-start', marginTop: 2 }}>
+                    <View style={{ width: 25, alignItems: 'flex-start', marginTop: 2 }}>
                       {/* YOUR task: the unset-profile mark (2026-07-24) */}
                       <ProfileFace />
                     </View>
@@ -1321,7 +1364,7 @@ export default function HomeScreen() {
                               })}>
                               {/* crew-initiated rows wear their member's
                                   face; your own asks keep the blue dot */}
-                              <View style={{ width: 20, alignItems: 'flex-start' }}>
+                              <View style={{ width: 25, alignItems: 'flex-start' }}>
                                 {r.agentId ? (
                                   <AskFace id={r.agentId} />
                                 ) : (
@@ -1388,7 +1431,7 @@ export default function HomeScreen() {
                         column hugs the face so it stays connected to
                         the sentence it fronts; 2px nudge centers it on
                         the first line's 20pt box */}
-                    <View style={{ width: 20, alignItems: 'flex-start', marginTop: 2 }}>
+                    <View style={{ width: 25, alignItems: 'flex-start', marginTop: 2 }}>
                       <AskFace id={PITCH.agentId} />
                     </View>
                     <View style={{ flex: 1 }}>
@@ -1625,20 +1668,31 @@ export default function HomeScreen() {
                       justifyContent: 'center',
                       marginBottom: 14,
                     }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 9 }}>
+                    {/* flex-start, NOT center (2026-07-25 "얼라인 맞추기
+                        위로 더 올려서 글시작이랑맞춰야할듯"): the label
+                        wraps to two lines, so centering floated the mark
+                        into the middle of the block. It now hangs off the
+                        FIRST line, and marginTop optically centers it on
+                        that line's cap height (lineHeight 20, mark 12 →
+                        (20-12)/2 = 4). */}
+                    <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 9 }}>
                       {/* the animated mosaic CHECK (2026-07-24): small
                           cells shimmering along the checkmark = the
                           system is alive/active */}
-                      <MosaicCheck
-                        size={12}
-                        color={
-                          worst === 'down'
-                            ? sysColor.fail
-                            : worst === 'degraded'
-                              ? sysColor.degraded
-                              : sysColor.ready
-                        }
-                      />
+                      {/* wrapper carries the offset — MosaicCheck takes
+                          only color/size, no style prop */}
+                      <View style={{ marginTop: 4 }}>
+                        <MosaicCheck
+                          size={12}
+                          color={
+                            worst === 'down'
+                              ? sysColor.fail
+                              : worst === 'degraded'
+                                ? sysColor.degraded
+                                : sysColor.ready
+                          }
+                        />
+                      </View>
                       <Text
                         numberOfLines={2}
                         style={{
@@ -1854,16 +1908,42 @@ export default function HomeScreen() {
                 </View>
                 {/* SUGGESTED RULE (2026-07-24 "홈탭 스타일에 어울리게"):
                     an inferred habit not yet a routine — the + promotes
-                    it. Board-native now: the group-header mono eyebrow
-                    grammar + a whisper of accent tint (not a loud
-                    dashed box), a hairline below like the other groups. */}
+                    it.
+                    2026-07-25 ("점선같은거로해서 추가할수잇음이라는 표시를
+                    더 정확하게"): a DASHED outline is back. The 07-24 pass
+                    deliberately avoided one ("not a loud dashed box") and
+                    leaned on a mono eyebrow + accent tint alone — but
+                    without an edge the row sat in the Routines list
+                    looking like an ALREADY-ACTIVE routine, so the tag was
+                    carrying the whole "not yet" message and losing.
+                    The dash is the honest signal: an empty slot you can
+                    fill. Kept quiet to respect the earlier note — 1px,
+                    accent at 40%, no fill, so it reads as a placeholder
+                    rather than a warning. */}
                 {ruleSuggested ? (
                   <View>
                     <View
                       style={{
                         marginTop: 14,
-                        paddingLeft: 18,
-                        paddingRight: 10,
+                        // the dashed EDGE hangs outside the content grid
+                        // (2026-07-25 "얼라인먼트가 같은 구조로 나와야해"):
+                        // real routine rows sit at paddingHorizontal 18,
+                        // so this box is inset 8 and pads 9 + 1px border
+                        // = content resumes at exactly 18. The icon and
+                        // title therefore share the same left edge as
+                        // every routine above it; only the dash sits
+                        // proud of the column.
+                        marginHorizontal: 8,
+                        paddingLeft: 9,
+                        paddingRight: 8,
+                        // matches the routine group's own paddingTop 14
+                        // so the dash sits off the text by the same
+                        // margin the real rows keep (2026-07-25)
+                        paddingVertical: 14,
+                        borderWidth: 1,
+                        borderStyle: 'dashed',
+                        borderColor: 'rgba(47,124,216,0.4)',
+                        borderRadius: 12,
                         flexDirection: 'row',
                         alignItems: 'center',
                         gap: 12,
@@ -1896,7 +1976,14 @@ export default function HomeScreen() {
                         </View>
                         <View
                           style={{
-                            marginTop: 3,
+                            // 3 → 9 (2026-07-25 "글씨 사이 위아래 중간에
+                            // 간격도 다른데랑 똑같아야해 너무 좁아"): real
+                            // routine groups breathe by paddingTop 14 on
+                            // the eyebrow + paddingVertical 11 on the
+                            // title row; 3px here made the suggested row
+                            // read cramped next to them. 9 lands the
+                            // eyebrow-to-title gap on the same rhythm.
+                            marginTop: 11,
                             flexDirection: 'row',
                             alignItems: 'center',
                           }}>
@@ -1936,14 +2023,9 @@ export default function HomeScreen() {
                         <Ionicons name="add" size={19} color="#FFFFFF" />
                       </Pressable>
                     </View>
-                    <View
-                      style={{
-                        height: 1,
-                        marginTop: 14,
-                        marginHorizontal: 18,
-                        backgroundColor: AINK.divider,
-                      }}
-                    />
+                    {/* no hairline under this one (2026-07-25): the
+                        dashed box already closes the region, and a
+                        divider right below it read as a double edge */}
                   </View>
                 ) : null}
                 {/* EVERYTHING saved, fully unfolded (2026-07-22: the
