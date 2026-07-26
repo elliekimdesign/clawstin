@@ -44,3 +44,7 @@ example
 # generated native folders
 /ios
 /android
+
+# the untouched source photo stays local (2026-07-25) — the processed
+# cutouts in this folder ARE committed, since the app renders them
+assets/user/me-original.jpg
