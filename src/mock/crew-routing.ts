@@ -6,13 +6,15 @@
 
 export type CrewKey = 'researcher' | 'writer' | 'triage' | 'orchestrator';
 
-export type CrewRoute = { key: CrewKey; name: string };
+// `role` (2026-07-27): one plain line of what the crew does, for the header
+// pill's discovery peek. Reads as "<Name> <does what>", no jargon.
+export type CrewRoute = { key: CrewKey; name: string; role: string };
 
 export const ISLAND_CREWS: Record<CrewKey, CrewRoute> = {
-  researcher: { key: 'researcher', name: 'Research' },
-  writer: { key: 'writer', name: 'Scribe' },
-  triage: { key: 'triage', name: 'Operator' },
-  orchestrator: { key: 'orchestrator', name: 'Orchestrator' },
+  researcher: { key: 'researcher', name: 'Research', role: 'Research digs up answers and compares options' },
+  writer: { key: 'writer', name: 'Scribe', role: 'Scribe writes drafts, posts, and replies' },
+  triage: { key: 'triage', name: 'Operator', role: 'Operator sorts your inbox and messages' },
+  orchestrator: { key: 'orchestrator', name: 'Orchestrator', role: 'Orchestrator splits big asks across the crew' },
 };
 
 /** Render order for the chip row. */

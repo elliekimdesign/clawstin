@@ -189,7 +189,7 @@ export const chatThemes: Record<'darkGreen' | 'skyBlue' | 'skyBlueOs' | 'mintOs'
     // the mosaic-tile field's own desk blue (2026-07-17) — the
     // SafeAreaView fill must agree with the field or a seam shows at
     // any edge it doesn't cover (status bar, load flash)
-    base: '#D8E4EF',
+    base: '#CADAEA',
     // INK voice (2026-07-25 "배경을 좀더 흰색에 가까운거로하기"): the mosaic
     // field was lifted 78% toward white, which killed the white voice this
     // theme had carried since 2026-07-17 — white measured 1.29:1 on the pale

@@ -41,6 +41,10 @@ uniform float u_blur;
 uniform float u_fadeIn;
 uniform float u_fadeOut;
 uniform float u_gradient;
+// vertical shift of the fan's rotation axis, in logical px — positive moves
+// it down, negative lifts it (2026-07-27: chat needed the axis on the FREE
+// field's center, not the canvas center, see centerYOffset)
+uniform float u_offsetY;
 
 const float PI = 3.14159265358979;
 const float TWO_PI = 6.28318530718;
@@ -98,7 +102,7 @@ vec4 blendColor(vec4 colorA, float panelMask, float panelMap) {
 }
 
 vec4 main(vec2 fragCoord) {
-  vec2 uv = fragCoord / u_resolution - .5;
+  vec2 uv = (fragCoord - vec2(0., u_offsetY)) / u_resolution - .5;
   uv.y = -uv.y;
   uv *= u_resolution / min(u_resolution.x, u_resolution.y);
   uv /= u_scale;
@@ -253,6 +257,24 @@ const PALETTES = {
       vec4('#6FA0D0'), // dusty deep, lifted
     ],
   },
+  /** deskWash LIFTED for the chat thread (2026-07-27 "홈탭이랑 뭔가 일관성이
+   * 좀 떨어져"): chat was using hard-edged mosaic tiles while Home ran this
+   * shader, so the two screens read as different apps. This is Home's own
+   * deskWash — same panes, same relationships — lifted 70% toward white so the
+   * thread's INK voice still measures 11.5:1 on the darkest pane. Same
+   * material, quieter register. */
+  deskWashPale: {
+    back: vec4('#CADAEA'),
+    panes: [
+      vec4('#DDECF8'), // light sky glow
+      vec4('#F5F9FC'), // palest blue
+      vec4('#CFDDEE'), // clear mid blue
+      vec4('#C2D2E1'), // deep blue anchor
+      vec4('#D7E8F7'), // cerulean
+      vec4('#EEF5FB'), // pale silver-blue
+      vec4('#C9D9E9'), // dusty deep
+    ],
+  },
   paper: {
     // full-bright by request (2026-07-16): pure white field, the fan's
     // own blues carry all the color
@@ -322,6 +344,7 @@ export function ColorPanelsBg({
   preset = 'fan',
   speed = SPEED,
   seamSoften = 0,
+  centerYOffset = 0,
 }: {
   variant?: ColorPanelsVariant;
   /** false = one frozen frame; true = live motion at `speed`. */
@@ -338,6 +361,10 @@ export function ColorPanelsBg({
    * 블랜딩") — 0 = off, the shader's own dither is usually enough;
    * only the chat screen's static wash needed a touch more. */
   seamSoften?: number;
+  /** vertical shift of the fan's axis in pt — negative lifts it. The canvas
+   * centers the fan on ITSELF, but a screen whose composer eats the bottom
+   * band wants it centered on the free field instead (2026-07-27 chat). */
+  centerYOffset?: number;
 }) {
   const { width, height } = useWindowDimensions();
   const clock = useClock();
@@ -373,9 +400,10 @@ export function ColorPanelsBg({
       u_color5: palette.panes[5],
       u_color6: palette.panes[6],
       u_colorBack: palette.back,
+      u_offsetY: centerYOffset,
       ...PRESETS[preset],
     };
-  }, [width, height, palette, animated, preset, speed]);
+  }, [width, height, palette, animated, preset, speed, centerYOffset]);
 
   if (!effect) return <AcidSwooshBg />;
 

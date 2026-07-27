@@ -98,13 +98,16 @@ const EXTEND_SPRING = { damping: 24, stiffness: 200, mass: 0.9 };
 const FADE_TIMING = { duration: 240, easing: Easing.out(Easing.cubic) };
 
 /**
- * Picker-wheel crew indicator: ONE fixed glass pill at top-center; the crew
- * NAME cycles through it (Research → Scribe → Operator…) while routing is
- * "thinking," landing on whoever actually picks up the request. Neighbors
- * peek faded on either side, like a horizontal iOS picker wheel. Long-press
- * expands the SAME pill into a single scrollable row showing every crew name
- * at once, with the white highlight following whichever one is selected —
- * no separate floating dropdown, no page-breaking grid.
+ * Crew marquee, DISCOVERY not selection (2026-07-27 "유저의 목표는 일이
+ * 알아서 처리되는 것"): the user's goal is work getting done, not managing
+ * an AI team — routing is the machine's promise, so handing the user a
+ * picker handed the machine's job back to them, plus the blame for picking
+ * wrong. The pill still cycles the routed NAME while the system is thinking,
+ * and tapping it still stretches into the full crew row (the motion that
+ * stays) — but the row now answers "who works here," never "use this one":
+ * tapping a name morphs the pill into that crew's one-line role, springs
+ * back to the roster, and the panel sees itself out. Nothing in here writes
+ * a route.
  */
 export function CrewSwitch({
   selected,
@@ -120,6 +123,9 @@ export function CrewSwitch({
   // now owns all pacing between crews; this component just renders whatever
   // `selected` currently is. Kept in the prop signature for call-site parity.
   busy: boolean;
+  /** Not called anymore (2026-07-27 discovery pass) — the expanded row
+   * stopped selecting; routing is upstream's job alone. Kept in the prop
+   * signature for call-site parity. */
   onSelect: (key: CrewKey) => void;
   /** fires when the pill expands/collapses — the header hides its side
    * buttons while expanded so the row can take the full width */
@@ -148,6 +154,16 @@ export function CrewSwitch({
   const positioned = useRef(false);
   const scrollRef = useRef<ScrollView>(null);
   const autoCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // DISCOVERY PEEK (2026-07-27): which crew's one-line role the pill is
+  // currently showing instead of the roster. Purely informational — never
+  // routes.
+  const [peek, setPeek] = useState<CrewKey | null>(null);
+  const peekT = useSharedValue(0); // 0 = roster row, 1 = role caption
+  const peekTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // the caption keeps its last text while fading OUT, so it never blanks
+  // mid-fade
+  const lastPeekRole = useRef('');
+  if (peek) lastPeekRole.current = CREW_LIST.find((c) => c.key === peek)?.role ?? '';
 
   const clearAutoClose = () => {
     if (autoCloseTimer.current) {
@@ -155,7 +171,24 @@ export function CrewSwitch({
       autoCloseTimer.current = null;
     }
   };
-  useEffect(() => clearAutoClose, []);
+  const clearPeekTimer = () => {
+    if (peekTimer.current) {
+      clearTimeout(peekTimer.current);
+      peekTimer.current = null;
+    }
+  };
+  useEffect(
+    () => () => {
+      clearAutoClose();
+      clearPeekTimer();
+    },
+    []
+  );
+
+  useEffect(() => {
+    peekT.value = withTiming(peek ? 1 : 0, FADE_TIMING);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [peek]);
 
   useEffect(() => {
     onExpandChange?.(expanded);
@@ -265,8 +298,13 @@ export function CrewSwitch({
   useEffect(() => {
     // 2 * RING: the content padding — without it the pill runs narrower
     // than its slots and the end capsule presses into the outline.
+    // while a role caption is up, the pill hugs THAT line instead of the
+    // roster — the same stretch spring, just a new target (2026-07-27)
+    const peekRole = peek ? CREW_LIST.find((c) => c.key === peek)?.role ?? '' : '';
     const targetPillW = expanded
-      ? Math.min(expandedTotalW + 2 * RING, maxExpandedW)
+      ? peek
+        ? Math.min(nameWidth(peekRole) + 2 * 16 + 2 * RING, maxExpandedW)
+        : Math.min(expandedTotalW + 2 * RING, maxExpandedW)
       : selected !== null && busy
         ? PILL_W
         : restW;
@@ -285,7 +323,7 @@ export function CrewSwitch({
       if (i >= 0) strip.value = withSpring(-i * SLOT_W, EXTEND_SPRING);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [expanded, maxExpandedW, restW, busy, selected]);
+  }, [expanded, maxExpandedW, restW, busy, selected, peek]);
 
   const pillStyle = useAnimatedStyle(() => ({ width: pillW.value }));
   const stripStyle = useAnimatedStyle(() => ({
@@ -295,24 +333,56 @@ export function CrewSwitch({
   // Both layers stay mounted and cross-fade — no hard content swap.
   const collapsedLayerStyle = useAnimatedStyle(() => ({ opacity: 1 - expandT.value }));
   const expandedLayerStyle = useAnimatedStyle(() => ({ opacity: expandT.value }));
+  // inside the expanded layer, roster row and role caption cross-fade the
+  // same way the collapsed/expanded layers do — one continuous morph
+  const rosterLayerStyle = useAnimatedStyle(() => ({ opacity: 1 - peekT.value }));
+  const peekLayerStyle = useAnimatedStyle(() => ({ opacity: peekT.value }));
 
-  const openPanel = () => {
-    clearAutoClose();
-    setExpanded((v) => !v);
-  };
-  const closePanel = () => {
-    clearAutoClose();
-    setExpanded(false);
-  };
-  // Tap freely — every tap reselects and RESETS the timer; ~2s after the
-  // last tap the pill shrinks back and the avatar badge takes over.
-  const selectAndScheduleClose = (key: CrewKey) => {
-    onSelect(key);
+  const scheduleClose = (ms: number) => {
     clearAutoClose();
     autoCloseTimer.current = setTimeout(() => {
       setExpanded(false);
+      setPeek(null);
       autoCloseTimer.current = null;
-    }, 2000);
+    }, ms);
+  };
+  const openPanel = () => {
+    clearPeekTimer();
+    setPeek(null);
+    if (expanded) {
+      clearAutoClose();
+      setExpanded(false);
+      return;
+    }
+    setExpanded(true);
+    // discovery has no "done" moment (nothing gets picked), so the panel
+    // sees itself out; any tap inside resets the clock
+    scheduleClose(2600);
+  };
+  const closePanel = () => {
+    clearAutoClose();
+    clearPeekTimer();
+    setPeek(null);
+    setExpanded(false);
+  };
+  // Tapping a name is a QUESTION, not a choice (2026-07-27): the pill morphs
+  // to that crew's one-line role, holds long enough to read, then springs
+  // back to the roster and winds down.
+  const peekCrew = (key: CrewKey) => {
+    clearAutoClose();
+    clearPeekTimer();
+    setPeek(key);
+    peekTimer.current = setTimeout(() => {
+      setPeek(null);
+      peekTimer.current = null;
+      scheduleClose(1600);
+    }, 2400);
+  };
+  // tapping the caption itself skips the hold and returns to the roster
+  const backToRoster = () => {
+    clearPeekTimer();
+    setPeek(null);
+    scheduleClose(2000);
   };
 
   return (
@@ -394,7 +464,8 @@ export function CrewSwitch({
                     idx={idx}
                     strip={strip}
                     active={c.key === selected}
-                    onPress={() => selectAndScheduleClose(c.key)}
+                    // mid-reel taps open the roster too — never a pick
+                    onPress={openPanel}
                     light={light}
                   />
                 ))}
@@ -470,10 +541,15 @@ export function CrewSwitch({
             )}
           </Animated.View>
 
-          {/* Expanded layer: scrollable single row + gliding highlight. */}
+          {/* Expanded layer: the crew ROSTER — who works here, not a menu.
+              Two sub-layers cross-fade: the name row, and one crew's role
+              caption while a name is being asked about. */}
           <Animated.View
             pointerEvents={expanded ? 'auto' : 'none'}
             style={[StyleSheet.absoluteFill, expandedLayerStyle]}>
+            <Animated.View
+              pointerEvents={expanded && !peek ? 'auto' : 'none'}
+              style={[StyleSheet.absoluteFill, rosterLayerStyle]}>
             <ScrollView
               ref={scrollRef}
               horizontal
@@ -485,7 +561,7 @@ export function CrewSwitch({
                   {CREW_LIST.map((c, idx) => (
                     <Pressable
                       key={c.key}
-                      onPress={() => selectAndScheduleClose(c.key)}
+                      onPress={() => peekCrew(c.key)}
                       style={({ pressed }) => ({
                         width: expandedSlotWidths[idx],
                         height: INNER_H,
@@ -519,6 +595,26 @@ export function CrewSwitch({
                 </View>
               </View>
             </ScrollView>
+            </Animated.View>
+            {/* the role caption: same type voice as the names, full-strength
+                ink — it is the answer, not another option */}
+            <Animated.View
+              pointerEvents={expanded && peek ? 'auto' : 'none'}
+              style={[StyleSheet.absoluteFill, peekLayerStyle]}>
+              <Pressable
+                onPress={backToRoster}
+                style={{
+                  flex: 1,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  paddingHorizontal: 16,
+                }}>
+                <CrewName
+                  text={lastPeekRole.current}
+                  color={light ? NAME_INK_ACTIVE : '#EAF4FF'}
+                />
+              </Pressable>
+            </Animated.View>
           </Animated.View>
 
           {/* long-press catcher lives ONLY while collapsed — a disabled
@@ -526,12 +622,14 @@ export function CrewSwitch({
               first 130px of the expanded row (Research/Scribe dead zone) */}
           {!expanded ? (
             <Pressable
+              // plain TAP opens the roster now (2026-07-27): discovery
+              // should cost one touch, not a hidden long-press. The
+              // long-press stays as the same door for muscle memory.
+              // (The old tap = release-pin gesture went with selection
+              // itself — nothing can pin from here anymore.)
+              onPress={openPanel}
               onLongPress={openPanel}
               delayLongPress={280}
-              // tap on a manually pinned pill = release back to auto
-              onPress={
-                manual && selected !== null ? () => onSelect(selected) : undefined
-              }
               style={{ position: 'absolute', left: 0, right: 0, top: 0, height: PILL_H }}
             />
           ) : null}

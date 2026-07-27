@@ -21,6 +21,9 @@ import Animated, {
   FadeInDown,
   FadeOut,
   FadeOutUp,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
 } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -33,7 +36,7 @@ import { AquaBg } from '@/components/ui/aqua-bg';
 import { ButterBg } from '@/components/ui/butter-bg';
 import { CloudBg } from '@/components/ui/cloud-bg';
 import { FrostedGlassFill } from '@/components/ui/frosted-glass-fill';
-import { MosaicTilesBg } from '@/components/ui/mosaic-tiles-bg';
+import { ColorPanelsBg } from '@/components/ui/color-panels-bg';
 import { MeshBg } from '@/components/ui/mesh-bg';
 import { MintBg } from '@/components/ui/mint-bg';
 import { MonthOverlay } from '@/components/ui/month-overlay';
@@ -68,10 +71,8 @@ const GLASS_AVAILABLE = Platform.OS === 'ios' && isGlassEffectAPIAvailable();
 // design history, the way acid-swoosh-bg.tsx was.
 const TEXT_COL = 4;
 
-/** how far the run panel reaches UP past its wrapper to cover the header row
- * (2026-07-25). The header is paddingVertical spacing.sm (8) around a 40px
- * button row, so 56 clears it with a little margin. */
-const HEADER_BLEED = 56;
+// HEADER_BLEED retired 2026-07-27: the run panel stopped painting the header
+// band when it became a floating card on the unchanged field.
 
 /** ONE vertical rhythm for the thread (2026-07-25 "간격이 일정하지 않음"): the
  * gap above an ask and the gap below it must be equal, or turns read as
@@ -130,6 +131,12 @@ export function ChatThreadView({
   const [draft, setDraft] = useState(initialDraft ?? '');
   // compose-new binds to a real thread on the first send
   const [boundId, setBoundId] = useState<string | null>(null);
+  // the + popover is BACK to attachments (2026-07-27 "첨부할수있는거로
+  // 떴었는데 그거 살려야하고"): it drifted into a Settings door on
+  // 2026-07-24, but + beside the input is iMessage grammar for "bring
+  // something into this message" — the tool list lives behind the chip
+  // row's own door instead.
+  const [attachOpen, setAttachOpen] = useState(false);
   const [calOpen, setCalOpen] = useState(false);
   // header tool context: user-pinned override wins over the thread's own
   const [toolPinned, setToolPinned] = useState<string | null>(null);
@@ -157,6 +164,19 @@ export function ChatThreadView({
     setCalOpen(false);
   }, [effId]);
   const thread = composeNew && !boundId ? undefined : getThread(effId);
+
+  // SENDING clears the stage, not typing (2026-07-27 v2 "글쓸때까지는 다
+  // 똑같고 글을 치고나면 뒷배경이 없어지는거야"): the fan and the title hold
+  // steady through the whole draft — the stage empties only once the first
+  // message actually lands and the screen becomes a conversation. Threads
+  // opened with history start already-flat (no fade-out flash).
+  const hasMessages = !!thread?.messages.length;
+  const fanFade = useSharedValue(hasMessages ? 0 : 1);
+  useEffect(() => {
+    fanFade.value = withTiming(hasMessages ? 0 : 1, { duration: 380 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasMessages]);
+  const fanFadeStyle = useAnimatedStyle(() => ({ opacity: fanFade.value }));
 
   // Opening the thread picks up the delivery: the Done shelf's unread
   // dot clears, but the thread itself is never locked or archived away.
@@ -428,7 +448,10 @@ export function ChatThreadView({
     <SafeAreaView
       style={{
         flex: 1,
-        backgroundColor: runPanelOpen ? RUN_PANEL_BG : darkChat.base,
+        // no more full-screen repaint when the console opens (2026-07-27
+        // "갑자기 색깔이 바뀌니까 이상해서"): the field keeps its own color
+        // in every state — the run panel is a dark CARD on it, not a mode.
+        backgroundColor: darkChat.base,
       }}
       edges={['top', 'bottom']}>
       {/* the whole chat. Was the flippable FRONT of a card until the
@@ -437,8 +460,8 @@ export function ChatThreadView({
       {/* blue desk: light status icons */}
       {/* v5 (2026-07-17, mosaic desk): white icons on the blue field,
           dark on the light colorways */}
-      {/* light glyphs on the dark run panel, dark on the pale field */}
-      <StatusBar style={runPanelOpen ? 'light' : 'dark'} />
+      {/* dark glyphs always — the field stays pale in every state now */}
+      <StatusBar style="dark" />
       {/* Background art follows the active chat colorway (see chatThemes) */}
       {darkChat.background === 'aqua' ? (
         <AquaBg />
@@ -449,10 +472,25 @@ export function ChatThreadView({
       ) : darkChat.background === 'clouds' ? (
         <CloudBg />
       ) : darkChat.background === 'desk' ? (
-        // v5 (2026-07-17, "이런 스타일로... 배경은 같은색인데 모자이크
-        // 큰 타일로"): the other tabs' desk blue, laid as a quiet
-        // large-tile mosaic — the MosaicDot language at field scale.
-        <MosaicTilesBg />
+        // HOME'S OWN FIELD (2026-07-27 "홈탭이랑 뭔가 일관성이 좀 떨어져"):
+        // chat ran hard-edged mosaic tiles (the 2026-07-17 "모자이크 큰 타일로"
+        // era) while Home ran this shader, which is most of why the two screens
+        // felt like different apps. Same component, same `fan` preset Home uses
+        // — just the pale variant, since the thread speaks ink where Home
+        // speaks white.
+        // the axis LIFT (2026-07-27 "모터가 위치가 좀 애매하게 밑으로"): the
+        // canvas centers the fan on itself, but the composer eats the bottom
+        // band, so on-screen it read low. -80 puts the axis on the free
+        // field's own center (header bottom to composer top, ~419pt on this
+        // device), tuned by screenshot: gaps above and below the fan match.
+        // The fade wrapper dissolves the fan into the identical flat
+        // #CADAEA while a draft exists (base === the shader's colorBack,
+        // so nothing shifts hue).
+        <Animated.View
+          style={[StyleSheet.absoluteFill, fanFadeStyle]}
+          pointerEvents="none">
+          <ColorPanelsBg variant="deskWashPale" preset="fan" centerYOffset={-80} />
+        </Animated.View>
       ) : (
         <MeshBg variant="dark" />
       )}
@@ -576,7 +614,11 @@ export function ChatThreadView({
                 <Ionicons name={contextToolIcon} size={18} color="rgba(22,24,28,0.7)" />
               </Pressable>
             ) : null}
-            {/* ALWAYS the New chat + (2026-07-24 "항상 뉴 챗 버튼으로") */}
+            {/* the New chat + (2026-07-24 "항상 뉴 챗 버튼으로") — except on a
+                chat that IS already new and empty (2026-07-27): there the
+                button re-opens the screen you are looking at, so it reads as
+                a mystery action. It returns the moment the thread exists. */}
+            {!(composeNew && !thread) ? (
             <Pressable
               onPress={() =>
                 router.replace({ pathname: '/chat/[id]', params: { id: 'new' } })
@@ -596,8 +638,12 @@ export function ChatThreadView({
                 shadowOffset: { width: 0, height: 3 },
               })}>
               <FrostedGlassFill flat radius={20} tint="rgba(242,245,248,0.82)" />
-              <Ionicons name="add" size={22} color="rgba(22,24,28,0.7)" />
+              {/* the COMPOSE glyph, not a bare + (2026-07-27): + now means
+                  "attach" down in the composer, so the header's new-task
+                  door speaks Apple's own new-message grammar instead */}
+              <Ionicons name="create-outline" size={19} color="rgba(22,24,28,0.7)" />
             </Pressable>
+            ) : null}
           </Animated.View>
         ) : null}
       </View>
@@ -709,24 +755,27 @@ export function ChatThreadView({
               exiting={FadeOut.duration(140)}
               style={{
                 position: 'absolute',
-                // REACHES UP BEHIND THE HEADER (2026-07-25 "뒤에 중간에
-                // 페인트안된곳고 페인트해주기 아이콘잇는 부분"): the panel lives
-                // inside the content wrapper, which starts BELOW the header row,
-                // so at top:0 it left the header's own band unpainted and the
-                // plate appeared to float in a gap. HEADER_BLEED lifts it over
-                // that row and the same amount comes back as paddingTop, so the
-                // content stays put while the fill covers the icons' strip.
-                top: -HEADER_BLEED,
-                left: 0,
-                right: 0,
+                // A CARD, NOT A MODE (2026-07-27 "갑자기 색깔이 바뀌니까
+                // 이상해서"): the header-bleed era painted the whole top band
+                // — and the SafeAreaView repainted the rest — so opening the
+                // console flipped the entire screen dark. The panel now
+                // floats as a rounded dark card just under the header, on
+                // the untouched pale field, the same grammar as the month
+                // overlay. It still wears the >_ key's own face.
+                top: spacing.xs,
+                left: spacing.md,
+                right: spacing.md,
                 zIndex: 25,
-                // the CONSOLE BUTTON's own dark face (2026-07-25 "컬러 콘솔
-                // 버튼이랑같은색으로하기"): this panel is what the >_ key opens,
-                // so it wears the key's colour — one object, two states.
+                borderRadius: 18,
                 backgroundColor: RUN_PANEL_BG,
-                paddingTop: HEADER_BLEED + spacing.sm,
+                paddingTop: 14,
                 paddingBottom: 12,
                 paddingHorizontal: spacing.lg,
+                shadowColor: '#16181C',
+                shadowOpacity: 0.22,
+                shadowRadius: 20,
+                shadowOffset: { width: 0, height: 8 },
+                elevation: 12,
               }}>
               {/* A RECEIPT ROLL (2026-07-25 "해당하는 탭 열였을때 모든 프롬프트랑
                   그 과정을 다 영수증 히스토리처럼 보여줘야해서 위로 올리면 그
@@ -949,15 +998,19 @@ export function ChatThreadView({
                       // further left, which is the point of a speaker mark.
                       paddingLeft: 14,
                       paddingRight: 14,
-                      // 12 -> 9 (2026-07-25 "위아래여백을 조금만더 짧게하기"):
-                      // once the pane shrank to fit its text, the generous
-                      // vertical padding made a one-line ask read as a tall box
-                      paddingVertical: 9,
-                      // SQUARE, radius 0 ("레디어스 없는 사각으로") — which also
-                      // sets it apart from the folder cards, all of which round
-                      backgroundColor: 'rgba(255,255,255,0.86)',
+                      paddingVertical: 10,
+                      // HOME'S FOLDER GEOMETRY (2026-07-27): radius 16, the
+                      // board's own corner, and the frosted material below
+                      // instead of a flat white fill. The square (radius 0)
+                      // pane and its checker CORNER BLOCKS both went — they
+                      // were a vocabulary chat had invented for itself, and
+                      // they are most of what made this screen read as a
+                      // different app. AskPaneCorners is left in the tree
+                      // unused, like prompt-mast.tsx.
+                      borderRadius: 16,
+                      overflow: 'hidden',
                     }}>
-                    <AskPaneCorners />
+                    <FrostedGlassFill flat radius={16} tint="rgba(255,255,255,0.78)" />
                     <Text
                       style={{
                         // matches the reply body (2026-07-25): your words and
@@ -1105,6 +1158,36 @@ export function ChatThreadView({
             })}
           </ScrollView>
 
+          {/* THE PLACEHOLDER MOVED TO THE STAGE (2026-07-27 "화면 중간에
+              이전에 한 스타일로"): same one-instruction rule as before, the
+              other way around — on an empty chat the INVITATION sits mid
+              screen over the fan's upper wing, and the input runs bare. It
+              fades with the fan the moment typing starts (shared fanFade),
+              and threads with content get the in-field placeholder back. */}
+          {!thread?.messages.length ? (
+            <Animated.View
+              pointerEvents="none"
+              exiting={FadeOut.duration(380)}
+              style={[
+                StyleSheet.absoluteFill,
+                { alignItems: 'center', justifyContent: 'flex-start' },
+              ]}>
+              <Text
+                style={{
+                  // centered in the CLEAR band between the header and the
+                  // fan's top edge (2026-07-27 "저 위치랑 저 말 마음에안들어")
+                  // — off the panels entirely, reading as the stage's own
+                  // title. Declarative, not a question.
+                  marginTop: 72,
+                  fontSize: 14,
+                  fontFamily: fontFamily.regular,
+                  color: 'rgba(22,24,28,0.45)',
+                }}>
+                Your crew is ready.
+              </Text>
+            </Animated.View>
+          ) : null}
+
           {/* The week strip retired from this flow: the thinking console
               narrates the scan and the in-chat day card answers — one
               calendar, not two. The month overlay below stays as the
@@ -1176,20 +1259,14 @@ export function ChatThreadView({
                   pointerEvents="none"
                 />
               ) : null}
-              {/* HOME'S DESK BLUE (2026-07-25 "이 콘솔부분 배경 컬러를 홈탭에
-                  파란색같은느낌으로해줘... 챗 인풋섹션말고 그 뒤에 배경"): the
-                  band behind the input, NOT the input itself and NOT the whole
-                  chat field. It was a white veil (0.22, then 0.62) trying to
-                  separate itself from the pale mosaic. Home's #4E83B8 does that
-                  properly AND ties the composer to the board's own blue — the
-                  white input row and the dark >_ key both read cleanly on it. */}
-              <View
-                pointerEvents="none"
-                style={[
-                  StyleSheet.absoluteFill,
-                  { backgroundColor: '#4E83B8', borderRadius: 16 },
-                ]}
-              />
+              {/* FROSTED, not a blue slab (2026-07-27): on 2026-07-25 this band
+                  took Home's solid #4E83B8 to separate itself from the pale
+                  field. It did separate — but a saturated block at the bottom of
+                  an otherwise soft screen was the loudest thing on it, and Home's
+                  own ask bar is glass, not a colour field. Same frosted material
+                  as the board's sections; the chips and the >_ key supply the
+                  contrast instead. */}
+              <FrostedGlassFill flat radius={16} tint="rgba(255,255,255,0.42)" />
               {/* TOOL CHIPS inside the composer (2026-07-24 v2): a
                   small scrollable row of SQUARISH OUTLINE chips —
                   border-only (no fill) so they read as tappable/
@@ -1209,7 +1286,12 @@ export function ChatThreadView({
                     { icon: 'calendar-clear-outline', label: 'Calendar', action: 'calendar' },
                     { icon: 'logo-github', label: 'GitHub', action: 'github' },
                     { icon: 'people-outline', label: 'Contacts', action: 'contacts' },
-                    { icon: 'add', label: 'Add more', action: 'settings' },
+                    // icon-only square (2026-07-27): the labeled "Add more"
+                    // chip clipped mid-word at the screen edge. Now that the
+                    // composer's + means ATTACH again, this square is the one
+                    // door to the full tool list — ellipsis, not another +,
+                    // so the two never read as the same action.
+                    { icon: 'ellipsis-horizontal', label: '', action: 'settings' },
                   ] as const
                 ).map((r) => (
                   <Pressable
@@ -1232,30 +1314,20 @@ export function ChatThreadView({
                       // set apart from the tool chips
                       width: r.label ? undefined : 30,
                       borderRadius: 8,
-                      // FILLED with the folder's white (2026-07-25 "여기칩들
-                      // 배경은 우리 폴더에서 흰색부분한거 배경으로 넣어줘"): the
-                      // chips were OUTLINE-only, which worked while the band
-                      // behind them was near-white. On Home's desk blue an
-                      // outline chip has no body, so the ink label had nothing
-                      // to sit on. They now wear the same white pane material
-                      // the folder cards use, and the outline is dropped —
-                      // the fill IS the edge.
-                      borderWidth: 0,
-                      // SECONDARY WEIGHT (2026-07-25 "밑에챗창보다는 약간
-                      // 기본이 조금더 탁하거나 글라스 느낌이나야해. 같은 무게가
-                      // 아니어야한다는거야. 보조느낌"): at 0.9 the chips matched
-                      // the input row's own white and the two rows carried equal
-                      // weight. 0.42 makes them read as translucent glass over
-                      // the blue — present, tappable, but clearly the assisting
-                      // row rather than the primary one. Selected fills solid so
-                      // a picked tool still reads unambiguously.
+                      // SECONDARY WEIGHT, kept (2026-07-25 "같은 무게가
+                      // 아니어야한다는거야. 보조느낌"): the chips must read as the
+                      // assisting row, never matching the input's own white.
+                      // The band under them went from solid blue to frosted glass
+                      // on 2026-07-27, so a bare white veil no longer had
+                      // anything to sit on — these carry a faint ink outline for
+                      // their edge now, with a light fill for the body.
                       // SELECTED = the >_ key's own dark face (2026-07-25
-                      // "클릭햇을때배경이 이거랑같게 해주기"): accent blue read
-                      // as just another blue on a blue band. The near-black key
-                      // colour is unmistakable, and it ties a picked tool to the
-                      // console key sitting a row below it.
+                      // "클릭햇을때배경이 이거랑같게 해주기"), which also ties a
+                      // picked tool to the console key a row below it.
+                      borderWidth: 1,
+                      borderColor: 'rgba(22,24,28,0.14)',
                       backgroundColor:
-                        toolPinned === r.action ? RUN_PANEL_BG : 'rgba(255,255,255,0.42)',
+                        toolPinned === r.action ? RUN_PANEL_BG : 'rgba(255,255,255,0.5)',
                       flexDirection: 'row',
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -1314,12 +1386,11 @@ export function ChatThreadView({
                     { backgroundColor: 'rgba(255,255,255,0.92)' },
                   ]}
                 />
-              {/* the + is "add more" (2026-07-24): straight to System
-                  settings where the full tool list lives — the inline
-                  chips are the quick doors, this is everything else */}
+              {/* the + opens the ATTACH popover again (2026-07-27):
+                  Camera / Photos / Files, restored from the 07-17 era */}
               <Pressable
                 hitSlop={10}
-                onPress={() => router.push('/settings')}
+                onPress={() => setAttachOpen((v) => !v)}
                 style={({ pressed }) => ({
                   width: 30,
                   height: 30,
@@ -1333,8 +1404,10 @@ export function ChatThreadView({
               <TextInput
                 onChangeText={setDraft}
                 autoFocus={composeNew}
-
-                placeholder="What needs doing?"
+                onFocus={() => setAttachOpen(false)}
+                // on an empty chat the mid-screen line IS the placeholder,
+                // so the field stays bare; threads keep it in-field
+                placeholder={thread?.messages.length ? 'What needs doing?' : ''}
                 placeholderTextColor="rgba(22,24,28,0.5)"
                 multiline
                 style={{
@@ -1407,6 +1480,70 @@ export function ChatThreadView({
           </View>
           </View>
           </View>
+
+          {/* Attachment popover (+ button): Camera / Photos / Files —
+              restored 2026-07-27; the frosted card sits just above the
+              composer, anchored to the + that opened it */}
+          {attachOpen ? (
+            <>
+              <Pressable
+                onPress={() => setAttachOpen(false)}
+                style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 20 }}
+              />
+              <Animated.View
+                entering={FadeInDown.duration(160)}
+                style={{
+                  position: 'absolute',
+                  left: spacing.lg + 6,
+                  // clears the taller two-row composer (chips + input)
+                  bottom: 122,
+                  zIndex: 21,
+                  minWidth: 180,
+                  shadowColor: '#16181C',
+                  shadowOpacity: 0.16,
+                  shadowRadius: 18,
+                  shadowOffset: { width: 0, height: 6 },
+                  elevation: 10,
+                  paddingVertical: spacing.xs,
+                }}>
+                {/* the folder cards' glass skin, flat — a popover is a
+                    card, not a folder */}
+                <FrostedGlassFill flat radius={16} tint="rgba(255,255,255,0.85)" />
+                {(
+                  [
+                    { icon: 'camera-outline', label: 'Camera' },
+                    { icon: 'image-outline', label: 'Photos' },
+                    { icon: 'folder-outline', label: 'Files' },
+                  ] as const
+                ).map((item) => (
+                  <Pressable
+                    key={item.label}
+                    onPress={() => {
+                      setAttachOpen(false);
+                      Alert.alert('Coming soon');
+                    }}
+                    style={({ pressed }) => ({
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: spacing.sm,
+                      paddingVertical: spacing.md,
+                      paddingHorizontal: spacing.lg,
+                      opacity: pressed ? 0.5 : 1,
+                    })}>
+                    <Ionicons name={item.icon} size={18} color="rgba(22,24,28,0.65)" />
+                    <Text
+                      style={{
+                        fontSize: fontSize.body,
+                        fontFamily: fontFamily.regular,
+                        color: '#16181C',
+                      }}>
+                      {item.label}
+                    </Text>
+                  </Pressable>
+                ))}
+              </Animated.View>
+            </>
+          ) : null}
         </View>
 
       </KeyboardAvoidingView>
