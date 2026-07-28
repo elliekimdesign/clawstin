@@ -8,9 +8,7 @@ import type { AwayDigest } from '@/mock/away';
 import type { Undoable } from '@/mock/undoables';
 import { fontFamily, fontSize, fontWeight, spacing, sysColor } from '@/theme/theme';
 
-import { CrewPixel } from './crew-pixel';
 import { FrostedGlassFill } from './frosted-glass-fill';
-import { MosaicDot } from './mosaic-dot';
 
 const INK = '#16181C';
 const INK_DIM = 'rgba(22,24,28,0.55)';
@@ -18,80 +16,16 @@ const INK_GHOST = 'rgba(22,24,28,0.46)';
 const DIVIDER = 'rgba(22,24,28,0.08)';
 const TAB_GAP = 18;
 
-/** WHERE glyphs for the row grammar's trailing slot (2026-07-22):
- * one small product icon before the age — never a text label here */
-const APP_GLYPH = {
-  gmail: 'mail-outline',
-  github: 'logo-github',
-  drive: 'folder-outline',
-  calendar: 'calendar-clear-outline',
-} as const;
+// APP_GLYPH retired 2026-07-28 ("뒤에 이거 아이콘지우기"): the digest rows
+// dropped their trailing WHERE icons — which app did the work lives in the
+// thread the row opens.
 // the flap's diagonal cut runs 26px; the trailing inactive label
 // clears it (18px is enough when the near edge is straight)
 const CUT = 26;
 
-/** row avatar size — 21 after seven passes on 2026-07-25
- * (16 → 20 → 26 → 24 → 27 → 24 → 21, "얼굴더 작게 하기 약간만더"). Must stay
- * equal to the FACE const in (tabs)/index.tsx: the digest rows and the board
- * rows read as one list, so the two drifting apart is what makes the column
- * ragged. The slots holding these are 25 (= FACE + 4, so the badge can
- * overhang). */
-const FACE = 21;
-
-/** the face's DONE variant (2026-07-22 "체크 마크를 넣은 페이스"): the
- * member's pixel face wearing a tiny ready-green check cell at its
- * top-right — the avatar-badge grammar, in mosaic squares. The face
- * icon now has two states: plain (pending) and checked (done). */
-function DoneFace({ id }: { id: string }) {
-  return (
-    <View style={{ width: FACE, height: FACE }}>
-      <CrewPixel id={id} size={FACE} />
-      {/* bare check, no plate (2026-07-22 "배경 없게"): the glyph
-          itself carries the ready green */}
-      <Text
-        style={{
-          position: 'absolute',
-          top: -6,
-          right: -7,
-          color: sysColor.action,
-          fontSize: 10,
-          lineHeight: 11,
-          fontWeight: '800',
-        }}>
-        ✓
-      </Text>
-    </View>
-  );
-}
-
-/** your OWN completed asks: fronted by the EXECUTING CREW's face, wearing
- * the same done-check badge as DoneFace. Identical shape to DoneFace now —
- * kept as its own function because the rows mean different things (yours vs
- * crew-initiated) and DoneFace takes a dynamic member id. */
-function OwnFace() {
-  return (
-    <View style={{ width: FACE, height: FACE }}>
-      {/* the EXECUTING CREW's face, not Ellie's photo (2026-07-25 "내 사진은
-          안쓰고 그냥 픽셀 대표 이미지로해(그 프롬프트 실행하는 대표 크루)"):
-          every row here is her ask by definition, so her face carried no
-          information — the executor's does. muppet (Orchestrator) is the
-          default owner for asks with no assigned member. */}
-      <CrewPixel id="muppet" size={FACE} />
-      <Text
-        style={{
-          position: 'absolute',
-          top: -6,
-          right: -7,
-          color: sysColor.action,
-          fontSize: 10,
-          lineHeight: 11,
-          fontWeight: '800',
-        }}>
-        ✓
-      </Text>
-    </View>
-  );
-}
+// DoneFace / OwnFace and the FACE const retired 2026-07-28 ("얼굴들을
+// 빼줘"): the digest rows dropped their pixel faces — the 25px mark column
+// survives (shared with the board rows) carrying only the receipt check.
 
 const easeNext = () =>
   LayoutAnimation.configureNext({
@@ -229,6 +163,20 @@ export function AwayDigestCard({
           </Pressable>
         </View>
         <View style={{ marginTop: 6 }}>
+          {/* empty shell speaks (2026-07-28 "빈칸을 말이 맞게"): the card
+              stays on the board while the new mock world is unseeded */}
+          {rows.length === 0 ? (
+            <Text
+              style={{
+                paddingTop: 6,
+                paddingBottom: 10,
+                fontSize: fontSize.body,
+                fontFamily: fontFamily.regular,
+                color: 'rgba(22,24,28,0.4)',
+              }}>
+              Nothing yet
+            </Text>
+          ) : null}
           {rows.map((h, idx) => {
             const undoable = h.undoKey
               ? undoables.find((u) => u.label === h.undoKey)
@@ -249,43 +197,23 @@ export function AwayDigestCard({
                 borderTopColor: DIVIDER,
                 opacity: pressed ? 0.5 : 1,
               })}>
-              {/* provenance mark (2026-07-24): crew-initiated rows
-                  wear the responsible member's FACE; your OWN asks
-                  wear YOUR PHOTO (2026-07-25) — a real face against
-                  their drawn ones, same 16px grid so the column reads
-                  as one straight edge */}
-              <View style={{ width: 25, alignItems: 'flex-start' }}>
-                {h.own ? (
-                  <OwnFace />
-                ) : h.agentId ? (
-                  <DoneFace id={h.agentId} />
-                ) : (
-                  <MosaicDot color={sysColor.action} />
-                )}
-              </View>
+              {/* NO front mark at all (2026-07-28 "앞에 아무것도 없어도돼"):
+                  the label leads the row; doneness moved to the trailing
+                  mosaic tile beside the time */}
               <View style={{ flex: 1 }}>
-                {/* row grammar v2 (2026-07-22 "아이콘을 문장 끝으로"):
-                    the WHERE glyph rides the end of the sentence, not
-                    the time cluster — the age stands alone */}
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Text
-                    numberOfLines={1}
-                    style={{
-                      flexShrink: 1,
-                      fontSize: fontSize.body,
-                      fontFamily: fontFamily.regular,
-                      color: INK,
-                    }}>
-                    {h.label}
-                  </Text>
-                  {h.app ? (
-                    <Ionicons
-                      name={APP_GLYPH[h.app] ?? 'apps-outline'}
-                      size={12}
-                      color={INK_DIM}
-                    />
-                  ) : null}
-                </View>
+                {/* the WHERE glyph retired (2026-07-28 "뒤에 이거
+                    아이콘지우기") — the row is label and age, nothing
+                    else; which app did the work lives in the thread */}
+                <Text
+                  numberOfLines={1}
+                  style={{
+                    flexShrink: 1,
+                    fontSize: fontSize.body,
+                    fontFamily: fontFamily.regular,
+                    color: INK,
+                  }}>
+                  {h.label}
+                </Text>
                 {/* the armed row states what stays done — reversibility
                     honesty travels with the swipe key */}
                 {armed && undoable?.irreversible ? (
@@ -294,10 +222,10 @@ export function AwayDigestCard({
                   </Text>
                 ) : null}
               </View>
-              {/* doneness lives on the FACE's badge for crew rows; only
-                  faceless rows keep the receipt check by their time so
-                  nothing is marked twice. The readout steps aside while
-                  the row is swiped open. */}
+              {/* the green tile lasted one round (2026-07-28 "이 초록
+                  아이콘도 지우기"): the section header says Completed,
+                  so the rows carry no mark at all — label and age only.
+                  The readout steps aside while the row is swiped. */}
               <Text
                 style={{
                   fontSize: 11,
@@ -305,9 +233,6 @@ export function AwayDigestCard({
                   color: INK_DIM,
                   opacity: swipedKey === h.key ? 0 : 1,
                 }}>
-                {!h.agentId ? (
-                  <Text style={{ color: sysColor.ready }}>{'✓ '}</Text>
-                ) : null}
                 {h.ago}
               </Text>
             </Pressable>
@@ -385,33 +310,18 @@ export function AwayDigestCard({
                   borderTopColor: DIVIDER,
                   opacity: pressed ? 0.5 : 1,
                 })}>
-                {/* glyph rides the sentence end here too (2026-07-22
-                    "아이콘을 문장 끝으로"); the age stands alone */}
-                <View
+                {/* app glyph retired here with the main rows (2026-07-28
+                    "뒤에 이거 아이콘지우기"): label and age only */}
+                <Text
+                  numberOfLines={1}
                   style={{
                     flex: 1,
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: 6,
+                    fontSize: fontSize.body,
+                    fontFamily: fontFamily.regular,
+                    color: INK,
                   }}>
-                  <Text
-                    numberOfLines={1}
-                    style={{
-                      flexShrink: 1,
-                      fontSize: fontSize.body,
-                      fontFamily: fontFamily.regular,
-                      color: INK,
-                    }}>
-                    {r.label}
-                  </Text>
-                  {r.app ? (
-                    <Ionicons
-                      name={APP_GLYPH[r.app] ?? 'apps-outline'}
-                      size={12}
-                      color={INK_DIM}
-                    />
-                  ) : null}
-                </View>
+                  {r.label}
+                </Text>
                 {/* no check here (2026-07-22 "뜬금없는데"): sub-entries
                     just carry time */}
                 <Text style={{ fontSize: 11, fontFamily: fontFamily.mono, color: INK_DIM }}>

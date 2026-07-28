@@ -41,17 +41,6 @@ export type ScheduleProposal = {
 // exists in mock/threads.ts (the old rule stands: no dangling
 // threadIds). More arrive normally via addRoutine() when the user
 // accepts a routine suggestion in-app.
-export const initialSchedules: Schedule[] = [
-  {
-    // Gmail daily digest (2026-07-22 "정확히 무슨 리뷰인지 모르니까":
-    // "Weekly review" read as vague — a concrete inbox summary at a
-    // realistic hour instead; also the routine-vs-permission hero case)
-    id: 'sch-weekly',
-    name: 'Daily summary',
-    cadence: '8:30 AM daily',
-    threadId: 't4',
-    permissionKey: 'gmail',
-    scope: 'READ',
-    runs: 3,
-  },
-];
+// DEMO DATA WIPED 2026-07-28: the old seeded world lives in git;
+// fresh mock data lands here next.
+export const initialSchedules: Schedule[] = [];

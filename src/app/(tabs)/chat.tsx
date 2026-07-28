@@ -322,7 +322,9 @@ export default function ActivityScreen() {
                 fontFamily: fontFamily.mono,
                 color: rowFaint,
               }}>
-              no matches
+              {/* an unseeded ledger is not a failed filter (2026-07-28
+                  data wipe): each empty says what is actually true */}
+              {activity.length === 0 ? 'no activity yet' : 'no matches'}
             </Text>
           ) : (
             GROUPS.map(({ key, label }) => {

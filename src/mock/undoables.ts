@@ -16,20 +16,6 @@ export type Undoable = {
   irreversible?: string;
 };
 
-export const UNDOABLES: Undoable[] = [
-  {
-    label: 'Booked dinner with Jenna',
-    threadId: 't1',
-    ask: 'Undo this: dinner with Jenna',
-    re: /dinner|jenna|reservation/i,
-  },
-  {
-    label: 'Blocked 10:00–10:30 for PR review',
-    threadId: 't2',
-    ask: 'Undo this: PR review block',
-    re: /pr|review|auth-service/i,
-    // beat 7 told Priya the review is coming; that message is out in
-    // the world and no calendar delete brings it back
-    irreversible: "Frees the block. Priya's heads-up stays sent.",
-  },
-];
+// DEMO DATA WIPED 2026-07-28: the old seeded world lives in git;
+// fresh mock data lands here next.
+export const UNDOABLES: Undoable[] = [];

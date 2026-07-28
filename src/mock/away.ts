@@ -50,48 +50,11 @@ export type AwayDigest = {
   asked: AwayHighlight[];
 };
 
+// DEMO DATA WIPED 2026-07-28 ("기존에 있던 모든 프롬프트 데이터랑 홈탭
+// 부분이 전부 지워져야 해"): the briefing / PR-block / dinner era lives in
+// git. The shapes stay; the new mock world seeds fresh rows here.
 export const AWAY_DIGEST: AwayDigest = {
-  auto: [
-    {
-      // ago, not wall clock (2026-07-22 "정보 구조가 달라"): the whole
-      // right edge speaks RELATIVE age, the Activity feed's grammar —
-      // a clock time here read as an upcoming appointment
-      key: 'briefing',
-      label: 'Morning briefing is ready',
-      ago: '5h',
-      threadId: 't3',
-      unread: true,
-      agentId: 'quill',
-      app: 'calendar',
-    },
-    {
-      key: 'pr-block',
-      label: 'PR review block confirmed',
-      ago: '2m',
-      threadId: 't2',
-      undoKey: 'Blocked 10:00–10:30 for PR review',
-      agentId: 'muppet',
-      app: 'calendar',
-    },
-  ],
-  // the three overnight github-pr-review quiet checks (activity a8-a10)
-  routines: [
-    { key: 'r1', label: 'PR watch, quiet check', ago: '10h', threadId: 't2', agentId: 'muppet', app: 'github' },
-    { key: 'r2', label: 'PR watch, quiet check', ago: '13h', threadId: 't2', agentId: 'muppet', app: 'github' },
-    { key: 'r3', label: 'PR watch, quiet check', ago: '15h', threadId: 't2', agentId: 'muppet', app: 'github' },
-  ],
-  asked: [
-    {
-      key: 'dinner',
-      label: 'Booked dinner with Jenna',
-      ago: '55m',
-      threadId: 't1',
-      undoKey: 'Booked dinner with Jenna',
-      // YOU-initiated, but the EXECUTOR still fronts the row (2026-07-22
-      // "내 꺼 경우에도"): Crop the operator booked it — same checked
-      // face icon; the tab split already says who asked
-      agentId: 'pilot',
-      app: 'calendar',
-    },
-  ],
+  auto: [],
+  routines: [],
+  asked: [],
 };

@@ -24,13 +24,6 @@ export type BackgroundTask = {
 // Use Case B's own "waiting on you" moment arrives live via the staged
 // nudge (see app-store.tsx) once the PR notification lands, so it isn't
 // seeded here — it appears the same way a real proactive ask would.
-export const initialBackground: BackgroundTask[] = [
-  {
-    id: 'b1',
-    agentId: 'pilot',
-    label: 'Pick a time for dinner with Jenna',
-    state: 'waiting',
-    threadId: 't1',
-    age: '2m',
-  },
-];
+// DEMO DATA WIPED 2026-07-28: the old seeded world lives in git;
+// fresh mock data lands here next.
+export const initialBackground: BackgroundTask[] = [];

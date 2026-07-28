@@ -21,36 +21,9 @@ export type AutopilotRule = {
 // Use Case B's standing rule: "When a PR is ready for my review, block
 // time on my calendar for it." Event-triggered (a PR arrives), not
 // schedule-based — the one rule that exists in this build.
-export const AUTOPILOT_RULES: AutopilotRule[] = [
-  {
-    key: 'github-pr-review',
-    app: 'github',
-    name: 'PR review time',
-    // 1 booked block + 3 overnight quiet checks (activity a8-a10)
-    runs: 4,
-    undone: 0,
-    threadId: 't2',
-    // "when ..." language (2026-07-22): event rules answer the same
-    // "when does this run?" slot as schedule cadences
-    next: 'when a PR arrives',
-    recent: [
-      { label: 'Blocked 10:00–10:30 for auth-service #482', ago: '2m' },
-      { label: 'Quiet overnight, nothing new waiting', ago: '10h' },
-    ],
-  },
-  // a second github rule so the Routines board can show its category
-  // grouping (2026-07-22): rules sharing an app fold under one header
-  {
-    key: 'github-release-notes',
-    app: 'github',
-    name: 'Release notes draft',
-    runs: 2,
-    undone: 0,
-    threadId: 't2',
-    next: 'when main merges',
-    recent: [{ label: 'Drafted notes for v0.4.1', ago: '1d' }],
-  },
-];
+// DEMO DATA WIPED 2026-07-28: the old seeded world lives in git;
+// fresh mock data lands here next.
+export const AUTOPILOT_RULES: AutopilotRule[] = [];
 
 /** ago strings like "12d" with 8+ days = no run in the last week. */
 export function isInactiveAgo(ago?: string): boolean {

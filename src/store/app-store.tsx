@@ -169,11 +169,24 @@ export type RunRecord = {
   ask?: string;
   lines: string[];
   failed?: boolean;
+  /** wall-clock archive time (2026-07-28): Home's activity popover orders
+   * runs newest-first ACROSS threads, which per-thread insertion order
+   * can't answer */
+  at?: number;
 };
 
 /** how many finished runs to keep PER THREAD. A receipt roll should be long
  * enough to scroll but must not grow unbounded in a long session. */
 const RUN_ARCHIVE_CAP = 40;
+
+/** The demo board opens with three FINISHED tasks (mock/away: PR block 2m,
+ * dinner 55m, briefing 5h) — so the >_ activity panel must open already
+ * knowing about them (2026-07-28 "뭔가 안맞아": the board said done while
+ * the panel said nothing had run — a straight contradiction). Ages here
+ * mirror the digest rows' `ago` labels. */
+// DEMO DATA WIPED 2026-07-28: the seeded t1/t2/t3 receipts live in git;
+// the new mock world re-seeds this alongside its threads.
+const initialRunArchive: Record<string, RunRecord[]> = {};
 
 // Console lines carry NO wall-clock timestamps: steps land within the same
 // second, so a [HH:MM:SS] prefix adds zero information while eating 11
@@ -419,7 +432,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
    * appended here, keyed by thread, oldest first — the panel scrolls back
    * through them like a receipt roll. Memory is bounded per thread (see
    * RUN_ARCHIVE_CAP) so a long session cannot grow without limit. */
-  const [runArchive, setRunArchive] = useState<Record<string, RunRecord[]>>({});
+  const [runArchive, setRunArchive] = useState<Record<string, RunRecord[]>>(initialRunArchive);
   const [calendarReveal, setCalendarReveal] = useState<{
     date: number;
     title: string;
@@ -468,7 +481,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setRunArchive((prev) => {
         const rows = [
           ...(prev[threadId] ?? []),
-          { ask: ask ?? plan?.ask, lines: archived, failed },
+          { ask: ask ?? plan?.ask, lines: archived, failed, at: Date.now() },
         ];
         return { ...prev, [threadId]: rows.slice(-RUN_ARCHIVE_CAP) };
       });
@@ -658,6 +671,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // floating pill only announces it and links there.
   useEffect(() => {
     if (!connected || nudgeFired.current) return;
+    // the whole staged beat depends on the demo approval existing — with
+    // the mocks wiped (2026-07-28) it must sit out entirely, or the find
+    // below pushed `undefined` into approvals and crashed the board 6s
+    // after connect. Returns before marking fired, so re-seeding the
+    // mock world revives the choreography untouched.
+    if (!initialApprovals.some((a) => a.id === 'ap1')) return;
     nudgeFired.current = true;
     const t = setTimeout(() => {
       const ap1 = initialApprovals.find((a) => a.id === 'ap1')!;

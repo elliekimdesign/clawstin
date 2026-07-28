@@ -1,20 +1,23 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import Animated, { FadeInUp } from 'react-native-reanimated';
-import Svg, { Defs, LinearGradient, Rect, Stop } from 'react-native-svg';
 
 import type { ServiceState, ServiceStatus } from '@/mock/services';
-import { fontFamily, fontSize, radius, spacing, sysColor } from '@/theme/theme';
+import { fontFamily, fontSize, spacing, sysColor } from '@/theme/theme';
 
-import { FrostedGlassFill } from './frosted-glass-fill';
+import { ThinkingConsole } from './thinking-console';
 
-// Ink-on-glass tokens (2026-07-22 frosted pass: the popover is the
-// status pill UNFOLDED — the same frosted folder card as the Home
-// board's sections; the silver pane era lives in git).
-const PANEL_TEXT = 'rgba(22,24,28,0.95)';
-const PANEL_DIM = 'rgba(22,24,28,0.6)';
-const PANEL_FAINT = 'rgba(22,24,28,0.42)';
-const DIVIDER = 'rgba(22,24,28,0.08)';
+// ACTIVITY PANEL (2026-07-28 "가장 최근에 러닝된거부터 그 systemactivity가
+// 챗에 나오는거처럼"): the >_ key stopped opening a service healthcheck and
+// now answers "what has the system been DOING" — the same receipt language
+// as the chat run panel, on the same near-black face, newest run first.
+// The service rows (Connection / models) live on in /settings; the frosted
+// light plate and its title band live in git.
+const PANEL_BG = '#0E1626'; // the >_ key's own face — one object, two states
+const PANEL_TEXT = 'rgba(255,255,255,0.92)';
+const PANEL_DIM = 'rgba(255,255,255,0.6)';
+const PANEL_FAINT = 'rgba(255,255,255,0.4)';
+const DIVIDER = 'rgba(255,255,255,0.1)';
 // how far the scrim reaches ABOVE its container, to cover the status bar
 const SCRIM_REACH = 120;
 
@@ -24,18 +27,6 @@ const STATE_COLOR: Record<ServiceState, string> = {
   operational: sysColor.ready,
   degraded: sysColor.degraded,
   down: sysColor.fail,
-};
-// System rows (Core, Gateway, models) speak infra: operational /
-// degraded / offline. Agents are people-like and say "ready" instead
-// (the Agents row below formats its own `N ready` label).
-// lowercase like every status word in the app (header `degraded`, card
-// `needs you` / `running`) — one log language everywhere.
-// Words appear only for exceptions, as TRANSLATIONS not verdicts;
-// the green dot alone says healthy.
-const STATE_LABEL: Record<ServiceState, string> = {
-  operational: '',
-  degraded: 'slow',
-  down: 'offline',
 };
 
 /** Worst (most severe) state across services — drives the header dot + summary. */
@@ -47,91 +38,44 @@ export function worstServiceState(services: ServiceStatus[]): ServiceState {
   );
 }
 
+/** one run block in the activity roll — the chat run panel's own anatomy */
+export type ActivityRun = {
+  key: string;
+  threadId: string;
+  /** the ask that triggered the run, or the thread's title as fallback */
+  label?: string;
+  lines: string[];
+  failed?: boolean;
+  /** still writing itself */
+  live?: boolean;
+};
+
 type Props = {
   services: ServiceStatus[];
+  /** newest first — the live run (if any) leads */
+  runs: ActivityRun[];
   onClose: () => void;
   onManageAccess: () => void;
-  /** the popover is a summary with doors; this is the door to system settings */
+  /** the panel is a readout with doors; this is the door to system settings */
   onOpenSettings: () => void;
+  /** tapping a run opens the thread it ran in */
+  onOpenRun: (threadId: string) => void;
   /** distance from the top of the containing SafeAreaView to the panel */
   topOffset: number;
 };
 
-function ServiceRow({
-  s,
-  onIssue,
-  onOpen,
-}: {
-  s: ServiceStatus;
-  onIssue: () => void;
-  /** healthy rows are doors too: they open their settings home */
-  onOpen: () => void;
-}) {
-  const broken = s.state !== 'operational';
-  // the user's world: the core service IS the connection to the server.
-  // Sentence case throughout — model names are proper nouns, so the
-  // lowercase terminal grammar read as a mistake next to them.
-  const displayName = s.id === 'core' ? 'Connection' : s.name;
-  return (
-    <Pressable
-      onPress={broken ? onIssue : onOpen}
-      style={({ pressed }) => ({ paddingVertical: 10, opacity: pressed ? 0.55 : 1 })}>
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}>
-        <Text
-          style={{ color: PANEL_TEXT, fontFamily: fontFamily.mono, fontSize: 13, flexShrink: 1 }}
-          numberOfLines={1}>
-          {displayName}
-        </Text>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginLeft: 8 }}>
-          {s.pingMs != null ? (
-            <Text style={{ color: PANEL_DIM, fontFamily: fontFamily.mono, fontSize: 12 }}>
-              {`${s.pingMs}ms`}
-            </Text>
-          ) : null}
-          {broken ? (
-            <Text
-              style={{ color: STATE_COLOR[s.state], fontFamily: fontFamily.mono, fontSize: 12 }}>
-              {STATE_LABEL[s.state]}
-            </Text>
-          ) : null}
-          <View
-            style={{ width: 7, height: 7, borderRadius: 999, backgroundColor: STATE_COLOR[s.state] }}
-          />
-          <Ionicons name="chevron-forward" size={12} color={PANEL_FAINT} />
-        </View>
-      </View>
-      {/* exceptions carry their cause; healthy rows say nothing */}
-      {broken && s.reason ? (
-        <Text
-          style={{
-            color: STATE_COLOR[s.state],
-            fontFamily: fontFamily.mono,
-            fontSize: 11,
-            marginTop: 3,
-          }}>
-          {'↳'} {s.reason}
-        </Text>
-      ) : null}
-    </Pressable>
-  );
-}
-
 /**
- * System/infra healthcheck panel: dark console-family dropdown grouped into
- * SYSTEM / MODELS, one Agents summary line (details live in Crew), causes on
- * unhealthy rows, and a conditional "View issue →" deep-link when something
- * is wrong. Tapping the scrim dismisses it.
+ * System ACTIVITY panel behind the >_ key: the recent runs across every
+ * thread as a receipt roll (newest first, chat run-panel grammar), one
+ * quiet health line, and the settings door. Tapping the scrim dismisses.
  */
 export function StatusPopover({
   services,
+  runs,
   onClose,
   onManageAccess,
   onOpenSettings,
+  onOpenRun,
   topOffset,
 }: Props) {
   const worst = worstServiceState(services);
@@ -144,16 +88,12 @@ export function StatusPopover({
         ? 'Responses may be slower than usual'
         : "Everything's running";
 
-  const core = services.filter((s) => s.group === 'core');
-  const llm = services.filter((s) => s.group === 'llm');
-
   return (
     <Pressable
       onPress={onClose}
-      // a quiet scrim: mutes the busy cards behind so the glass panel
-      // stays readable without going opaque. It over-reaches past the
-      // container's top so the status-bar strip dims too (the panel's
-      // own offset compensates below).
+      // a quiet scrim: mutes the busy cards behind so the dark panel
+      // floats cleanly. It over-reaches past the container's top so the
+      // status-bar strip dims too (the panel's own offset compensates).
       style={{
         position: 'absolute',
         top: -SCRIM_REACH,
@@ -168,103 +108,129 @@ export function StatusPopover({
           position: 'absolute',
           top: topOffset + SCRIM_REACH,
           right: spacing.lg,
-          width: 300,
+          // wider than the old status list (300): step lines carry their
+          // right-aligned timings, same as the chat panel
+          width: 344,
+          borderRadius: 16,
+          backgroundColor: PANEL_BG,
           shadowColor: '#16181C',
-          shadowOpacity: 0.22,
+          shadowOpacity: 0.28,
           shadowRadius: 28,
           shadowOffset: { width: 0, height: 10 },
           elevation: 12,
         }}>
-        {/* frosted PLATE, not a folder (2026-07-22 "폴더 스타일 안
-            해도 돼"): the system's side surface. NEAR-OPAQUE (2026-07-22
-            "뒷배경이랑 겹치는 것 같아"): a solid milk base under the
-            frost skin so the board's text can't bleed through — a
-            floating system panel sits solid, only its edges admitting
-            the field. */}
-        <View
-          pointerEvents="none"
-          style={[
-            StyleSheet.absoluteFill,
-            { borderRadius: 16, backgroundColor: 'rgba(235,242,249,0.96)' },
-          ]}
-        />
-        <FrostedGlassFill flat radius={16} tint="rgba(255,255,255,0.5)" />
-        {/* title band in the VIAL's liquid (2026-07-22 "위에 버튼이랑
-            통일감"): the same dusty running-blue the status pill holds,
-            poured across the panel's top — with the pill's own soft
-            vertical gradient, deeper at the top where it pools */}
-        <View
-          style={{
-            height: 30,
-            justifyContent: 'center',
-            paddingHorizontal: spacing.lg,
-            overflow: 'hidden',
-            borderTopLeftRadius: 16,
-            borderTopRightRadius: 16,
-          }}>
-          <Svg
-            width={300}
-            height={30}
-            style={StyleSheet.absoluteFill}
-            pointerEvents="none">
-            <Defs>
-              <LinearGradient id="bandPour" x1="0" y1="0" x2="0" y2="1">
-                <Stop offset="0" stopColor="#5E87C4" stopOpacity="0.58" />
-                <Stop offset="1" stopColor="#5E87C4" stopOpacity="0.26" />
-              </LinearGradient>
-            </Defs>
-            <Rect width={300} height={30} fill="url(#bandPour)" />
-          </Svg>
-          <Text
-            style={{
-              color: 'rgba(22,24,28,0.6)',
-              fontFamily: fontFamily.mono,
-              fontSize: 12,
-              letterSpacing: 0.3,
-            }}>
-            System status
-          </Text>
-        </View>
-        <View style={{ paddingVertical: spacing.md, paddingHorizontal: spacing.lg }}>
-        {/* the summary is a CONCLUSION, not a title: the "Online" pill
-            already declared health, so this line sits small and quiet
-            next to its dot — the detail rows are the stars here */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7, paddingVertical: 2 }}>
+        <View style={{ paddingHorizontal: spacing.lg }}>
+          {/* HEADER ROW = the >_ key's own footprint (2026-07-28 "붙어
+              있는게 이상해"): the panel's top edge now sits exactly where
+              the key sits, and the glyph re-renders HERE, in the same
+              optical spot — so opening reads as the key unfolding into
+              the panel, not a second surface docking under it. The health
+              line rides the same row; tapping the glyph folds it back. */}
           <View
-            style={{ width: 7, height: 7, borderRadius: 999, backgroundColor: STATE_COLOR[worst] }}
-          />
-          <Text
             style={{
-              color: healthy ? PANEL_DIM : STATE_COLOR[worst],
-              fontFamily: fontFamily.mono,
-              fontSize: 11,
+              height: 40,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
             }}>
-            {summary}
-          </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
+              <View
+                style={{
+                  width: 7,
+                  height: 7,
+                  borderRadius: 999,
+                  backgroundColor: STATE_COLOR[worst],
+                }}
+              />
+              <Text
+                style={{
+                  color: healthy ? PANEL_DIM : STATE_COLOR[worst],
+                  fontFamily: fontFamily.mono,
+                  fontSize: 11,
+                }}>
+                {summary}
+              </Text>
+            </View>
+            <Pressable
+              onPress={onClose}
+              hitSlop={12}
+              style={({ pressed }) => ({
+                width: 40,
+                height: 40,
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginRight: -spacing.lg + 2,
+                opacity: pressed ? 0.6 : 1,
+              })}>
+              <Text
+                style={{
+                  fontFamily: fontFamily.mono,
+                  fontSize: 13,
+                  color: healthy ? '#7ED9A0' : STATE_COLOR[worst],
+                }}>
+                {'>_'}
+              </Text>
+            </Pressable>
+          </View>
+          {/* the receipt roll: the NEWEST runs, whole blocks only — a
+              clipped receipt read as a layout bug (2026-07-28 "간격이랑
+              뭔가 좀 어색한"), so the panel shows what fits and the full
+              ledger lives in the Activity tab. Each block is the chat
+              panel's own anatomy (ask line + steps) and a door to the
+              thread it ran in. */}
+          <View style={{ marginTop: 4 }}>
+            {runs.length === 0 ? (
+              <Text
+                style={{
+                  color: PANEL_FAINT,
+                  fontFamily: fontFamily.mono,
+                  fontSize: 12,
+                  paddingBottom: spacing.md,
+                }}>
+                Nothing has run yet.
+              </Text>
+            ) : (
+              runs.map((run, idx) => (
+                <Pressable
+                  key={run.key}
+                  onPress={() => onOpenRun(run.threadId)}
+                  style={({ pressed }) => ({
+                    // the last block hands off to the footer hairline at
+                    // the same rhythm the rows keep among themselves
+                    marginBottom: idx === runs.length - 1 ? 10 : 18,
+                    opacity: pressed ? 0.6 : 1,
+                  })}>
+                  {run.label ? (
+                    <Text
+                      numberOfLines={1}
+                      style={{
+                        fontSize: 12,
+                        lineHeight: 17,
+                        fontFamily: fontFamily.regular,
+                        color: PANEL_DIM,
+                        marginBottom: 8,
+                      }}>
+                      {run.label}
+                    </Text>
+                  ) : null}
+                  <ThinkingConsole
+                    threadId={`activity-${run.key}`}
+                    lines={run.lines}
+                    done={!run.live}
+                    failed={run.failed}
+                    folded={false}
+                    stepsOnly
+                    onDark
+                  />
+                </Pressable>
+              ))
+            )}
+          </View>
         </View>
-
-        {/* SYSTEM: core services + one agents summary (details = Crew tab) */}
-        <View style={{ marginTop: spacing.sm }}>
-          {core.map((s) => (
-            <ServiceRow key={s.id} s={s} onIssue={onManageAccess} onOpen={onOpenSettings} />
-          ))}
-          {/* Crew row removed (2026-07-22 "크루가 필요할까 싶네"):
-              this panel is infra only — agent state lives in the
-              Crew tab */}
-          {llm.map((s) => (
-            <ServiceRow key={s.id} s={s} onIssue={onManageAccess} onOpen={onOpenSettings} />
-          ))}
-        </View>
-
-        </View>
-        {/* footer doors on the same glass — hairline-separated rows,
-            no solid strips (they'd fight the frost and poke past the
-            unclipped corners). When something is wrong the loud row
-            is about the problem; the settings door is always there —
-            status is where you come to act. */}
-        <View
-          style={{ height: 1, backgroundColor: DIVIDER, marginHorizontal: spacing.lg }}
-        />
+        {/* footer doors — hairline-separated rows. When something is
+            wrong the loud row is about the problem; the settings door is
+            always there. */}
+        <View style={{ height: 1, backgroundColor: DIVIDER, marginHorizontal: spacing.lg }} />
         {!healthy ? (
           <>
             <Pressable
@@ -277,7 +243,12 @@ export function StatusPopover({
                 paddingVertical: spacing.md,
                 opacity: pressed ? 0.55 : 1,
               })}>
-              <Text style={{ color: PANEL_TEXT, fontFamily: fontFamily.semibold, fontSize: fontSize.small }}>
+              <Text
+                style={{
+                  color: PANEL_TEXT,
+                  fontFamily: fontFamily.semibold,
+                  fontSize: fontSize.small,
+                }}>
                 View issue
               </Text>
               <Ionicons name="arrow-forward" size={14} color={PANEL_TEXT} />
@@ -297,7 +268,8 @@ export function StatusPopover({
             paddingVertical: spacing.md,
             opacity: pressed ? 0.55 : 1,
           })}>
-          <Text style={{ color: PANEL_DIM, fontFamily: fontFamily.medium, fontSize: fontSize.small }}>
+          <Text
+            style={{ color: PANEL_DIM, fontFamily: fontFamily.medium, fontSize: fontSize.small }}>
             System settings
           </Text>
           <Ionicons name="chevron-forward" size={13} color={PANEL_FAINT} />
