@@ -1183,7 +1183,7 @@ export function ChatThreadView({
                   fontFamily: fontFamily.regular,
                   color: 'rgba(22,24,28,0.45)',
                 }}>
-                Your crew is ready.
+                Your crew is standing by.
               </Text>
             </Animated.View>
           ) : null}
