@@ -1,11 +1,7 @@
-import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useState } from 'react';
 import { GlassView, isGlassEffectAPIAvailable } from 'expo-glass-effect';
 import {
-  Alert,
-  LayoutAnimation,
   Platform,
   Pressable,
   ScrollView,
@@ -14,20 +10,17 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
-import type { ImageSourcePropType } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ColorPanelsBg } from '@/components/ui/color-panels-bg';
-import { KeySheen, keyChrome } from '@/components/ui/analog-key';
 import { FrostedGlassFill } from '@/components/ui/frosted-glass-fill';
-import { MosaicDot } from '@/components/ui/mosaic-dot';
 import { CREW_ACCENT, CrewPixel } from '@/components/ui/crew-pixel';
 import { CrewSheet } from '@/components/ui/crew-sheet';
 import { PixelText } from '@/components/ui/pixel-text';
 import type { ActivityItem } from '@/mock/activity';
 import type { CrewMember } from '@/mock/crew';
 import { useAppStore } from '@/store/app-store';
-import { brandBlue, fontFamily, fontSize, radius, spacing, sysColor } from '@/theme/theme';
+import { fontFamily, spacing } from '@/theme/theme';
 
 // daylight tones: the Crew tab shares the acidglass home field, and the
 // cards go WHITE — characters as transparent cutouts on paper. Dark
@@ -86,10 +79,15 @@ function useFlapW(fallback: number, pad = 14, gap = 16) {
  * "1 routines" door. */
 function CrewBadge({
   member,
+  lastAction,
   width,
   onPress,
 }: {
   member: CrewMember;
+  /** the member's newest activity row — the card leads with what this
+      teammate actually DID for you, not an abstract timestamp
+      (2026-07-27 "관리하는 곳 → 알아가는 곳") */
+  lastAction?: ActivityItem;
   width: number;
   /** opens the member's HR-file sheet (2026-07-20) — the old
       full-screen /crew/[id] push retired with it */
@@ -101,8 +99,9 @@ function CrewBadge({
       <Pressable
         onPress={onPress}
         style={({ pressed }) => ({
-          // taller than the old 150: the identity sentence needs room
-          height: 184,
+          // taller than the old 184: the footer now carries a real
+          // prompt line above the timestamp
+          height: 200,
           shadowColor: '#16181C',
           shadowOpacity: 0.1,
           shadowRadius: 18,
@@ -150,11 +149,27 @@ function CrewBadge({
           }}>
           {member.desc}
         </Text>
-        {/* bottom-left meta door, Home's "1 routines" slot: recency,
-            not totals (the count moved to Perf's ledger) */}
-        <View style={{ position: 'absolute', left: 14, bottom: 12 }}>
+        {/* bottom meta, reframed (2026-07-27): the member's newest real
+            run in the HR sheet's "↳ prompt" grammar, timestamp under it.
+            Answers "so what did you do for me?" right on the card. */}
+        <View style={{ position: 'absolute', left: 14, right: 14, bottom: 12, gap: 3 }}>
+          {lastAction ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+              <Text style={{ color: 'rgba(22,24,28,0.35)', fontSize: 11 }}>{'↳'}</Text>
+              <Text
+                numberOfLines={1}
+                style={{ flex: 1, fontSize: 11, color: 'rgba(22,24,28,0.8)' }}>
+                {lastAction.prompt}
+              </Text>
+            </View>
+          ) : null}
           <Text style={{ fontSize: 10, fontFamily: fontFamily.mono, color: INK_DIM }}>
-            {`last run ${member.lastRun}`}
+            {/* live rows carry ago='now', which reads wrong with a unit */}
+            {lastAction
+              ? lastAction.ago === 'now'
+                ? 'just now'
+                : `${lastAction.ago} ago`
+              : `last run ${member.lastRun}`}
           </Text>
         </View>
       </Pressable>
@@ -194,7 +209,7 @@ function ContributionCard({ crew }: { crew: CrewMember[] }) {
             letterSpacing: 0.3,
             color: 'rgba(22,24,28,0.55)',
           }}>
-          Action runs
+          This week
         </Text>
         <Text style={{ color: 'rgba(22,24,28,0.45)', fontSize: 10 }}>
           tasks, last 7 days
@@ -320,177 +335,14 @@ const DAY_WEIGHTS = [
   [3, 1, 4, 0, 5, 1, 3],
 ];
 
-/** One bento stat tile in the Perf view (home-tab tile energy, smaller). */
-function StatTile({ label, value }: { label: string; value: string }) {
-  return (
-    <View
-      style={{
-        flex: 1,
-        borderRadius: 0,
-        backgroundColor: 'rgba(22,24,28,0.05)',
-        paddingVertical: 10,
-        paddingHorizontal: 12,
-      }}>
-      <Text
-        style={{
-          color: INK_DIM,
-          fontSize: 9,
-          fontFamily: fontFamily.semibold,
-          letterSpacing: 0.8,
-        }}>
-        {label}
-      </Text>
-      <Text
-        style={{
-          color: INK,
-          fontSize: 17,
-          fontFamily: fontFamily.semibold,
-          marginTop: 2,
-        }}>
-        {value}
-      </Text>
-    </View>
-  );
-}
-
-/** Perf view section for one agent: one white card (same shell as the
- * profile cards) with the agent's round face chip in front of the role
- * pill, and a bento stat row inside. */
-function PerfSection({ member, recent }: { member: CrewMember; recent: ActivityItem[] }) {
-  const roleTag = member.role.split(' · ')[0];
-  const [perfFlapW, onPerfTitleLayout] = useFlapW(110, 18, 18);
-  return (
-    <Pressable
-      onPress={() => router.push(`/crew/history/${member.id}`)}
-      style={({ pressed }) => ({
-        // frosted folder, like the Info roster cards (2026-07-17)
-        shadowColor: '#16181C',
-        shadowOpacity: 0.1,
-        shadowRadius: 20,
-        shadowOffset: { width: 0, height: 8 },
-        elevation: 5,
-        opacity: pressed ? 0.9 : 1,
-      })}>
-      <FrostedGlassFill radius={16} tabWidth={perfFlapW} />
-      {/* strip carries the ROLE, same as the Info cards */}
-      <View style={{ height: 26, justifyContent: 'center', paddingHorizontal: 18 }}>
-        <Text
-          onTextLayout={onPerfTitleLayout}
-          style={{
-            alignSelf: 'flex-start',
-            fontSize: 12,
-            fontFamily: fontFamily.mono,
-            letterSpacing: 0.3,
-            color: 'rgba(22,24,28,0.55)',
-          }}>
-          {roleTag}
-        </Text>
-      </View>
-      <View style={{ paddingHorizontal: 14, paddingTop: 10, paddingBottom: 14 }}>
-      {/* header in the roster cards' system-row anatomy: bare face,
-          bitmap name, mosaic accent */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-        <CrewPixel id={member.id} size={30} />
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          <PixelText text={member.name.toUpperCase()} cell={1.4} color={INK} led />
-          <MosaicDot color={CREW_ACCENT[member.id] ?? INK_DIM} size={8} />
-        </View>
-      </View>
-      <View style={{ flexDirection: 'row', gap: 8, marginTop: 14 }}>
-        <StatTile label="AUTONOMY" value={`${member.autonomy}%`} />
-        <StatTile label="TIME SAVED" value={`${member.timeSavedH}h`} />
-        <StatTile label="TOKENS" value={`${member.tokensM}M`} />
-      </View>
-
-      {/* the actual user prompts this agent handled, newest first --
-          seeing who handled what nudges the user toward Add crew */}
-      <View style={{ marginTop: 16, paddingHorizontal: 2 }}>
-        <Text
-          style={{
-            color: INK_DIM,
-            fontSize: 9,
-            fontFamily: fontFamily.semibold,
-            letterSpacing: 0.8,
-            marginBottom: 10,
-          }}>
-          RECENT PROMPTS
-        </Text>
-        {recent.map((entry) => (
-          <Pressable
-            key={entry.id}
-            onPress={() => router.push(`/chat/${entry.threadId}`)}
-            style={({ pressed }) => ({
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: 6,
-              marginBottom: 9,
-              opacity: pressed ? 0.6 : 1,
-            })}>
-            <Text style={{ color: 'rgba(22,24,28,0.35)', fontSize: 12 }}>
-              {'\u21b3'}
-            </Text>
-            <Text
-              numberOfLines={1}
-              style={{ flex: 1, color: 'rgba(22,24,28,0.8)', fontSize: 12 }}>
-              {entry.prompt}
-            </Text>
-            <Text style={{ color: 'rgba(22,24,28,0.45)', fontSize: 12 }}>
-              {entry.ago}
-            </Text>
-          </Pressable>
-        ))}
-      </View>
-      </View>
-    </Pressable>
-  );
-}
-
-/** Info | Perf segmented toggle in the header. */
-function ModeToggle({
-  mode,
-  onChange,
-}: {
-  mode: 'info' | 'perf';
-  onChange: (m: 'info' | 'perf') => void;
-}) {
-  return (
-    // analog key shell (2026-07-16, RESTORED 2026-07-22 "처음 그
-    // 아날로그 버튼 스타일"): the segmented toggle sits on the beveled
-    // keycap material again
-    <View style={[keyChrome(false), { flexDirection: 'row', padding: 3 }]}>
-      <KeySheen />
-      {(['info', 'perf'] as const).map((m) => (
-        <Pressable
-          key={m}
-          onPress={() => onChange(m)}
-          style={{
-            paddingVertical: 5,
-            paddingHorizontal: 16,
-            borderRadius: 0,
-            backgroundColor: mode === m ? '#FFFFFF' : 'transparent',
-            shadowColor: '#26301F',
-            shadowOpacity: mode === m ? 0.12 : 0,
-            shadowRadius: 6,
-            shadowOffset: { width: 0, height: 2 },
-          }}>
-          <Text
-            style={{
-              color: mode === m ? INK : INK_DIM,
-              fontSize: 12,
-              fontFamily: fontFamily.semibold,
-            }}>
-            {m === 'info' ? 'Info' : 'Perf'}
-          </Text>
-        </Pressable>
-      ))}
-    </View>
-  );
-}
-
-/** The hired crew — assistant characters with pro skills. */
+/* StatTile / PerfSection / ModeToggle retired 2026-07-27: the Perf view
+ * merged into the single roster ("관리하는 곳 → 알아가는 곳"); per-member
+ * depth lives in the CrewSheet, the week overview in ContributionCard. */
+/** The crew as people you get to know: one view, no roster
+ * management. Cards lead with real work; the week card proves the
+ * team's rhythm; depth lives in the HR-file sheet. (2026-07-27) */
 export default function CrewScreen() {
   const { crew, activity } = useAppStore();
-  const [mode, setMode] = useState<'info' | 'perf'>('info');
   // the HR-file sheet: id and open flag split on purpose — closing only
   // flips the flag, so the member stays rendered through the slide-out
   const [sheetId, setSheetId] = useState<string | null>(null);
@@ -499,11 +351,6 @@ export default function CrewScreen() {
   // two-column roster: screen padding both sides + one 12pt gutter
   const badgeW = (screenW - spacing.lg * 2 - 12) / 2;
 
-  const switchMode = (m: 'info' | 'perf') => {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
-    setMode(m);
-  };
-
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: '#4E83B8' }} edges={['top']}>
       <StatusBar style="light" />
@@ -511,12 +358,10 @@ export default function CrewScreen() {
       <ScrollView
         contentContainerStyle={{ padding: spacing.lg, paddingBottom: 110 }}
         showsVerticalScrollIndicator={false}>
-        {/* Header: big title left, count right */}
+        {/* Header: big title only — the Info|Perf toggle retired with
+            the merge (2026-07-27) */}
         <View
           style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
             // header row sits at the SAME spot on every tab: screen
             // padding (14) + 4 = Home's 18 below the safe area
             marginTop: 4,
@@ -533,126 +378,32 @@ export default function CrewScreen() {
             }}>
             Crew
           </Text>
-          <ModeToggle mode={mode} onChange={switchMode} />
         </View>
 
-        {mode === 'info' ? (
-          // the roster: profile badges in two columns; tap = detail.
-          // Board rhythm: 12pt column gutter, the Home sections' 28pt
-          // air between rows (2026-07-16 "홈탭 섹션 간격처럼")
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: 12, rowGap: 28 }}>
-            {crew.map((m) => (
-              <CrewBadge
-                key={m.id}
-                member={m}
-                width={badgeW}
-                onPress={() => {
-                  setSheetId(m.id);
-                  setSheetOpen(true);
-                }}
-              />
-            ))}
-            {/* the empty slot: a GHOST crew card — the next member's
-                badge already on the roster, translucent, with an empty
-                avatar seat (dashed default-y box rejected: "i dont like
-                this standard style"). Anatomy mirrors CrewBadge 1:1. */}
-            <Pressable
-              onPress={() =>
-                Alert.alert('Coming soon', 'Hiring new crew members is on the way.')
-              }
-              style={({ pressed }) => ({
-                width: badgeW,
-                // tracks CrewBadge's height so the ghost stays a sibling
-                height: 184,
-                opacity: pressed ? 0.6 : 1,
-              })}>
-              {/* the empty slot is a GHOST card: the same soft-radius
-                  plate as its siblings but the front veil goes
-                  see-through — a seat waiting for a member */}
-              <FrostedGlassFill radius={22} flat tint="rgba(255,255,255,0.28)" />
-              <View style={{ paddingTop: 14, paddingHorizontal: 14 }}>
-                <Text
-                  style={{
-                    alignSelf: 'flex-end',
-                    fontSize: 12,
-                    fontFamily: fontFamily.mono,
-                    letterSpacing: 0.3,
-                    color: 'rgba(22,24,28,0.55)',
-                  }}>
-                  Open slot
-                </Text>
-              </View>
-              <View
-                style={{
-                  flex: 1,
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 14,
-                  paddingHorizontal: 14,
-                  marginBottom: 10,
-                }}>
-                {/* the empty seat: a bare + where the face would sit */}
-                <View
-                  style={{
-                    width: 44,
-                    height: 44,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}>
-                  <Ionicons name="add" size={28} color="rgba(22,24,28,0.5)" />
-                </View>
-                <View style={{ gap: 8 }}>
-                  <PixelText text="ADD CREW" cell={1.6} color={INK_DIM} led />
-                  <Text style={{ fontSize: 10, fontFamily: fontFamily.mono, color: INK_DIM }}>
-                    tap to hire
-                  </Text>
-                </View>
-              </View>
-            </Pressable>
-          </View>
-        ) : (
-          <View style={{ gap: spacing.md }}>
-            <ContributionCard crew={crew} />
-            {crew.map((m) => (
-              <PerfSection
-                key={m.id}
-                member={m}
-                recent={activity.filter((a) => a.agentId === m.id).slice(0, 3)}
-              />
-            ))}
-          </View>
-        )}
+        {/* the roster: profile badges in two columns, each carrying the
+            member's newest real run; tap = the HR-file sheet.
+            Board rhythm: 12pt column gutter, the Home sections' 28pt
+            air between rows (2026-07-16 "홈탭 섹션 간격처럼") */}
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', columnGap: 12, rowGap: 28 }}>
+          {crew.map((m) => (
+            <CrewBadge
+              key={m.id}
+              member={m}
+              lastAction={activity.find((a) => a.agentId === m.id)}
+              width={badgeW}
+              onPress={() => {
+                setSheetId(m.id);
+                setSheetOpen(true);
+              }}
+            />
+          ))}
+        </View>
 
-        {/* Add crew — MVP placeholder (Info mode carries the full-size
-            dashed slot inside the fan instead) */}
-        {mode === 'info' ? null : (
-        <Pressable
-          onPress={() => Alert.alert('Coming soon', 'Hiring new crew members is on the way.')}
-          style={({ pressed }) => ({
-            marginTop: spacing.lg,
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: spacing.sm,
-            paddingVertical: spacing.lg,
-            borderRadius: 0,
-            borderWidth: 1.5,
-            borderStyle: 'dashed',
-            borderColor: 'rgba(255,255,255,0.6)',
-            backgroundColor: 'rgba(255,255,255,0.08)',
-            opacity: pressed ? 0.6 : 1,
-          })}>
-          <Ionicons name="add" size={18} color="rgba(255,255,255,0.85)" />
-          <Text
-            style={{
-              color: 'rgba(255,255,255,0.85)',
-              fontSize: fontSize.body,
-              fontFamily: fontFamily.semibold,
-            }}>
-            Add crew
-          </Text>
-        </Pressable>
-        )}
+        {/* the week card follows the faces: proof of the whole team's
+            rhythm, one glance */}
+        <View style={{ marginTop: 28 }}>
+          <ContributionCard crew={crew} />
+        </View>
       </ScrollView>
       {/* the card's back side rises over the roster (2026-07-20) */}
       <CrewSheet

@@ -43,4 +43,30 @@ export type ScheduleProposal = {
 // accepts a routine suggestion in-app.
 // DEMO DATA WIPED 2026-07-28: the old seeded world lives in git;
 // fresh mock data lands here next.
-export const initialSchedules: Schedule[] = [];
+// THE NEW MOCK WORLD (2026-07-29). ORDER MATTERS: Home's "Next up" card
+// shows [0], so the soonest thing leads. Both also list under Routines,
+// which is the same ledger unfolded.
+export const initialSchedules: Schedule[] = [
+  {
+    id: 'sv1',
+    name: 'Standup notes for the 9:30 sync',
+    cadence: '9:30 AM',
+    threadId: 'tv4',
+    permissionKey: 'calendar',
+    scope: 'READ',
+    runs: 12,
+    lastRun: { ago: 'yesterday', ok: true },
+  },
+  {
+    id: 'sv2',
+    name: 'Weekly repo digest',
+    cadence: 'Mondays 6 AM',
+    threadId: 'tv4',
+    permissionKey: 'github',
+    scope: 'READ',
+    runs: 8,
+    // proof of life: a routine's whole job is running without you
+    // watching, so the card says WHEN it last fired, not just that it did
+    lastRun: { ago: 'Monday', ok: true },
+  },
+];

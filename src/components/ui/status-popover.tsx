@@ -80,13 +80,14 @@ export function StatusPopover({
 }: Props) {
   const worst = worstServiceState(services);
   const healthy = worst === 'operational';
-  // the headline speaks human: what it MEANS for you, not a verdict
+  // ONE wording with the Home System card (2026-07-29): the card is the door
+  // to this panel, so the two must not greet you with different sentences.
   const summary =
     worst === 'down'
       ? 'Some services are unreachable'
       : worst === 'degraded'
         ? 'Responses may be slower than usual'
-        : "Everything's running";
+        : 'All systems normal';
 
   return (
     <Pressable

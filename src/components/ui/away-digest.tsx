@@ -94,6 +94,7 @@ export function AwayDigestCard({
   return (
     <Animated.View
       entering={FadeInDown.duration(420).delay(enterDelay)}
+      // the board's one seam, matching every folder around it (2026-07-29)
       style={{ marginTop: 28 }}>
       <View
         style={{

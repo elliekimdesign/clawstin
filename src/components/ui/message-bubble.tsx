@@ -42,11 +42,12 @@ const BODY_STYLE = {
   // INK, not white (2026-07-25): the mosaic field went pale, so a white
   // voice measured 1.29:1. Mirrors darkChat.text.
   color: '#16181C',
-  // 16 -> 17.5 (2026-07-25 "본문 바디 글씨를 조금더 크게"): this is the
-  // screen's reading text, so it should outrank the mono step labels and the
-  // header pill rather than match them
-  fontSize: 17.5,
-  lineHeight: 25,
+  // 16 -> 17.5 (2026-07-25 "본문 바디 글씨를 조금더 크게") -> 16 again
+  // (2026-07-29 "홈탭에 맞게 일관성있는"): 17.5 read oversized beside Home's
+  // 15pt body. 16 keeps chat a hair above the board's dense rows — it is
+  // still the reading surface — without looking like a different app.
+  fontSize: 16,
+  lineHeight: 23,
   fontFamily: fontFamily.regular,
 } as const;
 

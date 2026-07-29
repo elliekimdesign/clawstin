@@ -356,14 +356,10 @@ export default function SettingsScreen() {
           ))}
         </SettingsWindow>
 
-        <SettingsWindow title="Crew">
-          <Row
-            label="Manage crew"
-            last
-            onPress={() => router.push('/(tabs)/crew')}
-            right={<Ionicons name="chevron-forward" size={13} color={FAINT} />}
-          />
-        </SettingsWindow>
+        {/* the CREW window is gone (2026-07-29 "네비게이션에 이미 있는건
+            여기 시스템에 항목에 넣을 필요가 없을거같아"): its one row just
+            pushed the Crew TAB, which is already one tap away in the nav
+            bar. Settings is for what has no other home. */}
 
         <SettingsWindow title="Notifications">
           <Row

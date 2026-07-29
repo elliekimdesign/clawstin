@@ -53,8 +53,25 @@ export type AwayDigest = {
 // DEMO DATA WIPED 2026-07-28 ("기존에 있던 모든 프롬프트 데이터랑 홈탭
 // 부분이 전부 지워져야 해"): the briefing / PR-block / dinner era lives in
 // git. The shapes stay; the new mock world seeds fresh rows here.
+// THE NEW MOCK WORLD (2026-07-29): two things finished before Ellie
+// looked. Both open the thread that produced them.
 export const AWAY_DIGEST: AwayDigest = {
-  auto: [],
+  auto: [
+    {
+      key: 'digest',
+      label: 'Weekly digest: what changed in main last week',
+      ago: '6:00 AM',
+      threadId: 'tv4',
+      unread: true,
+    },
+  ],
   routines: [],
-  asked: [],
+  asked: [
+    {
+      key: 'aws',
+      label: 'Replied to the AWS billing question',
+      ago: '7:48 AM',
+      threadId: 'tv3',
+    },
+  ],
 };

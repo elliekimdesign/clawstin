@@ -1,6 +1,8 @@
 import type { Approval } from '@/components/ui/approval-card';
 import type { ScheduleSuggestion } from '@/mock/calendar';
 import type { ScheduleProposal } from '@/mock/schedules';
+import type { CrewNote } from '@/components/ui/crew-detail';
+import type { TaskReview } from '@/mock/task-api';
 
 /**
  * Universal result card: every informational answer (places, weather,
@@ -13,7 +15,17 @@ export type ResultCard = {
   action?: { label: string; url: string; webUrl?: string };
 };
 
-export type PipelineStep = { label: string; status: 'done' | 'active' | 'pending' };
+export type PipelineStep = {
+  label: string;
+  status: 'done' | 'active' | 'pending';
+  /** which crew member owns this step (2026-07-28): a multi-agent pipeline
+   * that names three people must show WHO does what, or the handoff is a
+   * claim the UI never backs up. Display name, e.g. 'Research'. */
+  owner?: string;
+  /** this step is the human gate — rendered as WAITING ON YOU, never as
+   * machine progress, so "nothing writes until you approve" is visible */
+  gate?: boolean;
+};
 export type Pipeline = { steps: PipelineStep[] };
 
 /**
@@ -79,6 +91,19 @@ export type ChatMessage = {
    * you; this is the agent's draft FOR you to send to someone else. */
   draft?: Draft;
   result?: ResultCard;
+  /** the rest of the crew's contribution, folded under the main answer
+   * (2026-07-29): one owner speaks plainly, everyone else is detail you can
+   * open. Inside, the face carries the attribution. */
+  crewNotes?: CrewNote[];
+  /** a coding task came back with a real diff to review (2026-07-28): the
+   * bridge's structured payload, rendered as the in-thread review card.
+   * Approvals resolve where they were asked — never a separate screen. */
+  review?: TaskReview;
+  /** set once the user answers the review card, so it stamps in place
+   * instead of offering buttons forever */
+  reviewOutcome?: { state: 'approved'; branch: string; commit: string; url: string | null }
+    | { state: 'rejected' }
+    | { state: 'failed'; error: string };
   /** multi-agent status card — shown only for replies that represent real
    * tool/data work (not every reply; simple replies stay plain text). */
   pipeline?: Pipeline;

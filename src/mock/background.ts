@@ -24,6 +24,18 @@ export type BackgroundTask = {
 // Use Case B's own "waiting on you" moment arrives live via the staged
 // nudge (see app-store.tsx) once the PR notification lands, so it isn't
 // seeded here — it appears the same way a real proactive ask would.
-// DEMO DATA WIPED 2026-07-28: the old seeded world lives in git;
-// fresh mock data lands here next.
-export const initialBackground: BackgroundTask[] = [];
+// THE NEW MOCK WORLD (2026-07-29): one long-running piece of work, the
+// kind you hand off and walk away from. It fronts Home's RUNNING card.
+export const initialBackground: BackgroundTask[] = [
+  {
+    id: 'bv1',
+    agentId: 'quill',
+    label: 'Drafting the monthly investor update',
+    state: 'running',
+    threadId: 'tv5',
+    age: 'started 9:02 AM',
+    // long work is measured from when you handed it off, not by a fake
+    // percentage: the card's bottom-right slot says when it began
+    progress: 'started 9:02 AM',
+  },
+];

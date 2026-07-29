@@ -34,6 +34,8 @@ import { AwayDigestCard } from '@/components/ui/away-digest';
 import { AuroraLine } from '@/components/ui/aurora-line';
 import { Card } from '@/components/ui/card';
 import { GlassIconButton } from '@/components/ui/glass-icon-button';
+import { CrewSticker } from '@/components/ui/crew-sticker';
+import { IndexTab } from '@/components/ui/index-tab';
 import { BlissSwooshBg } from '@/components/ui/bliss-swoosh-bg';
 import { ColorPanelsBg } from '@/components/ui/color-panels-bg';
 import { CTA_SLAB_INK, CtaSlabFill } from '@/components/ui/cta-slab';
@@ -43,6 +45,7 @@ import { UserFace } from '@/components/ui/user-face';
 import { PixelText } from '@/components/ui/pixel-text';
 import { RasterCloud } from '@/components/ui/analog-key';
 import { MosaicCheck } from '@/components/ui/mosaic-check';
+import { ProgressCells } from '@/components/ui/progress-cells';
 import { StatusPopover, worstServiceState } from '@/components/ui/status-popover';
 import { TOOL_ACTION_PHRASE, useAppStore } from '@/store/app-store';
 import { brandBlue,
@@ -168,6 +171,11 @@ const AINK = {
   warn: sysColor.action,
   accent: sysColor.ready,
 };
+
+/** THE BOARD'S ONE SEAM (2026-07-29): every folder is separated from the
+ * next by this, vertically and horizontally. The paired Running/Next up row
+ * used to hardcode 12, which read visibly tighter than the stack around it. */
+const SECTION_GAP = 28;
 
 /** one quiet line inside a section shell with no rows yet (2026-07-28
  * "섹션들은 전부 나두고... 빈칸을 말이 맞게"): while the new mock world is
@@ -707,16 +715,17 @@ export default function HomeScreen() {
   // the accumulated-habit SUGGESTION at the top of Routines (2026-07-24):
   // an inferred rule the user hasn't set up yet — + promotes it to a
   // real routine. Dismissed once accepted.
-  // starts FALSE since the 2026-07-28 data wipe: the "Morning GitHub
-  // check" habit was demo prompt data — the new mock world re-seeds it
-  const [ruleSuggested, setRuleSuggested] = useState(false);
+  // back ON with the new mock world (2026-07-29): the habit Clawstin
+  // noticed is prep notes before investor calls, and the + turns it into
+  // a real routine that runs on its own
+  const [ruleSuggested, setRuleSuggested] = useState(true);
   const acceptSuggestedRule = () => {
     setRuleSuggested(false);
     addRoutine({
-      name: 'Morning GitHub check',
-      cadence: 'Weekdays, 8:30 AM',
-      threadId: 't2',
-      permissionKey: 'github',
+      name: 'Prep notes before investor calls',
+      cadence: 'Before every investor call',
+      threadId: 'tv5',
+      permissionKey: 'calendar',
       scope: 'READ',
       runs: 0,
     });
@@ -841,12 +850,16 @@ export default function HomeScreen() {
         suffix: t.deadline ?? t.age,
         aged: t.age?.endsWith('d') ?? false,
         threadId: t.threadId as string | undefined,
+        agentId: t.agentId as string | undefined,
       })),
     ...queueApprovals.map((a) => ({
       label: a.title,
       suffix: a.age === 'now' ? undefined : a.age,
       aged: a.age?.endsWith('d') ?? false,
       threadId: a.threadId,
+      // WHO is proposing this (2026-07-29): the sticker at the end of the
+      // sentence, resolved from the thread that owns the ask
+      agentId: threads.find((t) => t.id === a.threadId)?.agentId ?? 'muppet',
     })),
   ].sort((a, b) => Number(a.aged) - Number(b.aged))[0];
 
@@ -860,6 +873,8 @@ export default function HomeScreen() {
       name: s.name,
       when: s.cadence,
       threadId: s.threadId,
+      // proof of life for the Routines ledger (2026-07-29)
+      lastRun: s.lastRun,
     })),
     ...AUTOPILOT_RULES.map((r) => ({
       key: r.key,
@@ -867,6 +882,7 @@ export default function HomeScreen() {
       name: r.name,
       when: r.next ?? 'when it fires',
       threadId: r.threadId,
+      lastRun: undefined as { ago: string; ok: boolean } | undefined,
     })),
   ];
   // ROUTINES grouping (2026-07-22 "카테고리 안에 들어가는 것들이면
@@ -1010,55 +1026,40 @@ export default function HomeScreen() {
                     ticker of the current step; tap jumps INTO that
                     run's thread. */}
                 <Pressable
-                  onPress={() => {
-                    if (liveRun) router.push(`/chat/${liveRun.threadId}`);
-                    else setStatusOpen(true);
-                  }}
+                  // ALWAYS the panel door (2026-07-29 "버튼처럼 이전처럼
+                  // 나오고 누르면 밑에 로그가 나오게"): the key used to widen
+                  // into a one-line ticker whenever something was running,
+                  // so the header changed shape and the tap silently changed
+                  // meaning (jumping into a thread instead of opening the
+                  // log). It is one button now: same square, always opens
+                  // the activity panel below.
+                  onPress={() => setStatusOpen(true)}
                   hitSlop={12}
                   style={({ pressed }) => ({
-                    // idle = the docked console SQUARE as-is
-                    // (2026-07-24 "접혔을 때 그 사각 그대로"), running
-                    // = the widened one-line ticker
-                    maxWidth: 220,
-                    height: liveRun ? 34 : 40,
-                    width: liveRun ? undefined : 40,
+                    // the docked console SQUARE as-is (2026-07-24 "접혔을
+                    // 때 그 사각 그대로"), in every state
+                    height: 40,
+                    width: 40,
                     // same corner as the chat's docked >_ console
                     // (2026-07-24 "라운드 똑같아야"): both radius 13
                     borderRadius: 13,
-                    paddingHorizontal: liveRun ? 12 : 0,
                     backgroundColor: '#0E1626',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    flexDirection: 'row',
-                    gap: 6,
                     opacity: pressed ? 0.8 : 1,
                   })}>
-                  {liveRun ? (
-                    <>
-                      <Text
-                        numberOfLines={1}
-                        style={{
-                          maxWidth: 172,
-                          fontFamily: fontFamily.mono,
-                          fontSize: 11,
-                          color: 'rgba(255,255,255,0.78)',
-                        }}>
-                        {liveRun.line}
-                      </Text>
-                      <Text
-                        style={{
-                          fontFamily: fontFamily.mono,
-                          fontSize: 11,
-                          color: 'rgba(255,255,255,0.4)',
-                        }}>
-                        {'…'}
-                      </Text>
-                    </>
-                  ) : (
-                    <ConsoleFace
-                      color={worst === 'operational' ? '#7ED9A0' : sysColor.degraded}
-                    />
-                  )}
+                  {/* the glyph carries the state instead of the shape:
+                      running blinks the run's own green, idle holds the
+                      health colour */}
+                  <ConsoleFace
+                    color={
+                      liveRun
+                        ? '#7ED9A0'
+                        : worst === 'operational'
+                          ? '#7ED9A0'
+                          : sysColor.degraded
+                    }
+                  />
                 </Pressable>
               </View>
 
@@ -1076,7 +1077,7 @@ export default function HomeScreen() {
               <Animated.View
                   entering={FadeInDown.duration(420)}
                   style={{
-                    marginTop: 28,
+                    marginTop: SECTION_GAP,
                     shadowColor: '#16181C',
                     shadowOpacity: 0.1,
                     shadowRadius: 20,
@@ -1108,40 +1109,20 @@ export default function HomeScreen() {
                       paddingHorizontal: 18,
                       paddingTop: 12,
                       paddingBottom: 16,
-                      gap: 18,
+                      // NO gap: the tabs overlap each other by design
                     }}>
+                    {/* FILE TABS (2026-07-29): each chat is a small tab
+                        wearing the board's own diagonal folder cut, tucked
+                        under the one before it. Chips and dots stay retired
+                        (2026-07-24) — this is the folder language, not a
+                        box-in-a-box. */}
                     {threads.slice(0, 6).map((t, i) => (
-                      <View
+                      <IndexTab
                         key={t.id}
-                        style={{ flexDirection: 'row', alignItems: 'center' }}>
-                        {/* a thin hairline separates the links — no
-                            dots, no chips (2026-07-24 "점 스타일도
-                            싫어"), just quiet text on the glass */}
-                        {i > 0 ? (
-                          <View
-                            style={{
-                              width: 1,
-                              height: 13,
-                              marginRight: 18,
-                              backgroundColor: 'rgba(22,24,28,0.16)',
-                            }}
-                          />
-                        ) : null}
-                        <Pressable
-                          onPress={() => router.push(`/chat/${t.id}`)}
-                          style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1 })}>
-                          <Text
-                            numberOfLines={1}
-                            style={{
-                              maxWidth: 190,
-                              fontSize: 14,
-                              fontFamily: fontFamily.regular,
-                              color: AINK.text,
-                            }}>
-                            {t.title}
-                          </Text>
-                        </Pressable>
-                      </View>
+                        label={t.title}
+                        index={i}
+                        onPress={() => router.push(`/chat/${t.id}`)}
+                      />
                     ))}
                   </ScrollView>
                   )}
@@ -1239,15 +1220,27 @@ export default function HomeScreen() {
                         gap: spacing.sm,
                         opacity: pressed ? 0.6 : 1,
                       })}>
+                      {/* the face sits ON THE LAST LINE, right after the
+                          final word (2026-07-29 "문장 바로 끝에 같은 라인으로"),
+                          not floating at the end of the block.
+                          A bare View inside Text renders unreliably on iOS,
+                          so the sticker rides inside an inline Text run whose
+                          own baseline the emoji-sized box follows. */}
                       <Text
-                        numberOfLines={2}
                         style={{
                           flex: 1,
                           fontSize: fontSize.body,
+                          lineHeight: 22,
                           fontFamily: fontFamily.medium,
                           color: AINK.text,
                         }}>
                         {nextAsk.label}
+                        {nextAsk.agentId ? (
+                          <Text>
+                            {' '}
+                            <CrewSticker agentId={nextAsk.agentId} size={15} inline />
+                          </Text>
+                        ) : null}
                       </Text>
                       <Text
                         style={{ fontSize: 11, fontFamily: fontFamily.mono, color: AINK.dim }}>
@@ -1271,22 +1264,36 @@ export default function HomeScreen() {
                               }
                               style={({ pressed }) => ({
                                 flexDirection: 'row',
-                                alignItems: 'center',
+                                // top-aligned now that the label can wrap:
+                                // centering floated the time beside the
+                                // middle of a two-line ask
+                                alignItems: 'flex-start',
                                 gap: spacing.sm,
                                 paddingVertical: 12,
                                 borderTopWidth: 1,
                                 borderTopColor: AINK.divider,
                                 opacity: pressed ? 0.5 : 1,
                               })}>
+                              {/* SAME anatomy as the promoted row above
+                                  (2026-07-29): the sentence wraps instead of
+                                  truncating, and its own crew face signs the
+                                  end of it. A "…" hid the actual ask, which
+                                  is the one thing the row exists to say. */}
                               <Text
-                                numberOfLines={1}
                                 style={{
                                   flex: 1,
                                   fontSize: fontSize.body,
+                                  lineHeight: 22,
                                   fontFamily: fontFamily.regular,
                                   color: AINK.text,
                                 }}>
                                 {r.label}
+                                {r.agentId ? (
+                                  <Text>
+                                    {' '}
+                                    <CrewSticker agentId={r.agentId} size={15} inline />
+                                  </Text>
+                                ) : null}
                               </Text>
                               <Text
                                 style={{ fontSize: 11, fontFamily: fontFamily.mono, color: AINK.dim }}>
@@ -1316,11 +1323,117 @@ export default function HomeScreen() {
                 entering={FadeInDown.duration(420).delay(240)}
                 style={{
                   flexDirection: 'row',
-                  gap: 12,
-                  marginTop: 28,
+                  // ONE seam everywhere (2026-07-29 "폴더 사이에 간격이랑
+                  // 안맞아"): every folder is separated by 28, so the pair
+                  // was reading 16pt tighter than the stack around it.
+                  gap: SECTION_GAP,
+                  marginTop: SECTION_GAP,
                 }}>
-                {/* NEXT UP leads the row now (2026-07-24 swap): the
-                    future axis on the left, System status on the right */}
+                {/* RUNNING leads the row (2026-07-29): live work on the
+                    left, the future axis on the right. System left this row
+                    entirely — its home is still being decided, and the >_
+                    key in the header remains the system door meanwhile. */}
+                <Pressable
+                  onPress={() =>
+                    runningTask?.threadId
+                      ? router.push(`/chat/${runningTask.threadId}`)
+                      : setTaskSheet('running')
+                  }
+                  style={({ pressed }) => ({
+                    flex: 1,
+                    height: 124,
+                    paddingHorizontal: 18,
+                    paddingBottom: 18,
+                    shadowColor: '#16181C',
+                    shadowOpacity: 0.1,
+                    shadowRadius: 18,
+                    shadowOffset: { width: 0, height: 6 },
+                    elevation: 5,
+                    opacity: pressed ? 0.85 : 1,
+                  })}>
+                  <FrostedGlassFill
+                    radius={14}
+                    tabWidth={flapW('running', 90)}
+                    tabHeight={22}
+                  />
+                  <View style={{ height: 26, flexDirection: 'row', alignItems: 'center' }}>
+                    <Text
+                      onTextLayout={measureTitle('running')}
+                      style={{
+                        fontSize: 12,
+                        fontFamily: fontFamily.mono,
+                        letterSpacing: 0.3,
+                        color: 'rgba(22,24,28,0.55)',
+                      }}>
+                      Running
+                    </Text>
+                  </View>
+                  <View
+                    style={{
+                      flex: 1,
+                      justifyContent: 'center',
+                      marginBottom: 14,
+                    }}>
+                    {runningTask ? (
+                      // the live line leads, the same anatomy Next up uses:
+                      // a quiet mono eyebrow over the work itself
+                      <View style={{ gap: 6 }}>
+                        <View
+                          style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                          {/* ONE breathing mosaic cluster, nothing else
+                              (2026-07-29 "그냥 아 움직이고 있구나"): the mark
+                              and a separate bar were two marks saying the
+                              same thing. The cells hand their weight around
+                              the square on a loop, in the board's own square
+                              language, and that is the entire statement. */}
+                          <ProgressCells color={AINK.running} size={10} />
+                          {runningCount > 1 ? (
+                            <Text
+                              style={{
+                                fontSize: 11,
+                                fontFamily: fontFamily.mono,
+                                letterSpacing: 0.3,
+                                color: AINK.dim,
+                              }}>
+                              {`${runningCount} TASKS`}
+                            </Text>
+                          ) : null}
+                        </View>
+                        <Text
+                          numberOfLines={2}
+                          style={{
+                            flexShrink: 1,
+                            fontSize: fontSize.body,
+                            lineHeight: 20,
+                            fontFamily: fontFamily.regular,
+                            color: AINK.text,
+                          }}>
+                          {runningTask.label}
+                        </Text>
+                      </View>
+                    ) : (
+                      <Text
+                        style={{
+                          fontSize: fontSize.body,
+                          lineHeight: 20,
+                          fontFamily: fontFamily.regular,
+                          color: AINK.dim,
+                        }}>
+                        Nothing running
+                      </Text>
+                    )}
+                  </View>
+                  {runningTask ? (
+                    // live progress in the same bottom-right slot Next up
+                    // uses for its schedule meta
+                    <View style={{ position: 'absolute', right: 18, bottom: 16 }}>
+                      <Text
+                        style={{ fontSize: 11, fontFamily: fontFamily.mono, color: AINK.dim }}>
+                        {runningTask.progress ?? runningTask.age ?? 'now'}
+                      </Text>
+                    </View>
+                  ) : null}
+                </Pressable>
                 <Pressable
                   onPress={() =>
                     nextUpRows[0] && router.push(`/chat/${nextUpRows[0].threadId}`)
@@ -1421,98 +1534,6 @@ export default function HomeScreen() {
                     </View>
                   ) : null}
                 </Pressable>
-                {/* SYSTEM card (2026-07-24, replaced Running here):
-                    the status popover's summary, in the board's own
-                    voice — the worst-state dot + one plain line. Tap
-                    opens the full System Status panel. The header
-                    console chip is now the ONLY other system door. */}
-                <Pressable
-                  onPress={() => router.push('/settings')}
-                  style={({ pressed }) => ({
-                    flex: 1,
-                    height: 124,
-                    paddingHorizontal: 18,
-                    paddingBottom: 18,
-                    shadowColor: '#16181C',
-                    shadowOpacity: 0.1,
-                    shadowRadius: 18,
-                    shadowOffset: { width: 0, height: 6 },
-                    elevation: 5,
-                    opacity: pressed ? 0.85 : 1,
-                  })}>
-                  <FrostedGlassFill
-                    radius={14}
-                    tabWidth={flapW('system', 90)}
-                    tabHeight={22}
-                  />
-                  <View style={{ height: 26, flexDirection: 'row', alignItems: 'center' }}>
-                    <Text
-                      onTextLayout={measureTitle('system')}
-                      style={{
-                        fontSize: 12,
-                        fontFamily: fontFamily.mono,
-                        letterSpacing: 0.3,
-                        color: 'rgba(22,24,28,0.55)',
-                      }}>
-                      System
-                    </Text>
-                  </View>
-                  <View
-                    style={{
-                      flex: 1,
-                      justifyContent: 'center',
-                      marginBottom: 14,
-                    }}>
-                    {/* flex-start, NOT center (2026-07-25 "얼라인 맞추기
-                        위로 더 올려서 글시작이랑맞춰야할듯"): the label
-                        wraps to two lines, so centering floated the mark
-                        into the middle of the block. It now hangs off the
-                        FIRST line, and marginTop optically centers it on
-                        that line's cap height (lineHeight 20, mark 12 →
-                        (20-12)/2 = 4). */}
-                    <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 9 }}>
-                      {/* the animated mosaic CHECK (2026-07-24): small
-                          cells shimmering along the checkmark = the
-                          system is alive/active */}
-                      {/* wrapper carries the offset — MosaicCheck takes
-                          only color/size, no style prop */}
-                      <View style={{ marginTop: 4 }}>
-                        <MosaicCheck
-                          size={12}
-                          color={
-                            worst === 'down'
-                              ? sysColor.fail
-                              : worst === 'degraded'
-                                ? sysColor.degraded
-                                : sysColor.ready
-                          }
-                        />
-                      </View>
-                      <Text
-                        numberOfLines={2}
-                        style={{
-                          flex: 1,
-                          fontSize: fontSize.body,
-                          lineHeight: 20,
-                          fontFamily: fontFamily.regular,
-                          color: AINK.text,
-                        }}>
-                        {worst === 'down'
-                          ? 'Some services are unreachable'
-                          : worst === 'degraded'
-                            ? 'Responses may be slower'
-                            : "Everything's running"}
-                      </Text>
-                    </View>
-                  </View>
-                  {/* the count of healthy services, bottom-right meta */}
-                  <View style={{ position: 'absolute', right: 18, bottom: 16 }}>
-                    <Text
-                      style={{ fontSize: 11, fontFamily: fontFamily.mono, color: AINK.dim }}>
-                      {`${services.length} services`}
-                    </Text>
-                  </View>
-                </Pressable>
               </Animated.View>
 
               {/* post-action control: the agent's most recent write
@@ -1531,7 +1552,7 @@ export default function HomeScreen() {
               <Animated.View
                 entering={FadeInDown.duration(420).delay(360)}
                 style={{
-                  marginTop: 28,
+                  marginTop: SECTION_GAP,
                   paddingHorizontal: 18,
                   paddingBottom: 18,
                   shadowColor: '#16181C',
@@ -1685,7 +1706,7 @@ export default function HomeScreen() {
               <Animated.View
                 entering={FadeInDown.duration(420).delay(480)}
                 style={{
-                  marginTop: 28,
+                  marginTop: SECTION_GAP,
                   shadowColor: '#16181C',
                   shadowOpacity: 0.1,
                   shadowRadius: 20,
@@ -1748,10 +1769,10 @@ export default function HomeScreen() {
                         alignItems: 'center',
                         gap: 12,
                       }}>
-                      {/* the GITHUB app glyph leads, same as a real
-                          routine group — then the SUGGESTED tag marks
-                          it as not-yet-set-up */}
-                      <Ionicons name="logo-github" size={16} color={AINK.dim} />
+                      {/* the app glyph leads, same as a real routine
+                          group — then the SUGGESTED tag marks it as
+                          not-yet-set-up */}
+                      <Ionicons name="calendar-clear-outline" size={16} color={AINK.dim} />
                       <View style={{ flex: 1 }}>
                         <View
                           style={{ flexDirection: 'row', alignItems: 'center', gap: 7 }}>
@@ -1762,7 +1783,7 @@ export default function HomeScreen() {
                               letterSpacing: 0.3,
                               color: AINK.dim,
                             }}>
-                            GITHUB
+                            CALENDAR
                           </Text>
                           <Text
                             style={{
@@ -1788,24 +1809,28 @@ export default function HomeScreen() {
                             alignItems: 'center',
                           }}>
                           <Text
-                            numberOfLines={1}
+                            numberOfLines={2}
                             style={{
                               flex: 1,
                               fontSize: fontSize.body,
                               fontFamily: fontFamily.regular,
                               color: AINK.text,
                             }}>
-                            Morning GitHub check
-                          </Text>
-                          <Text
-                            style={{
-                              fontSize: 11,
-                              fontFamily: fontFamily.mono,
-                              color: AINK.dim,
-                            }}>
-                            Mon-Fri, 8:30 AM
+                            Prep notes before every investor call?
                           </Text>
                         </View>
+                        {/* WHY this is being suggested (2026-07-29): a
+                            routine proposal has to show the habit it
+                            noticed, or it reads as the app guessing */}
+                        <Text
+                          style={{
+                            marginTop: 4,
+                            fontSize: 11,
+                            fontFamily: fontFamily.mono,
+                            color: AINK.dim,
+                          }}>
+                          You've asked 3 times before calls with investors
+                        </Text>
                       </View>
                       {/* + promotes the habit into a real routine */}
                       <Pressable
@@ -1886,16 +1911,33 @@ export default function HomeScreen() {
                           paddingVertical: 11,
                           opacity: pressed ? 0.5 : 1,
                         })}>
-                        <Text
-                          numberOfLines={1}
-                          style={{
-                            flex: 1,
-                            color: AINK.text,
-                            fontSize: fontSize.body,
-                            fontFamily: fontFamily.regular,
-                          }}>
-                          {row.name}
-                        </Text>
+                        <View style={{ flex: 1 }}>
+                          <Text
+                            numberOfLines={1}
+                            style={{
+                              color: AINK.text,
+                              fontSize: fontSize.body,
+                              fontFamily: fontFamily.regular,
+                            }}>
+                            {row.name}
+                          </Text>
+                          {/* PROOF OF LIFE (2026-07-29): a routine runs while
+                              you are not looking, so the row says when it
+                              last fired. A bare check only said it existed. */}
+                          {row.lastRun ? (
+                            <Text
+                              style={{
+                                marginTop: 2,
+                                fontSize: 11,
+                                fontFamily: fontFamily.mono,
+                                color: row.lastRun.ok ? AINK.dim : sysColor.fail,
+                              }}>
+                              {row.lastRun.ok
+                                ? `last ran ${row.lastRun.ago}`
+                                : `last run failed, ${row.lastRun.ago}`}
+                            </Text>
+                          ) : null}
+                        </View>
                         <Text
                           style={{ fontSize: 11, fontFamily: fontFamily.mono, color: AINK.dim }}>
                           {row.when}

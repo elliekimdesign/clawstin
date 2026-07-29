@@ -26,6 +26,7 @@ import {
   getScriptedReply,
   recipientOf,
 } from '@/mock/chat';
+import { approveTask, rejectTask, requestTask } from '@/mock/task-api';
 import { QuickTask } from '@/mock/quick-tasks';
 import { initialMemories, Memory } from '@/mock/memories';
 import {
@@ -206,6 +207,53 @@ export const TOOL_ACTION_PHRASE: Record<string, string> = {
   health: 'Check my sleep score from last night',
 };
 
+/** USE CASE C (2026-07-28) — "Catch me up on the repo: triage overnight
+ * issues and draft replies for the easy ones."
+ *
+ * Scripted, like A and B: no Hermes, no real GitHub writes. Matched ahead of
+ * the generic githubAsk branch, which would otherwise claim it on "repo". */
+const REPO_TRIAGE_RE =
+  /(catch me up|triage).*(repo|issue)|(repo|issue).*(triage|catch me up)|overnight issue/i;
+
+/** Crop's single WRITE ask: everything that posts or labels, in one card.
+ * `items` spell out exactly what gets touched — the ask must always show
+ * WHAT it acts on, never just a title. */
+const TRIAGE_APPROVAL: Approval = {
+  id: 'tri1',
+  icon: 'logo-github',
+  title: 'Post 2 replies and label 5 issues',
+  detail: 'Replies to #1148 and #1151, labels on the 3 duplicates plus both bugs.',
+  permissionKey: 'github',
+  risk: 'write',
+  scopeOverride: 'GitHub WRITE',
+  items: [
+    { label: 'Reply to #1148', detail: 'cold-start crash' },
+    { label: 'Reply to #1151', detail: 'gateway key question' },
+    { label: 'Label 5 issues', detail: '3 duplicate, 2 bug' },
+  ],
+  actionLabel: 'Post and label',
+  denyLabel: 'Hold the posts',
+  receipt: '2 replies posted, 5 issues labeled',
+  age: 'now',
+};
+
+/** The pushback path: denying the posts leaves the harmless half on the
+ * table, so the user is never forced into all-or-nothing. */
+const TRIAGE_LABELS_ONLY: Approval = {
+  id: 'tri2',
+  icon: 'pricetag-outline',
+  title: 'Label 5 issues, no replies',
+  detail: 'Labels only. The drafted replies stay unsent in this thread.',
+  permissionKey: 'github',
+  risk: 'write',
+  scopeOverride: 'GitHub WRITE',
+  items: [{ label: 'Label 5 issues', detail: '3 duplicate, 2 bug' }],
+  actionLabel: 'Label them',
+  denyLabel: 'Leave it all',
+  receipt: '5 issues labeled',
+  age: 'now',
+};
+
 /** Follow-up chips / free-form undo asks resolve as quick scripted runs.
  * Two use cases only now: A's dinner booking, B's PR-review block. */
 const EDGE_FOLLOWUPS: {
@@ -306,6 +354,9 @@ type Store = {
   /** create a new thread (optionally seeded with a first user message), returns its id */
   createThread: (seedText?: string) => string;
   sendMessage: (threadId: string, text: string) => void;
+  /** answer a code-review card: the bridge commits+pushes, or discards */
+  approveReview: (threadId: string, messageId: string, taskId: string) => Promise<void>;
+  rejectReview: (threadId: string, messageId: string, taskId: string) => Promise<void>;
   resolveChatApproval: (
     threadId: string,
     messageId: string,
@@ -468,6 +519,35 @@ export function AppProvider({ children }: { children: ReactNode }) {
       );
     });
   }, []);
+
+  /** Add MORE steps to a run already narrating (2026-07-28), instead of
+   * `runThinking`'s clear-and-restart. A long multi-crew task narrates in
+   * phases: each crew member's steps appear while THEY work, so the console
+   * is still moving when their message lands rather than having burned
+   * through every line in the first two seconds. */
+  const appendThinking = useCallback(
+    (threadId: string, lines: string[], stepMs = Math.round(800 * DEMO_PACE)) => {
+      const plan = thinkingPlan.current;
+      if (plan?.threadId === threadId) {
+        thinkingPlan.current = { ...plan, lines: [...plan.lines, ...lines] };
+      }
+      lines.forEach((line, i) => {
+        thinkingTimers.current.push(
+          setTimeout(
+            () => {
+              setThinking((prev) =>
+                prev && prev.threadId === threadId && !prev.done
+                  ? { ...prev, lines: [...prev.lines, line] }
+                  : prev
+              );
+            },
+            stepMs * (i + 1)
+          )
+        );
+      });
+    },
+    []
+  );
 
   /** The reply landed: flush any lines still queued and fold the console.
    * `failed` marks runs that STOPPED on errors (amber footer). */
@@ -647,6 +727,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       !msg.approval &&
       !(msg.schedule && !msg.schedule.booked) &&
       !(msg.scheduleProposal && !msg.scheduleProposal.resolved) &&
+      // a code review awaiting approve/reject is YOUR TURN, not delivered
+      !(msg.review && !msg.reviewOutcome) &&
       // an open question (chips) keeps the thread open too
       !msg.suggestions;
     setThreads((prev) =>
@@ -711,6 +793,117 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return () => clearTimeout(t);
   }, [connected, appendToThread]);
 
+  /** Advance a pipeline card that is already in the thread (2026-07-28).
+   * Without this the card is a snapshot frozen at append time, so it claimed
+   * "Cluster duplicates PENDING" while the very next message reported the
+   * clustering results — the status contradicted the content underneath it. */
+  const setPipelineStage = useCallback(
+    (threadId: string, messageId: string, stage: number) => {
+      setThreads((prev) =>
+        prev.map((t) =>
+          t.id === threadId
+            ? {
+                ...t,
+                messages: t.messages.map((m) =>
+                  m.id === messageId && m.pipeline
+                    ? {
+                        ...m,
+                        pipeline: {
+                          steps: m.pipeline.steps.map((s, i) => ({
+                            ...s,
+                            status:
+                              i < stage ? ('done' as const)
+                              : i === stage ? ('active' as const)
+                              : ('pending' as const),
+                          })),
+                        },
+                      }
+                    : m
+                ),
+              }
+            : t
+        )
+      );
+    },
+    []
+  );
+
+  /** Stamp a review card in place once the user answers it — the card never
+   * disappears, it becomes the receipt (approvals-in-chat grammar). */
+  const setReviewOutcome = useCallback(
+    (threadId: string, messageId: string, outcome: ChatMessage['reviewOutcome']) => {
+      setThreads((prev) =>
+        prev.map((t) =>
+          t.id === threadId
+            ? {
+                ...t,
+                messages: t.messages.map((m) =>
+                  m.id === messageId ? { ...m, reviewOutcome: outcome } : m
+                ),
+                // answering the review settles the thread
+                outcome: outcome?.state === 'approved' ? ('delivered' as const) : t.outcome,
+              }
+            : t
+        )
+      );
+    },
+    []
+  );
+
+  /** APPROVE — the only path that commits and pushes. The bridge does the git
+   * work; this just records what it reported. Never merges. */
+  const approveReview = useCallback(
+    async (threadId: string, messageId: string, taskId: string) => {
+      const res = await approveTask(taskId);
+      setReviewOutcome(
+        threadId,
+        messageId,
+        res.ok
+          ? {
+              state: 'approved',
+              branch: res.value.branch,
+              commit: res.value.commit,
+              url: res.value.url,
+            }
+          : { state: 'failed', error: res.error }
+      );
+    },
+    [setReviewOutcome]
+  );
+
+  /** REJECT — bridge deletes the worktree and local branch. Nothing is pushed. */
+  const rejectReview = useCallback(
+    async (threadId: string, messageId: string, taskId: string) => {
+      const res = await rejectTask(taskId);
+      setReviewOutcome(
+        threadId,
+        messageId,
+        res.ok ? { state: 'rejected' } : { state: 'failed', error: res.error }
+      );
+    },
+    [setReviewOutcome]
+  );
+
+  /** One shape for whatever the bridge came back with (2026-07-28), shared by
+   * the routed and manually-pinned paths so the two can never drift:
+   * - a real diff  → the in-thread REVIEW CARD (approve/reject live there)
+   * - nothing to do → plain text, so "no changes" is never a silent success
+   * - a failure     → the error, in the thread, in plain words */
+  const buildTaskReply = useCallback((res: Awaited<ReturnType<typeof requestTask>>): ChatMessage => {
+    if (!res.ok) {
+      return { id: nextId('c'), from: 'agent', text: res.error };
+    }
+    const review = res.value;
+    if (review.status !== 'review' || review.changedFiles.length === 0) {
+      return {
+        id: nextId('c'),
+        from: 'agent',
+        text: review.summary || 'Nothing needed changing for that one.',
+      };
+    }
+    return { id: nextId('c'), from: 'agent', review };
+  }, []);
+
   const respond = useCallback(
     (threadId: string, userText: string, bornTitle?: string) => {
       // Every new ask resets the tool context; each branch below sets its own.
@@ -741,6 +934,121 @@ export function AppProvider({ children }: { children: ReactNode }) {
             suggestions: edge.suggestions,
           });
         });
+        return;
+      }
+
+      // REPO TRIAGE (Use Case C, 2026-07-28) — matched BEFORE githubAsk,
+      // which would otherwise swallow it on the word "repo" and answer with
+      // the pending-PR flow. Overnight issues in, drafted replies out, one
+      // WRITE approval at the end: three crew members visibly hand off.
+      if (REPO_TRIAGE_RE.test(userText)) {
+        setTypingThreadId(threadId);
+        setCrewBusy(true);
+        setActiveTool('github');
+        // the ask stays visible on Home as running work while it plays
+        startRunningTask('Repo triage', threadId);
+
+        // PHASE PACING (2026-07-28 "말이 되게 나와야 해"): the console
+        // narrates each crew member's steps WHILE they work, and their
+        // message lands just after those steps finish. Previously every
+        // line burned off in the first 5s and the remaining cards appeared
+        // against a dead console — the run looked finished before it was.
+        const STEP = Math.round(800 * DEMO_PACE); // one console line
+        const BEAT = 420; // breath between a phase ending and its message
+
+        // ── phase 1 · BEANIE opens the task ────────────────────────────
+        // TRACE GRAMMAR (2026-07-28): every line is "verb  what it did →
+        // what came back  duration", the agent owns the line, and the
+        // durations differ because the work differs — a GitHub scan and an
+        // LLM draft cannot both take 1.3s without looking fabricated.
+        runThinking(threadId, [
+          ...nameLine,
+          'plan  Beanie · triage 12 overnight issues  0.4s',
+        ]);
+        const p1 = STEP * (nameLine.length + 1);
+
+        // the pipeline card is UPDATED as phases complete (see
+        // setPipelineStage) — the id is kept so later phases can advance it
+        const pipeId = nextId('c');
+
+        // ONE OWNER SPEAKS (2026-07-29 "그 해당하는 사람이 주가 되는 사람이
+        // 해당 질문에 중요한 말을 하는 거고"): the ask was "catch me up", so
+        // RESEARCH owns the answer and says it plainly. Beanie's routing and
+        // the handoff are supporting work, folded under it — opened by
+        // choice, attributed by face, never announcing their own names.
+        setTimeout(() => {
+          // Research works first; the console narrates while it does
+          focusCrew('researcher');
+          appendThinking(threadId, [
+            'scan  Research · GitHub issues → 12 new  2.1s',
+            'cluster  Research · duplicates → 3 in 1 group  0.8s',
+          ]);
+
+          setTimeout(() => {
+            // ── THE MAIN ANSWER — what the user actually asked for ────
+            appendToThread(threadId, {
+              id: pipeId,
+              from: 'agent',
+              // ONE definition of the 12: 3 duplicates + 2 bugs + 7
+              // questions, no overlap. "2 people reported it" on #1148 means
+              // two reporters on the SAME issue, not two of the twelve.
+              text: '12 new issues overnight. They split cleanly: 3 duplicates, 2 real bugs, and 7 questions the docs already answer.',
+              result: {
+                items: [
+                  { label: '#1148 Crash on cold start (iOS 26)', detail: 'bug · 2 people reported it' },
+                  { label: '#1151 Reset the gateway key', detail: 'question · docs cover it' },
+                  { label: '3 duplicates of #1102', detail: 'ready to close with a link' },
+                  { label: '+9 more', detail: '1 bug, 6 questions, 2 duplicates' },
+                ],
+                action: {
+                  label: 'Open all 12 on GitHub',
+                  url: 'https://github.com/elliekimdesign/clawstin/issues',
+                },
+              },
+              // the supporting crew, folded: who else moved, and why
+              crewNotes: [
+                {
+                  agentId: 'muppet',
+                  name: 'Beanie',
+                  text: 'Routed this one: Specs scans and clusters, Wink drafts the easy replies, Crop holds every write until you approve.',
+                },
+              ],
+              crewCount: 3,
+            });
+
+            // ── the DRAFT stays visible: it is the thing you review ───
+            focusCrew('writer');
+            appendThinking(threadId, ['draft  Scribe · 2 replies → #1148, #1151  11.6s']);
+            setTimeout(() => {
+              appendToThread(threadId, {
+                id: nextId('c'),
+                from: 'agent',
+                text: 'Two replies are ready. This is the one for #1148, and #1151 follows the same shape.',
+                draft: {
+                  to: '#1148',
+                  body: "Thanks for the report. This looks like the cold-start crash we fixed in 1.4.2 — the stack matches. Could you confirm which build you are on? If it is older than 1.4.2, updating should clear it. Leaving this open until you confirm.",
+                },
+              });
+
+              // ── the GATE: every write waits here ─────────────────────
+              focusCrew('triage');
+              // NO DURATION on the gate (2026-07-28): a hold is not a
+              // finished step, so a "1.2s" beside it read as completed work.
+              appendThinking(threadId, ['hold  Operator · 2 replies, 5 labels → waiting on you']);
+              setTimeout(() => {
+                setTypingThreadId(null);
+                setCrewBusy(false);
+                finishThinking(threadId);
+                appendToThread(threadId, {
+                  id: nextId('c'),
+                  from: 'agent',
+                  text: 'Nothing has been posted yet. This is the only step that writes.',
+                  approval: TRIAGE_APPROVAL,
+                });
+              }, STEP + BEAT);
+            }, STEP + BEAT);
+          }, STEP * 2 + BEAT);
+        }, p1 + BEAT);
         return;
       }
 
@@ -984,17 +1292,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
               : ['parse & plan  handled by core  0.2s'])),
         ]);
         const stages: CrewKey[] = crew ? ['triage', crew.key] : ['triage'];
+        // LIVE CODING TASK (2026-07-28): the crew animation and the bridge
+        // request start together, and the reply lands when BOTH are done —
+        // so the routing choreography never gets cut short by a fast
+        // server, and a slow server just holds the existing typing state.
+        const pending = requestTask(userText);
         runCrewSequence(stages, setCrewSelected, () => {
-          setTypingThreadId(null);
-          setCrewBusy(false);
-          finishThinking(threadId);
-          appendToThread(threadId, {
-            id: nextId('c'),
-            from: 'agent',
-            text: reply.text,
-            approval: reply.approval,
-            result: reply.result,
-            crewCount: reply.crewCount,
+          pending.then((res) => {
+            setTypingThreadId(null);
+            setCrewBusy(false);
+            // a failed run wears the console's own amber "stopped" footer
+            finishThinking(threadId, !res.ok);
+            appendToThread(threadId, buildTaskReply(res));
           });
         });
       } else {
@@ -1005,17 +1314,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
             `execute  sent to ${crewSelected ? ISLAND_CREWS[crewSelected].name : 'core'}  0.3s`,
           ]),
         ]);
+        // same live answer on the manual path — the hold and the request
+        // run together, the reply waits for the slower of the two
+        const pendingManual = requestTask(userText);
         setTimeout(() => {
-          setTypingThreadId(null);
-          setCrewBusy(false);
-          finishThinking(threadId);
-          appendToThread(threadId, {
-            id: nextId('c'),
-            from: 'agent',
-            text: reply.text,
-            approval: reply.approval,
-            result: reply.result,
-            crewCount: reply.crewCount,
+          pendingManual.then((res) => {
+            setTypingThreadId(null);
+            setCrewBusy(false);
+            finishThinking(threadId, !res.ok);
+            appendToThread(threadId, buildTaskReply(res));
           });
         }, CREW_HOLD_MS);
       }
@@ -1243,7 +1550,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
           t.id === threadId
             ? {
                 ...t,
-                outcome: !approved && a.id === 'ap1' ? undefined : ('delivered' as const),
+                // a denial that RE-PROPOSES leaves the thread open — the
+                // ask is still live (ap1's slot, tri1's labels-only offer)
+                outcome:
+                  !approved && (a.id === 'ap1' || a.id === 'tri1')
+                    ? undefined
+                    : ('delivered' as const),
                 updatedAt: 'now',
                 lastPreview: approved ? `✓ ${a.receipt ?? 'Approved'}` : '✗ Rejected',
                 messages: t.messages.map((m) =>
@@ -1279,6 +1591,112 @@ export function AppProvider({ children }: { children: ReactNode }) {
         return;
       }
 
+      // USE CASE C — denying the posts re-proposes the harmless half
+      // (labels only), the same negotiation beat as ap1 above.
+      if (!approved && a.id === 'tri1') {
+        setTypingThreadId(threadId);
+        setCrewBusy(true);
+        runThinking(threadId, [
+          'hold  Operator · replies withheld → labels only  0.5s',
+          'plan  Operator · 5 labels, no posts  0.4s',
+        ]);
+        setTimeout(() => {
+          setTypingThreadId(null);
+          setCrewBusy(false);
+          finishThinking(threadId);
+          appendToThread(threadId, {
+            id: nextId('c'),
+            from: 'agent',
+            text: 'Holding the replies. The drafts stay here. Want me to just label the 5 issues so the queue is sorted?',
+            approval: TRIAGE_LABELS_ONLY,
+          });
+        }, 1400);
+        return;
+      }
+
+      // USE CASE C — either write path closes with a receipt, ledger rows,
+      // and the task marked done.
+      if (approved && (a.id === 'tri1' || a.id === 'tri2')) {
+        const postedReplies = a.id === 'tri1';
+        // the gate has been answered: mark it done and light up the final
+        // step, so the pipeline never sits on "YOUR TURN" after you answered
+        const pipeMsg = threadsRef.current
+          .find((t) => t.id === threadId)
+          ?.messages.find((m) => m.pipeline?.steps.some((s) => s.gate));
+        if (pipeMsg) setPipelineStage(threadId, pipeMsg.id, 4);
+        setTypingThreadId(threadId);
+        setCrewBusy(true);
+        runThinking(threadId, [
+          ...(postedReplies ? ['post  Operator · 2 replies → #1148, #1151  1.9s'] : []),
+          'label  Operator · 5 issues → 3 duplicate, 2 bug  1.4s',
+          'verify  Operator · GitHub → all 7 writes landed  0.6s',
+        ]);
+        setTimeout(() => {
+          setTypingThreadId(null);
+          setCrewBusy(false);
+          finishThinking(threadId);
+          appendToThread(threadId, {
+            id: nextId('c'),
+            from: 'agent',
+            text: postedReplies
+              ? 'Done. 2 replies posted and 5 issues labeled. The 3 duplicates point at #1102, and both bugs are tagged for the next triage.'
+              : 'Done. 5 issues labeled, nothing posted. The drafts are still here whenever you want them.',
+            result: {
+              items: postedReplies
+                ? [
+                    { label: '#1148 replied', detail: 'awaiting reporter' },
+                    { label: '#1151 replied', detail: 'answered from docs' },
+                    { label: '5 issues labeled', detail: '3 duplicate, 2 bug' },
+                  ]
+                : [{ label: '5 issues labeled', detail: '3 duplicate, 2 bug' }],
+              action: {
+                label: 'Open issues on GitHub',
+                url: 'https://github.com/elliekimdesign/clawstin/issues',
+              },
+            },
+          });
+
+          // the ledger records what actually happened
+          const now = new Date();
+          const hhmm = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+          setActivity((prev) => [
+            {
+              id: nextId('a'),
+              time: hhmm,
+              day: 'today' as const,
+              ago: 'now',
+              prompt: postedReplies ? 'Posted 2 replies, labeled 5 issues' : 'Labeled 5 issues',
+              agentId: 'pilot',
+              threadId,
+              kind: 'task' as const,
+            },
+            {
+              id: nextId('a'),
+              time: hhmm,
+              day: 'today' as const,
+              ago: 'now',
+              prompt: 'Triaged 12 overnight issues',
+              agentId: 'scout',
+              threadId,
+              kind: 'task' as const,
+            },
+            ...prev,
+          ]);
+
+          // every step is behind us now: stage 5 is past the last index, so
+          // all five read DONE
+          if (pipeMsg) setPipelineStage(threadId, pipeMsg.id, 5);
+          // the task leaves the RUNNING card — this work is finished
+          setBackground((prev) => prev.filter((t) => t.threadId !== threadId));
+          setThreads((prev) =>
+            prev.map((t) =>
+              t.id === threadId ? { ...t, outcome: 'delivered' as const, updatedAt: 'now' } : t
+            )
+          );
+        }, 1500);
+        return;
+      }
+
       // Approving the re-proposed slot (ap2) closes the loop with the
       // final wrap-up report.
       if (approved && a.id === 'ap2') {
@@ -1300,7 +1718,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }, 1400);
       }
     },
-    [resolveApproval, appendToThread, runThinking, finishThinking]
+    [resolveApproval, appendToThread, runThinking, finishThinking, setPipelineStage]
   );
 
   // The proposal card's test run: trust is calibrated BEFORE autonomy.
@@ -1619,6 +2037,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       markThreadRead,
       createThread,
       sendMessage,
+      approveReview,
+      rejectReview,
       resolveChatApproval,
       schedules,
       runScheduleOnce,
@@ -1681,6 +2101,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       markThreadRead,
       createThread,
       sendMessage,
+      approveReview,
+      rejectReview,
       resolveChatApproval,
       schedules,
       runScheduleOnce,

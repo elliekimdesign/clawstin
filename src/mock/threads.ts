@@ -45,6 +45,134 @@ export const askCategories: AskCategory[] = [];
 // booked in one round trip. B = push direction (agent → human): a
 // standing rule set once, then a proactive notification + a real
 // negotiation (reject → re-propose → approve) days later.
-// DEMO DATA WIPED 2026-07-28: the old seeded world lives in git;
-// fresh mock data lands here next.
-export const initialThreads: Thread[] = [];
+// THE NEW MOCK WORLD (2026-07-29). Four threads: two waiting on Ellie
+// (the Suggestions rows open these) and two already delivered (the
+// Completed rows). Recent chats fills itself from whatever she types.
+export const initialThreads: Thread[] = [
+  {
+    id: 'tv1',
+    title: 'Candidate interview',
+    lastPreview: 'Found 3 slots that work for the candidate interview',
+    updatedAt: 'now',
+    icon: 'calendar-clear-outline',
+    agentId: 'muppet',
+    crew: 'orchestrator',
+    tool: 'calendar',
+    messages: [
+      {
+        id: 'tv1-m1',
+        from: 'agent',
+        text: 'Found 3 slots that work for the candidate interview. Thursday 10 AM, Thursday 2 PM, or Friday 11 AM. Which one?',
+        // the choice resolves in this bubble (approvals-in-chat rule)
+        approval: {
+          id: 'iv1',
+          icon: 'calendar-clear-outline',
+          title: 'Found 3 slots that work for the candidate interview',
+          detail: 'Thursday 10 AM, Thursday 2 PM, or Friday 11 AM. Which one?',
+          permissionKey: 'calendar',
+          risk: 'write',
+          threadId: 'tv1',
+          age: 'now',
+          items: [
+            { label: 'Thursday 10 AM', detail: 'clear all morning' },
+            { label: 'Thursday 2 PM', detail: 'after the design sync' },
+            { label: 'Friday 11 AM', detail: 'clear all morning' },
+          ],
+          actionLabel: 'Book Thursday 10 AM',
+          denyLabel: 'None of these',
+          receipt: 'Interview booked',
+        },
+      },
+    ],
+  },
+  {
+    id: 'tv2',
+    title: 'PR review time',
+    lastPreview: 'PRs #482 and #489 have been waiting since Sunday',
+    updatedAt: '2d',
+    icon: 'logo-github',
+    agentId: 'pilot',
+    crew: 'triage',
+    tool: 'github',
+    messages: [
+      {
+        id: 'tv2-m1',
+        from: 'agent',
+        proactive: true,
+        text: 'PRs #482 and #489 have been waiting on your review since Sunday. Block 45 min today at 2 PM?',
+        approval: {
+          id: 'pr1',
+          icon: 'logo-github',
+          title: 'PRs #482 and #489 have been waiting on your review since Sunday',
+          detail: 'Block 45 min today at 2 PM?',
+          permissionKey: 'calendar',
+          risk: 'write',
+          threadId: 'tv2',
+          age: '2d',
+          items: [
+            { label: '#482 auth-service', detail: 'waiting since Sunday' },
+            { label: '#489 billing-api', detail: 'waiting since Sunday' },
+          ],
+          actionLabel: 'Block 2 PM today',
+          denyLabel: 'Not today',
+          receipt: 'Review time blocked',
+        },
+      },
+    ],
+  },
+  {
+    id: 'tv5',
+    title: 'Monthly investor update',
+    lastPreview: 'Drafting the monthly investor update',
+    updatedAt: 'now',
+    icon: 'document-text-outline',
+    agentId: 'quill',
+    crew: 'writer',
+    messages: [
+      {
+        id: 'tv5-m1',
+        from: 'user',
+        text: 'Draft the monthly investor update.',
+      },
+      {
+        id: 'tv5-m2',
+        from: 'agent',
+        text: 'Started at 9:02 AM. Pulling last month numbers and the shipped work, then I will bring you a draft to read.',
+      },
+    ],
+  },
+  {
+    id: 'tv3',
+    title: 'AWS billing question',
+    lastPreview: 'Replied to the AWS billing question',
+    updatedAt: '7:48 AM',
+    icon: 'mail-outline',
+    agentId: 'quill',
+    crew: 'writer',
+    outcome: 'delivered',
+    messages: [
+      {
+        id: 'tv3-m1',
+        from: 'agent',
+        text: 'Replied to the AWS billing question. The spike was the NAT gateway in us-east-1, and I quoted last month for comparison.',
+      },
+    ],
+  },
+  {
+    id: 'tv4',
+    title: 'Weekly digest',
+    lastPreview: 'Weekly digest: what changed in main last week',
+    updatedAt: '6:00 AM',
+    icon: 'logo-github',
+    agentId: 'scout',
+    crew: 'researcher',
+    outcome: 'delivered',
+    messages: [
+      {
+        id: 'tv4-m1',
+        from: 'agent',
+        text: 'Weekly digest: what changed in main last week. 23 merges, mostly the auth refactor, and two dependency bumps worth a look.',
+      },
+    ],
+  },
+];

@@ -42,9 +42,11 @@ import { MintBg } from '@/components/ui/mint-bg';
 import { MonthOverlay } from '@/components/ui/month-overlay';
 import { DraftCard } from '@/components/ui/draft-card';
 import { MessageBubble } from '@/components/ui/message-bubble';
-import { PipelineCard } from '@/components/ui/pipeline-card';
 import { PRConsole } from '@/components/ui/pr-console';
+import { CrewDetail } from '@/components/ui/crew-detail';
+import { GlassIconButton } from '@/components/ui/glass-icon-button';
 import { ResultCard } from '@/components/ui/result-card';
+import { TaskReviewCard } from '@/components/ui/task-review-card';
 import { ScheduleProposalCard } from '@/components/ui/schedule-proposal-card';
 import { ScheduleCard } from '@/components/ui/schedule-card';
 import { ThinkingConsole } from '@/components/ui/thinking-console';
@@ -85,18 +87,24 @@ const TURN_GAP = 30;
  * as the same object expanding rather than a separate surface appearing. */
 const RUN_PANEL_BG = '#0E1626';
 
+/** How far the background fan's axis sits ABOVE the screen's centre. The
+ * composer eats the bottom band, so the fan is lifted to centre on the FREE
+ * field instead. Anything meant to read as "on the axis" (the empty-stage
+ * line) has to use the same number, or it floats off the motor's centre
+ * (2026-07-29 "모터 중심으로 가운데 와야해"). */
+const FAN_AXIS_LIFT = 80;
+
 /** The conversation view for one thread. Rendered two ways: pushed over
- * the tabs (with a back button) and inside the Chat tab's slider
- * (showBack=false; the history drawer is the way out there). */
+ * the tabs (iOS edge-swipe walks back) and inside the Chat tab's slider,
+ * where the history drawer is the way out. The `showBack` prop retired
+ * with the chevron itself (2026-07-29). */
 export function ChatThreadView({
   id,
-  showBack = true,
   onShowHistory,
   composeNew = false,
   initialDraft,
 }: {
   id: string;
-  showBack?: boolean;
   /** tab mode: the left slot becomes the history-drawer button */
   onShowHistory?: () => void;
   /** Home ask bar entry (2026-07-12): the screen IS the new chat. It
@@ -115,6 +123,8 @@ export function ChatThreadView({
     activeTool,
     prReveal,
     sendMessage,
+    approveReview,
+    rejectReview,
     resolveChatApproval,
     calendarDays,
     bookScheduleSlot,
@@ -138,6 +148,22 @@ export function ChatThreadView({
   // row's own door instead.
   const [attachOpen, setAttachOpen] = useState(false);
   const [calOpen, setCalOpen] = useState(false);
+  // which review card has an approve/reject request in flight
+  const [reviewBusyId, setReviewBusyId] = useState<string | null>(null);
+
+  /** Total wall time of a run, summed from its own step durations
+   * (2026-07-28): the trace is the single record of what happened, so it has
+   * to answer "how long did this take" on its own. Lines with no trailing
+   * duration (an open hold) contribute nothing — they are not finished. */
+  const runTotal = (lines: string[]) => {
+    const secs = lines.reduce((sum, line) => {
+      const m = line.trim().match(/([\d.]+)\s*(ms|s)$/i);
+      if (!m) return sum;
+      const n = Number(m[1]);
+      return sum + (m[2].toLowerCase() === 'ms' ? n / 1000 : n);
+    }, 0);
+    return secs > 0 ? `${secs.toFixed(1)}s` : null;
+  };
   // header tool context: user-pinned override wins over the thread's own
   const [toolPinned, setToolPinned] = useState<string | null>(null);
   // calendar rail (2026-07-12): with the week strip on screen, the
@@ -489,7 +515,7 @@ export function ChatThreadView({
         <Animated.View
           style={[StyleSheet.absoluteFill, fanFadeStyle]}
           pointerEvents="none">
-          <ColorPanelsBg variant="deskWashPale" preset="fan" centerYOffset={-80} />
+          <ColorPanelsBg variant="deskWashPale" preset="fan" centerYOffset={-FAN_AXIS_LIFT} />
         </Animated.View>
       ) : (
         <MeshBg variant="dark" />
@@ -517,52 +543,32 @@ export function ChatThreadView({
             // both side slots share ONE fixed width (2026-07-24 "어떤
             // 상황에서도 가운데"): equal sides = the pill can't drift
             style={{ width: 88, alignItems: 'flex-start' }}>
-            {showBack ? (
-            // the nav bar's material (2026-07-22 "네비게이션 애플
-            // 시스템 스타일이랑 똑같아야"): the back circle is clear
-            // Liquid Glass like the tab capsule — same size as before
-            <Pressable
+            {/* BACK on EVERY chat screen, New task included (2026-07-29
+                "전부 이거여야해"): one pale glass circle, same position,
+                no state where it disappears. The history-drawer variant
+                below only replaces it inside the Chat tab's slider. */}
+            {!onShowHistory ? (
+            <GlassIconButton
+              icon="chevron-back"
+              clear
+              size={40}
+              iconSize={19}
+              iconColor="#16181C"
+              hitSlop={10}
               // deep-linked chats have no history: fall back to Home
               onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
+            />
+            ) : (
+            <GlassIconButton
+              icon="list"
+              clear
+              size={40}
+              iconSize={18}
+              iconColor="#16181C"
               hitSlop={10}
-              style={({ pressed }) => ({
-                width: 40,
-                height: 40,
-                borderRadius: 999,
-                alignItems: 'center',
-                justifyContent: 'center',
-                opacity: pressed ? 0.6 : 1,
-              })}>
-              {/* gated like every other glass surface (2026-07-24): the
-                  API is iOS 26+, and an ungated GlassView leaves this
-                  circle with no material at all on older builds */}
-              {GLASS_AVAILABLE ? (
-                <GlassView
-                  glassEffectStyle="clear"
-                  colorScheme="light"
-                  style={[StyleSheet.absoluteFill, { borderRadius: 999 }]}
-                />
-              ) : (
-                <FrostedGlassFill flat radius={20} tint="rgba(255,255,255,0.5)" />
-              )}
-              <Ionicons name="chevron-back" size={19} color="#16181C" />
-            </Pressable>
-            ) : onShowHistory ? (
-            <Pressable
               onPress={onShowHistory}
-              hitSlop={10}
-              style={({ pressed }) => ({
-                width: 40,
-                height: 40,
-                borderRadius: 999,
-                backgroundColor: 'rgba(255,255,255,0.85)',
-                alignItems: 'center',
-                justifyContent: 'center',
-                opacity: pressed ? 0.6 : 1,
-              })}>
-              <Ionicons name="list" size={18} color="#16181C" />
-            </Pressable>
-            ) : null}
+            />
+            )}
           </Animated.View>
         ) : null}
         <View style={{ flex: 1, alignItems: 'center' }}>
@@ -594,55 +600,35 @@ export function ChatThreadView({
                 calendar here — the tool circle we had, now a context
                 mark, not the header's main action */}
             {contextToolIcon ? (
-              <Pressable
+              <GlassIconButton
+                icon={contextToolIcon}
+                clear
+                size={40}
+                iconSize={18}
+                iconColor="#16181C"
+                hitSlop={10}
                 onPress={() => setCalOpen(true)}
-                hitSlop={8}
-                style={({ pressed }) => ({
-                  width: 40,
-                  height: 40,
-                  borderRadius: 999,
-                  overflow: 'hidden',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  opacity: pressed ? 0.7 : 1,
-                  shadowColor: '#16181C',
-                  shadowOpacity: 0.12,
-                  shadowRadius: 8,
-                  shadowOffset: { width: 0, height: 3 },
-                })}>
-                <FrostedGlassFill flat radius={20} tint="rgba(242,245,248,0.82)" />
-                <Ionicons name={contextToolIcon} size={18} color="rgba(22,24,28,0.7)" />
-              </Pressable>
+              />
             ) : null}
             {/* the New chat + (2026-07-24 "항상 뉴 챗 버튼으로") — except on a
                 chat that IS already new and empty (2026-07-27): there the
                 button re-opens the screen you are looking at, so it reads as
                 a mystery action. It returns the moment the thread exists. */}
+            {/* the COMPOSE glyph, not a bare + (2026-07-27): + now means
+                "attach" down in the composer, so the header's new-task
+                door speaks Apple's own new-message grammar instead */}
             {!(composeNew && !thread) ? (
-            <Pressable
+            <GlassIconButton
+              icon="create-outline"
+              clear
+              size={40}
+              iconSize={19}
+              iconColor="#16181C"
+              hitSlop={10}
               onPress={() =>
                 router.replace({ pathname: '/chat/[id]', params: { id: 'new' } })
               }
-              hitSlop={8}
-              style={({ pressed }) => ({
-                width: 40,
-                height: 40,
-                borderRadius: 999,
-                overflow: 'hidden',
-                alignItems: 'center',
-                justifyContent: 'center',
-                opacity: pressed ? 0.7 : 1,
-                shadowColor: '#16181C',
-                shadowOpacity: 0.12,
-                shadowRadius: 8,
-                shadowOffset: { width: 0, height: 3 },
-              })}>
-              <FrostedGlassFill flat radius={20} tint="rgba(242,245,248,0.82)" />
-              {/* the COMPOSE glyph, not a bare + (2026-07-27): + now means
-                  "attach" down in the composer, so the header's new-task
-                  door speaks Apple's own new-message grammar instead */}
-              <Ionicons name="create-outline" size={19} color="rgba(22,24,28,0.7)" />
-            </Pressable>
+            />
             ) : null}
           </Animated.View>
         ) : null}
@@ -798,17 +784,37 @@ export function ChatThreadView({
                 {(runArchive[effId] ?? []).map((rec, ri) => (
                   <View key={`arch-${ri}`} style={{ marginBottom: 18 }}>
                     {rec.ask ? (
-                      <Text
-                        numberOfLines={1}
+                      <View
                         style={{
-                          fontSize: 12,
-                          lineHeight: 17,
-                          fontFamily: fontFamily.regular,
-                          color: 'rgba(255,255,255,0.6)',
+                          flexDirection: 'row',
+                          alignItems: 'baseline',
+                          gap: 8,
                           marginBottom: 8,
                         }}>
-                        {rec.ask}
-                      </Text>
+                        <Text
+                          numberOfLines={1}
+                          style={{
+                            flex: 1,
+                            fontSize: 12,
+                            lineHeight: 17,
+                            fontFamily: fontFamily.regular,
+                            color: 'rgba(255,255,255,0.6)',
+                          }}>
+                          {rec.ask}
+                        </Text>
+                        {/* the run's own total — the trace answers this now
+                            that the step list is gone */}
+                        {runTotal(rec.lines) ? (
+                          <Text
+                            style={{
+                              fontFamily: fontFamily.mono,
+                              fontSize: 11,
+                              color: 'rgba(255,255,255,0.4)',
+                            }}>
+                            {`${rec.lines.length} steps · ${runTotal(rec.lines)}`}
+                          </Text>
+                        ) : null}
+                      </View>
                     ) : null}
                     <ThinkingConsole
                       threadId={`${effId}-arch-${ri}`}
@@ -821,7 +827,11 @@ export function ChatThreadView({
                     />
                   </View>
                 ))}
-                {/* the LIVE run last — the one still writing itself */}
+                {/* the LIVE run last — ONLY while it is still writing itself
+                    (2026-07-28): finishThinking archives the run, but
+                    `thinking` keeps holding it, so a completed run rendered
+                    twice — once from the archive, once here. */}
+                {!consoleSource.done || !thinkingHere ? (
                 <View>
                   {activeAsk ? (
                     <Text
@@ -849,6 +859,7 @@ export function ChatThreadView({
                     onDark
                   />
                 </View>
+                ) : null}
               </ScrollView>
             </Animated.View>
           ) : null}
@@ -1104,6 +1115,28 @@ export function ChatThreadView({
                     onDeny={(a) => resolveChatApproval(thread.id, m.id, a, false)}
                   />
                 ) : null}
+                {/* a coding task's REVIEW resolves right here (2026-07-28):
+                    real diff, changed files, typecheck, approve/reject —
+                    the approvals-in-chat rule applies to code too */}
+                {m.review ? (
+                  <TaskReviewCard
+                    review={m.review}
+                    outcome={m.reviewOutcome}
+                    busy={reviewBusyId === m.id}
+                    onApprove={() => {
+                      setReviewBusyId(m.id);
+                      approveReview(thread.id, m.id, m.review!.taskId).finally(() =>
+                        setReviewBusyId(null)
+                      );
+                    }}
+                    onReject={() => {
+                      setReviewBusyId(m.id);
+                      rejectReview(thread.id, m.id, m.review!.taskId).finally(() =>
+                        setReviewBusyId(null)
+                      );
+                    }}
+                  />
+                ) : null}
                 {/* the WEEK STRIP rides with the answer that produced it
                     (2026-07-24 "다 오버랩되고있어 콘솔이랑 달력"): it used
                     to be pinned up top, where it collided with the mast and
@@ -1146,8 +1179,18 @@ export function ChatThreadView({
                     onEdit={() => setDraft(m.draft!.body)}
                   />
                 ) : null}
-                {m.pipeline ? <PipelineCard pipeline={m.pipeline} /> : null}
+                {/* PIPELINE CARD RETIRED from the thread (2026-07-28 "셋이 다
+                    다른 얘기를 하고 있어요"): the run panel's trace is the
+                    single record of what happened. A static step list beside
+                    it duplicated the same run and drifted out of sync with
+                    it. The one thing the list carried that the trace does not
+                    — the human approval gate — is now the approval card
+                    itself, which is a real button rather than a status row. */}
                 {m.result ? <ResultCard result={m.result} /> : null}
+                {/* the rest of the crew, folded (2026-07-29): the owner's
+                    answer is above; this opens to show who else worked and
+                    what they did, attributed by face */}
+                {m.crewNotes ? <CrewDetail notes={m.crewNotes} /> : null}
                 {/* suggestion chips retired (2026-07-24 "앞에
                     프롬프트 나오는 것도 지워" — the composer alone
                     invites; behavior is freeform now) */}
@@ -1170,15 +1213,18 @@ export function ChatThreadView({
               exiting={FadeOut.duration(380)}
               style={[
                 StyleSheet.absoluteFill,
-                { alignItems: 'center', justifyContent: 'flex-start' },
+                // ON THE FAN'S AXIS (2026-07-29 "모터 중심으로 가운데"):
+                // screen-centre put the line below the motor, because the
+                // fan itself is lifted by FAN_AXIS_LIFT. Same lift here
+                // keeps the two locked together.
+                {
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  paddingBottom: FAN_AXIS_LIFT * 2,
+                },
               ]}>
               <Text
                 style={{
-                  // centered in the CLEAR band between the header and the
-                  // fan's top edge (2026-07-27 "저 위치랑 저 말 마음에안들어")
-                  // — off the panels entirely, reading as the stage's own
-                  // title. Declarative, not a question.
-                  marginTop: 72,
                   fontSize: 14,
                   fontFamily: fontFamily.regular,
                   color: 'rgba(22,24,28,0.45)',
