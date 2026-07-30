@@ -136,7 +136,7 @@ function PhoneGlyph() {
 }
 
 /** Small elegant Mac-mini-style box with a seam line + status dot, subtle gradient fill. */
-function MacMiniGlyph() {
+function NodeGlyph() {
   return (
     <Svg width={54} height={54} viewBox="0 0 54 54">
       <Defs>
@@ -207,8 +207,10 @@ const GATEWAY_STATUS_COPY: Record<GatewayStatus, { label: string; color: string 
 };
 
 /**
- * Simple two-device network illustration: this phone talking to the local
- * Mac mini gateway. The INFRASTRUCTURE token list this replaced will return
+ * Simple two-device network illustration: this device talking to the local
+ * node that runs the gateway. Named by role, never by product (2026-07-30):
+ * the app cannot know what hardware is on either end.
+ * The INFRASTRUCTURE token list this replaced will return
  * later inside a dedicated Security section — data/routes are untouched,
  * just not shown here for now.
  */
@@ -242,13 +244,13 @@ function NetworkDiagram({
             <ConnectorDot key={i} delayMs={Math.abs(i - 2.5) * 150} />
           ))}
         </View>
-        <MacMiniGlyph />
+        <NodeGlyph />
       </View>
 
       {/* Eyebrow labels (CLIENT NODE / LOCAL GATEWAY) removed — device names
           alone now sit close under the device icons. This row mirrors the
           icon row's exact structure (same widths/gaps for phone, connector,
-          Mac mini) so each name is truly centered under its own icon rather
+          node) so each name is truly centered under its own icon rather
           than centered in an even 50/50 split (the icons aren't the same
           width, so a plain space-between column pair drifted off-center). */}
       <View
@@ -277,7 +279,7 @@ function NetworkDiagram({
               fontWeight: fontWeight.semibold,
             }}
           >
-            iPhone 17 Pro
+            This device
           </Text>
         </View>
         {/* spacer matching the connector's width so the gap math lines up */}
@@ -295,7 +297,7 @@ function NetworkDiagram({
               fontWeight: fontWeight.semibold,
             }}
           >
-            Mac mini
+            Local node
           </Text>
         </View>
       </View>

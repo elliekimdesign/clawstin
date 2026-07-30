@@ -16,10 +16,16 @@ import { fontFamily, fontSize, spacing, sysColor } from '@/theme/theme';
 
 /**
  * The CONNECTION section's soul, revived 2026-07-12 (born in the old
- * Access tab, commit 6dc6930): this phone talking to the local Mac mini
- * gateway. Two soft devices, a dotted connector whose breathing pulse
- * travels toward the center — data quietly flowing — retinted for the
+ * Access tab, commit 6dc6930): this device talking to the local node that
+ * runs the gateway. Two soft devices, a dotted connector whose breathing
+ * pulse travels toward the center — data quietly flowing — retinted for the
  * aquaos glass windows.
+ *
+ * NAMED BY ROLE, NOT BY PRODUCT (2026-07-30): the labels used to read
+ * "iPhone 17 Pro" and "Mac mini", which the app invented — it has no idea
+ * what hardware is on either end. The node may be a mini, a laptop, a NAS,
+ * a rented box. "This device / Local node" is true whatever it turns out
+ * to be, and matches the pairing flow.
  */
 const DEVICE_FILL_TOP = '#FDFDFD';
 const DEVICE_FILL_BOTTOM = '#E9EDF2';
@@ -76,8 +82,9 @@ function PhoneGlyph() {
   );
 }
 
-/** Small Mac-mini-style box with a port seam + LIVE status dot. */
-function MacMiniGlyph({ dotColor }: { dotColor: string }) {
+/** The node: a small squat box with a port seam + LIVE status dot. Kept
+ * deliberately generic so it stands in for any machine running the gateway. */
+function NodeGlyph({ dotColor }: { dotColor: string }) {
   return (
     <Svg width={54} height={54} viewBox="0 0 54 54">
       <Defs>
@@ -124,7 +131,7 @@ export function ConnectionDiagram({ status }: { status: GatewayStatus }) {
             <ConnectorDot key={i} delayMs={Math.abs(i - 2.5) * 150} />
           ))}
         </View>
-        <MacMiniGlyph dotColor={STATUS_DOT[status]} />
+        <NodeGlyph dotColor={STATUS_DOT[status]} />
       </View>
 
       {/* device names, each truly centered under its own icon: fixed
@@ -151,7 +158,7 @@ export function ConnectionDiagram({ status }: { status: GatewayStatus }) {
               fontSize: fontSize.caption,
               fontFamily: fontFamily.medium,
             }}>
-            iPhone 17 Pro
+            This device
           </Text>
         </View>
         <View style={{ width: CONNECTOR_W }} />
@@ -167,7 +174,7 @@ export function ConnectionDiagram({ status }: { status: GatewayStatus }) {
               fontSize: fontSize.caption,
               fontFamily: fontFamily.medium,
             }}>
-            Mac mini
+            Local node
           </Text>
         </View>
       </View>

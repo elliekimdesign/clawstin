@@ -166,7 +166,7 @@ export default function ActivityScreen() {
   const byId = Object.fromEntries(crew.map((m) => [m.id, m]));
   // The system log speaks in AGENT names (Orchestrator, Research…), not
   // character names — the role field's first segment is exactly that.
-  const agentTitle = (id: string) => byId[id]?.role.split(' · ')[0] ?? 'crew';
+  const agentTitle = (id: string) => byId[id]?.roleWord ?? 'crew';
 
   // grep: all | errors | one agent id
   const [filterOpen, setFilterOpen] = useState(false);

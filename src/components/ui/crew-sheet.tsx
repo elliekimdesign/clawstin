@@ -62,7 +62,7 @@ export function CrewSheet({
 
   if (!member) return null;
 
-  const roleTag = member.role.split(' · ')[0];
+  const roleTag = member.roleWord;
   const recent = activity.filter((a) => a.agentId === member.id).slice(0, 4);
   const modelName =
     services.find((s) => s.id === defaultModelId)?.name ?? 'Claude Sonnet 5';
@@ -126,7 +126,7 @@ export function CrewSheet({
                 <MosaicDot color={CREW_ACCENT[member.id] ?? INK_DIM} size={8} />
               </View>
               <Text style={{ fontSize: 10, fontFamily: fontFamily.mono, color: INK_DIM }}>
-                {member.role}
+                {`${member.roleWord} ${member.roleLine}`}
               </Text>
             </View>
           </View>

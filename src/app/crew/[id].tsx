@@ -220,9 +220,22 @@ export default function CrewDetailScreen() {
                 style={{ color: colors.text, fontSize: fontSize.title, fontFamily: fontFamily.semibold }}>
                 {member.name}
               </Text>
+              {/* role over description, no middle dot (2026-07-30): the two
+                  facts stack instead of being joined by punctuation */}
+              <Text
+                style={{
+                  color: colors.textSecondary,
+                  fontSize: fontSize.caption,
+                  fontFamily: fontFamily.mono,
+                  letterSpacing: 0.4,
+                  textTransform: 'uppercase',
+                  textAlign: 'center',
+                }}>
+                {member.roleWord}
+              </Text>
               <Text
                 style={{ color: colors.textSecondary, fontSize: fontSize.body, textAlign: 'center' }}>
-                {member.role}
+                {member.roleLine}
               </Text>
             </View>
 

@@ -15,8 +15,17 @@ export type CrewMember = {
   name: string;
   /** avatar icon — placeholder for the crew profile pic (user swaps later) */
   icon: keyof typeof Ionicons.glyphMap;
-  /** one-line tagline shown under the name */
-  role: string;
+  /** TWO FIELDS, NOT ONE SENTENCE (2026-07-30): this used to be a single
+   * string, "Orchestrator · routes work across the crew", and six screens
+   * recovered the role word with .split(' · ')[0]. That made a punctuation
+   * mark load-bearing — editing the copy could silently break every role
+   * tag in the app. Split apart, each consumer reads the field it means. */
+
+  /** the one-word role, e.g. 'Lead'. Rendered as the small caps tag. */
+  roleWord: string;
+  /** what the member does, in plain words and lowercase, e.g. 'routes work
+   * across the crew'. Reads as a continuation of roleWord, never alone. */
+  roleLine: string;
   /** identity sentence on the Info card: what this member does, in plain words */
   desc: string;
   /** relative time of the member's most recent run (mock) */
@@ -41,7 +50,9 @@ export const initialCrew: CrewMember[] = [
     id: 'muppet',
     name: 'Beanie',
     icon: 'rocket-outline',
-    role: 'Orchestrator · routes work across the crew',
+    // LEAD, was Orchestrator (2026-07-30): plain word over job title
+    roleWord: 'Lead',
+    roleLine: 'routes work across the crew',
     desc: 'Requests routed to the right teammate.',
     lastRun: '2m ago',
     // the orchestrator SEES everything and touches nothing — all READ
@@ -65,7 +76,8 @@ export const initialCrew: CrewMember[] = [
     id: 'scout',
     name: 'Specs',
     icon: 'search-outline',
-    role: 'Research · reads and digests anything',
+    roleWord: 'Research',
+    roleLine: 'reads and digests anything',
     desc: 'Finds and summarizes information across web, docs, and code.',
     lastRun: '18m ago',
     access: [
@@ -88,7 +100,8 @@ export const initialCrew: CrewMember[] = [
     id: 'quill',
     name: 'Wink',
     icon: 'create-outline',
-    role: 'Scribe · turns noise into notes',
+    roleWord: 'Scribe',
+    roleLine: 'turns noise into notes',
     desc: 'Writes and rewrites summaries, drafts, and notes in your voice.',
     lastRun: '1h ago',
     access: [
@@ -111,7 +124,9 @@ export const initialCrew: CrewMember[] = [
     id: 'pilot',
     name: 'Crop',
     icon: 'calendar-clear-outline',
-    role: 'Operator · guards your calendar',
+    // ACTIONS, was Operator (2026-07-30)
+    roleWord: 'Actions',
+    roleLine: 'guards your calendar',
     desc: 'Takes action in the real world: book, send, click, update.',
     lastRun: '26m ago',
     // the WRITE-heavy file: seeing this next to the others self-explains

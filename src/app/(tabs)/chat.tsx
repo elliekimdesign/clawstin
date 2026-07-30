@@ -111,7 +111,7 @@ export default function ActivityScreen() {
   /** console rows speak in ROLES (research, scribe...), not nicknames —
    * the machine logs the function, the humans keep the names */
   const roleName = (id: string) =>
-    crew.find((c) => c.id === id)?.role.split(' · ')[0].toLowerCase() ?? id;
+    crew.find((c) => c.id === id)?.roleWord.toLowerCase() ?? id;
   /** the row's ANCHOR is the task title, not the agent's utterance —
    * titles differentiate rows where result sentences all sound alike */
   const title = (a: (typeof activity)[number]) => getThread(a.threadId)?.title ?? a.prompt;

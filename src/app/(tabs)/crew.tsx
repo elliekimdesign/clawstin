@@ -93,7 +93,7 @@ function CrewBadge({
       full-screen /crew/[id] push retired with it */
   onPress: () => void;
 }) {
-  const roleTag = member.role.split(' · ')[0];
+  const roleTag = member.roleWord;
   return (
     <View style={{ width }}>
       <Pressable
@@ -269,7 +269,7 @@ function ContributionCard({ crew }: { crew: CrewMember[] }) {
                   letterSpacing: 0.3,
                   color: INK_DIM,
                 }}>
-                {m.role.split(' · ')[0]}
+                {m.roleWord}
               </Text>
               <View style={{ flexDirection: 'row', gap: 3, flex: 1 }}>
                 {daily[idx].map((v, i) => {

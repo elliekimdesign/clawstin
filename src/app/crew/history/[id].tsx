@@ -85,7 +85,7 @@ export default function CrewHistoryScreen() {
                 fontSize: fontSize.small,
                 fontFamily: fontFamily.medium,
               }}>
-              {member?.role.split(' · ')[0] ?? ''}
+              {member?.roleWord ?? ''}
             </Text>
           </View>
           <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 10, fontFamily: fontFamily.mono }}>
