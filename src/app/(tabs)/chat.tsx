@@ -16,6 +16,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { RasterCloud } from '@/components/ui/analog-key';
 import { ColorPanelsBg } from '@/components/ui/color-panels-bg';
 import { FrostedGlassFill } from '@/components/ui/frosted-glass-fill';
+import { CrewSticker } from '@/components/ui/crew-sticker';
 import { MosaicDot } from '@/components/ui/mosaic-dot';
 import { useAppStore } from '@/store/app-store';
 import { fontFamily, fontSize, sysColor } from '@/theme/theme';
@@ -91,8 +92,6 @@ function LensDitherKey({
 export default function ActivityScreen() {
   const { activity, threads, crew, consoleLens, setConsoleLens } = useAppStore();
   const [query, setQuery] = useState('');
-  // the ledger's TYPE lens (2026-07-22): chat turns vs task runs
-  const [typeFilter, setTypeFilter] = useState<'all' | 'chat' | 'task'>('all');
 
   // drilldown intake (2026-07-20): doors elsewhere (crew sheet's "all
   // activity") open this tab with ?q=<member name> — the EXISTING
@@ -121,11 +120,9 @@ export default function ActivityScreen() {
     getThread(a.threadId)?.lastPreview ?? a.prompt;
 
   const q = query.trim().toLowerCase();
+  // ONE river (2026-07-30 "all chat task sorting 나누는거 빼기"): the
+  // All/Chat/Task type lens retired — every ask lands in one history
   const rows = activity.filter((a) => {
-    // TYPE lens (2026-07-22, Notion-filter reference): the ledger
-    // splits into chat turns vs task runs — All is the default
-    if (typeFilter !== 'all' && (a.kind ?? 'chat') !== typeFilter)
-      return false;
     if (!q) return true;
     const t = getThread(a.threadId);
     return (
@@ -135,22 +132,37 @@ export default function ActivityScreen() {
       agentName(a.agentId).toLowerCase().includes(q)
     );
   });
-  const needsYou = rows.some((a) => a.status === 'needs_approval');
 
   const flipLens = () => {
     LayoutAnimation.configureNext(LayoutAnimation.create(180, 'easeInEaseOut', 'opacity'));
     setConsoleLens(!consoleLens);
   };
 
-  // In the terminal takeover the search field stays mounted but tucks
-  // above the fold — pull down to reveal it, like iOS list search.
+  // SEARCH HIDES until asked for (2026-07-30 "검색부분 숨김으로해서
+  // 필요할때 열리는거로"): the field only exists while the header's
+  // magnifier key holds it open; closing it also drops the query so
+  // the list never stays silently filtered by an invisible search.
+  const [searchOpen, setSearchOpen] = useState(false);
+  const flipSearch = () => {
+    LayoutAnimation.configureNext(LayoutAnimation.create(180, 'easeInEaseOut', 'opacity'));
+    setSearchOpen((v) => {
+      if (v) setQuery('');
+      return !v;
+    });
+  };
+
+  // In the terminal takeover an OPEN search field still tucks above
+  // the fold — pull down to reveal it, like iOS list search.
   const scrollRef = useRef<ScrollView>(null);
   const SEARCH_ZONE = 58; // marginTop 14 + field height 44
   useEffect(() => {
     requestAnimationFrame(() => {
-      scrollRef.current?.scrollTo({ y: consoleLens ? SEARCH_ZONE : 0, animated: false });
+      scrollRef.current?.scrollTo({
+        y: consoleLens && searchOpen ? SEARCH_ZONE : 0,
+        animated: false,
+      });
     });
-  }, [consoleLens]);
+  }, [consoleLens, searchOpen]);
 
   /** state dot: color carries state, same semantics as the Home list */
   const dotColor = (a: (typeof activity)[number]) => {
@@ -200,11 +212,21 @@ export default function ActivityScreen() {
               letterSpacing: -0.3,
               fontFamily: fontFamily.bold,
             }}>
-            Activity
+            Recents
           </Text>
-          {/* the flag-dither lens key (2026-07-22): glyph + pixel wake
-              straight on the field, same face in both lens states */}
-          <LensDitherKey onPress={flipLens} active={consoleLens} />
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+            {/* the magnifier key: opens/closes the hidden search field */}
+            <Pressable onPress={flipSearch} hitSlop={10} style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}>
+              <Ionicons
+                name={searchOpen ? 'close' : 'search'}
+                size={19}
+                color="rgba(255,255,255,0.9)"
+              />
+            </Pressable>
+            {/* the flag-dither lens key (2026-07-22): glyph + pixel wake
+                straight on the field, same face in both lens states */}
+            <LensDitherKey onPress={flipLens} active={consoleLens} />
+          </View>
       </View>
 
       <ScrollView
@@ -212,9 +234,11 @@ export default function ActivityScreen() {
         contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 140 }}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled">
-        {/* search: the human asks, so the input speaks sans. In the
+        {/* search: the human asks, so the input speaks sans. Hidden
+            until the header magnifier opens it (2026-07-30); in the
             terminal takeover it tucks above the fold (pull to reveal)
             and wears the night palette. */}
+        {searchOpen ? (
         <View
           style={{
             // the board's airy 28pt rhythm (2026-07-14), was 14
@@ -240,7 +264,8 @@ export default function ActivityScreen() {
           <TextInput
             value={query}
             onChangeText={setQuery}
-            placeholder="Search activity"
+            autoFocus
+            placeholder="Search what you asked"
             placeholderTextColor={consoleLens ? rowFaint : FAINT}
             style={{ flex: 1, fontSize: fontSize.body, color: consoleLens ? rowInk : INK }}
           />
@@ -250,106 +275,101 @@ export default function ActivityScreen() {
             </Pressable>
           ) : null}
         </View>
+        ) : null}
 
-        {/* the feed window: a card on the desk, edge-to-edge in the
-            terminal takeover */}
-        <View
-          style={
-            consoleLens
-              ? { marginTop: 8, marginHorizontal: -16 }
-              : {
-                  // Home's frosted-folder card (2026-07-17 "홈탭
-                  // 스타일로"): the shape is the SVG path, so no
-                  // border/clip on the box itself
+        {/* the feed (2026-07-30 "이런식으로... 다시 만들고"): the outer
+            window plate and its All/Chat/Task bar are GONE — the day
+            folders stand directly on the desk, each one a Suggestions-
+            style frosted folder. The >_ lens keeps its raw ledger. */}
+        <View style={consoleLens ? { marginTop: 8, marginHorizontal: -16, paddingBottom: 8 } : null}>
+          {consoleLens ? (
+            // raw lens: dark terminal plane (the Logs screen's night)
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: DESK_NIGHT }]} />
+          ) : null}
+
+          {rows.length === 0 ? (
+            consoleLens ? (
+              <Text
+                style={{
+                  padding: 18,
+                  fontSize: 11,
+                  fontFamily: fontFamily.mono,
+                  color: rowFaint,
+                }}>
+                {activity.length === 0 ? 'nothing asked yet' : 'no matches'}
+              </Text>
+            ) : (
+              // an unseeded ledger is not a failed filter (2026-07-28
+              // data wipe): each empty says what is actually true
+              <View
+                style={{
                   marginTop: 28,
                   shadowColor: '#16181C',
                   shadowOpacity: 0.1,
                   shadowRadius: 20,
                   shadowOffset: { width: 0, height: 8 },
                   elevation: 5,
-                }
-          }>
-          {consoleLens ? (
-            // raw lens: dark terminal plane (the Logs screen's night)
-            <View style={[StyleSheet.absoluteFill, { backgroundColor: DESK_NIGHT }]} />
-          ) : (
-            // FLAT plate (2026-07-20 "폴더 형태말고"): the feed keeps the
-            // frosted skin but drops the folder flap — its header is a
-            // straight title bar with a hairline, a window not a folder
-            <FrostedGlassFill radius={16} flat />
-          )}
-          {/* title bar: dots glow while something needs you */}
-          <View
-            style={{
-              height: 34,
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              paddingHorizontal: 18,
-              borderBottomWidth: 1,
-              borderBottomColor: rowDivider,
-            }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-              {/* TYPE lens (2026-07-22, Notion-filter reference): the
-                  ledger splits chat turns from task runs. The lens IS
-                  the title now — the "Activity" word was a duplicate
-                  of the tab's own name ("중복 없애기") */}
-              {(['all', 'chat', 'task'] as const).map((k) => (
-                <Pressable key={k} onPress={() => setTypeFilter(k)} hitSlop={8}>
-                  <Text
-                    style={{
-                      fontSize: 11,
-                      fontFamily: fontFamily.mono,
-                      letterSpacing: 0.3,
-                      color: typeFilter === k ? rowInk : rowFaint,
-                    }}>
-                    {k === 'all' ? 'All' : k === 'chat' ? 'Chat' : 'Task'}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-            <Text style={{ fontSize: 10, fontFamily: fontFamily.mono, color: rowFaint }}>
-              {/* today's pulse, not a lifetime vanity total */}
-              {`${rows.filter((a) => a.day === 'today').length} today`}
-            </Text>
-          </View>
-
-          {rows.length === 0 ? (
-            <Text
-              style={{
-                padding: 18,
-                fontSize: 11,
-                fontFamily: fontFamily.mono,
-                color: rowFaint,
-              }}>
-              {/* an unseeded ledger is not a failed filter (2026-07-28
-                  data wipe): each empty says what is actually true */}
-              {activity.length === 0 ? 'no activity yet' : 'no matches'}
-            </Text>
+                }}>
+                <FrostedGlassFill radius={16} flat />
+                <Text
+                  style={{
+                    padding: 18,
+                    fontSize: 11,
+                    fontFamily: fontFamily.mono,
+                    color: rowFaint,
+                  }}>
+                  {activity.length === 0 ? 'nothing asked yet' : 'no matches'}
+                </Text>
+              </View>
+            )
           ) : (
             GROUPS.map(({ key, label }) => {
               const items = rows.filter((a) => a.day === key);
               if (items.length === 0) return null;
               return (
-                <View key={key}>
-                  <Text
+                // EACH DAY IS A FOLDER (2026-07-30 "이 스타일로 넣기"):
+                // a standalone Suggestions-style folder on the desk —
+                // flap, frost, shadow. The >_ lens keeps the raw ledger.
+                <View
+                  key={key}
+                  style={
+                    consoleLens
+                      ? { marginTop: 22 }
+                      : {
+                          marginTop: 28,
+                          paddingBottom: 8,
+                          shadowColor: '#16181C',
+                          shadowOpacity: 0.1,
+                          shadowRadius: 20,
+                          shadowOffset: { width: 0, height: 8 },
+                          elevation: 5,
+                        }
+                  }>
+                  {!consoleLens ? (
+                    <FrostedGlassFill radius={16} tabWidth={68} tabHeight={22} />
+                  ) : null}
+                  <View
                     style={{
+                      height: 26,
+                      justifyContent: 'center',
                       paddingHorizontal: 18,
-                      paddingTop: 14,
-                      paddingBottom: 4,
-                      fontSize: 11,
-                      fontFamily: fontFamily.mono,
-                      letterSpacing: 0.3,
-                      color: rowFaint,
                     }}>
-                    {label}
-                  </Text>
+                    <Text
+                      style={{
+                        alignSelf: 'flex-start',
+                        fontSize: 12,
+                        fontFamily: fontFamily.mono,
+                        letterSpacing: 0.3,
+                        color: consoleLens ? rowFaint : 'rgba(22,24,28,0.55)',
+                      }}>
+                      {label}
+                    </Text>
+                  </View>
                   {items.map((a, idx) => (
                     <View key={a.id}>
                       {idx > 0 ? (
-                        <View
-                          style={{ height: 1, marginHorizontal: 18, backgroundColor: rowDivider }}
-                        />
+                        // full-bleed, rim to rim (2026-07-30 board rule)
+                        <View style={{ height: 1, backgroundColor: rowDivider }} />
                       ) : null}
                       <Pressable
                         onPress={() => router.push(`/chat/${a.threadId}`)}
@@ -403,41 +423,31 @@ export default function ActivityScreen() {
                           // sentence lens: task title anchors the row,
                           // the result sentence supports underneath
                           <>
-                            {/* mosaic cluster (2026-07-17), matching the
-                                Home list's state markers */}
-                            <View style={{ marginTop: 5 }}>
-                              <MosaicDot color={dotColor(a)} />
-                            </View>
-                            <View style={{ flex: 1 }}>
-                              <Text
-                                numberOfLines={1}
-                                style={{
-                                  color: INK,
-                                  fontSize: fontSize.body,
-                                  fontFamily: fontFamily.medium,
-                                }}>
-                                {title(a)}
-                              </Text>
-                              {sentence(a) !== title(a) ? (
-                                <Text numberOfLines={1} style={{ marginTop: 2, fontSize: 12, color: DIM }}>
-                                  {sentence(a)}
-                                  <Text
-                                    style={{
-                                      fontFamily: fontFamily.mono,
-                                      fontSize: 10,
-                                      color: FAINT,
-                                    }}>
-                                    {`  ${agentName(a.agentId)}`}
-                                  </Text>
-                                </Text>
-                              ) : null}
-                            </View>
+                            {/* THE PROMPT LEADS (2026-07-30): this tab is
+                                what you ASKED, so the ask is the row, with
+                                the crew member who took it signing the end
+                                — the same anatomy as Home's Suggestions. */}
                             <Text
                               style={{
-                                fontSize: 10,
+                                flex: 1,
+                                fontSize: fontSize.body,
+                                lineHeight: 22,
+                                fontFamily: fontFamily.medium,
+                                color: INK,
+                              }}>
+                              {a.prompt}
+                              {a.agentId ? (
+                                <Text>
+                                  {' '}
+                                  <CrewSticker agentId={a.agentId} size={15} inline />
+                                </Text>
+                              ) : null}
+                            </Text>
+                            <Text
+                              style={{
+                                fontSize: 11,
                                 fontFamily: fontFamily.mono,
                                 color: DIM,
-                                marginTop: 3,
                               }}>
                               {a.ago}
                             </Text>

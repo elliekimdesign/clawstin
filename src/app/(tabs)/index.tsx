@@ -8,11 +8,12 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  useWindowDimensions,
   View,
   type ViewStyle,
 } from 'react-native';
 import { GlassView, isGlassEffectAPIAvailable } from 'expo-glass-effect';
+import { RowRule, ROW_RULE } from '@/components/ui/luminous-pour';
+import { MosaicDissolveFill } from '@/components/ui/mosaic-tile-fill';
 import { StatusBar } from 'expo-status-bar';
 import { Platform } from 'react-native';
 import Svg, { Circle, Defs, LinearGradient as SvgGradient, Path, RadialGradient, Rect, Stop, Text as SvgText } from 'react-native-svg';
@@ -36,12 +37,15 @@ import { Card } from '@/components/ui/card';
 import { GlassIconButton } from '@/components/ui/glass-icon-button';
 import { CrewSticker } from '@/components/ui/crew-sticker';
 import { IndexTab } from '@/components/ui/index-tab';
+import { PairingBg } from '@/components/ui/pairing-bg';
+import { PairingFlow, PairingStep } from '@/components/ui/pairing-flow';
+import { StepToolbox } from '@/components/ui/step-toolbox';
 import { BlissSwooshBg } from '@/components/ui/bliss-swoosh-bg';
 import { ColorPanelsBg } from '@/components/ui/color-panels-bg';
+import { ConnectionMark } from '@/components/ui/connection-mark';
 import { CTA_SLAB_INK, CtaSlabFill } from '@/components/ui/cta-slab';
 import { FrostedGlassFill } from '@/components/ui/frosted-glass-fill';
 import { TaskSheet, type TaskSheetRow } from '@/components/ui/task-sheet';
-import { UserFace } from '@/components/ui/user-face';
 import { PixelText } from '@/components/ui/pixel-text';
 import { RasterCloud } from '@/components/ui/analog-key';
 import { MosaicCheck } from '@/components/ui/mosaic-check';
@@ -166,16 +170,21 @@ const NHOME = {
 const AINK = {
   text: '#16181C',
   dim: 'rgba(22,24,28,0.55)',
-  divider: 'rgba(22,24,28,0.08)',
+  // row hairlines moved to RowRule/ROW_RULE (luminous-pour.tsx)
+  // 2026-07-30: soft white, full-bleed rim to rim
   running: sysColor.running,
   warn: sysColor.action,
   accent: sysColor.ready,
 };
 
 /** THE BOARD'S ONE SEAM (2026-07-29): every folder is separated from the
- * next by this, vertically and horizontally. The paired Running/Next up row
- * used to hardcode 12, which read visibly tighter than the stack around it. */
+ * next by this, vertically and horizontally. */
 const SECTION_GAP = 28;
+
+/** but the two dashboard TILES are one unit, not two sections (2026-07-30
+ * "대시보드 같지 않고 좀 따로 노는 느낌"): at the full seam they drifted
+ * apart and read as unrelated cards. */
+const PAIR_GAP = 10;
 
 /** one quiet line inside a section shell with no rows yet (2026-07-28
  * "섹션들은 전부 나두고... 빈칸을 말이 맞게"): while the new mock world is
@@ -647,12 +656,14 @@ export default function HomeScreen() {
     createThread,
     sendMessage,
   } = useAppStore();
-  const { width: screenW } = useWindowDimensions();
   const insets = useSafeAreaInsets();
-  const contentW = screenW - spacing.lg * 2; // screen padding is spacing.lg each side
 
   // Connection status popover (tap the "Online" label to inspect services).
   const [statusOpen, setStatusOpen] = useState(false);
+  // PAIRING (2026-07-30): the product's one onboarding moment. null = the
+  // splash; a step = the pairing flow is running. There is deliberately no
+  // account or login screen anywhere — your server IS your account.
+  const [pairing, setPairing] = useState<PairingStep | null>(null);
   // the >_ panel's receipt roll (2026-07-28): every archived run across
   // every thread, newest first, the LIVE run leading — labels fall back
   // to the thread title when a run has no recorded ask
@@ -957,8 +968,31 @@ export default function HomeScreen() {
           2026-07-16 ("slowly moving as it was but slowly") — quarter
           speed keeps the fan a calm, ambient drift rather than the
           board's own livelier motion. */}
-      {!connected && <ColorPanelsBg variant="paper" animated speed={0.125} />}
-      {connected ? (
+      {/* the SPLASH keeps the drifting fan; PAIRING gets a much quieter
+          field (2026-07-30 "배경 때문에 잘 안 보이는데"): the same panels
+          that read as atmosphere behind a wordmark cut straight through
+          body copy. Same shader, flattened to a wash and slowed further,
+          so the step still feels like the same world. */}
+      {!connected &&
+        (pairing ? (
+          // edge washes, not panels: the shader's seams drew hard lines
+          // straight through the copy (2026-07-30)
+          <PairingBg />
+        ) : (
+          <ColorPanelsBg variant="paper" animated speed={0.125} />
+        ))}
+      {/* PAIRING runs over the same calm paper fan as the splash, so the
+          three steps read as one continuous first-run moment (2026-07-30) */}
+      {!connected && pairing ? (
+        <PairingFlow
+          step={pairing}
+          onStep={setPairing}
+          onDone={() => {
+            setPairing(null);
+            setConnected(true);
+          }}
+        />
+      ) : connected ? (
         // ───────────────────────── State board ─────────────────────────
         <>
           {/* fan preset (2026-07-17, reverted back per request): back to
@@ -987,20 +1021,11 @@ export default function HomeScreen() {
                     presence dot on the wordmark (2026-07-16) — tap the
                     lockup to open System Status; the dot goes amber/red
                     when a service is degraded/down. */}
-                {/* YOUR photo left of the wordmark (2026-07-25 "내사진을
-                    클로스틴 여기 왼쪽에 넣어줘") — this is YOU, the
-                    account, not the pixel-girl mascot chip that was cut
-                    from this exact slot on 2026-07-15 for reading as
-                    clutter. A round photo sits quieter beside the serif
-                    than the square mark did, and it earns its place by
-                    saying whose board this is. */}
+                {/* the photo avatar CUT from this slot (2026-07-30 "얼굴
+                    프로필 지우기") — the 2026-07-25 "my photo" experiment
+                    is over; the serif wordmark stands alone again, same
+                    as when the mascot chip was cut on 2026-07-15. */}
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 9 }}>
-                  {/* ring on: at brand size the hairline keeps the photo
-                      from bleeding into the blue desk at its pale edges */}
-                  {/* 26 → 28 (2026-07-25 "아주약간만더 크게 아주 약간만"):
-                      one small step at brand size, deliberately still
-                      larger than the 24 used in dense list rows */}
-                  <UserFace size={28} ring />
                   {/* faux-weight shadow only, eased 2.2 → 1.3 (2026-07-16
                       "글로우 조금더 약하게") — barely thicker than the
                       bare serif, no halo */}
@@ -1069,64 +1094,230 @@ export default function HomeScreen() {
                   work, TRUST calibrates what stops needing approval.
                   Every approval feeds TRUST; TRUST slims YOUR TURN;
                   undo makes the added autonomy safe. ── */}
-              {/* ── RECENT CHATS folder (2026-07-24 v3 "박스는 두고
-                  안에만"): the folder card stays; inside, the chip
-                  boxes are gone — chat titles are a plain horizontal
-                  row of text links (leading ink dot = a door), so no
-                  box-in-a-box. ── */}
+              {/* the standalone connection strip retired (2026-07-30):
+                  the System square in the paired row below now carries the
+                  machines, the host and the ping, so a strip up here was
+                  the same fact stated twice. */}
+
+              {/* ── THE PAIRED CARDS, now the board's FIRST row
+                  (2026-07-30): the machine's own state leads, then what it
+                  finished (Completed), then what it wants from you
+                  (Suggestions) — present, past, then the ask.
+                  Left = the running task, or the next scheduled one when
+                  nothing is running. Right = the machine itself, which is
+                  why the standalone connection strip retired: it was the
+                  same fact stated twice. ── */}
               <Animated.View
-                  entering={FadeInDown.duration(420)}
-                  style={{
-                    marginTop: SECTION_GAP,
+                entering={FadeInDown.duration(420).delay(240)}
+                style={{
+                  flexDirection: 'row',
+                  gap: PAIR_GAP,
+                  marginTop: SECTION_GAP,
+                }}>
+                {/* ── LEFT: the machine itself ── */}
+                <Pressable
+                  onPress={() => setStatusOpen(true)}
+                  style={({ pressed }) => ({
+                    flex: 1,
+                    height: 124,
+                    paddingHorizontal: 18,
+                    paddingBottom: 18,
                     shadowColor: '#16181C',
                     shadowOpacity: 0.1,
-                    shadowRadius: 20,
-                    shadowOffset: { width: 0, height: 8 },
+                    shadowRadius: 18,
+                    shadowOffset: { width: 0, height: 6 },
                     elevation: 5,
-                  }}>
-                  <FrostedGlassFill radius={16} tabWidth={flapW('recent', 118)} />
-                  <View style={{ height: 26, justifyContent: 'center', paddingHorizontal: 18 }}>
+                    opacity: pressed ? 0.85 : 1,
+                  })}>
+                  {/* FOLDER shape, GHOST material, DISSOLVING mosaic
+                      (2026-07-30): the flap keeps it in the board family,
+                      the ghost-blue tint keeps it one layer deeper than
+                      the task folders, and a corner of glass tiles
+                      breaking apart says "machine" without repainting the
+                      whole face. */}
+                  <FrostedGlassFill
+                    radius={14}
+                    tabWidth={flapW('system', 90)}
+                    tabHeight={22}
+                    tint="rgba(173,208,240,0.42)"
+                  />
+                  <MosaicDissolveFill />
+                  <View style={{ height: 26, flexDirection: 'row', alignItems: 'center' }}>
                     <Text
-                      onTextLayout={measureTitle('recent')}
+                      onTextLayout={measureTitle('system')}
                       style={{
-                        alignSelf: 'flex-start',
                         fontSize: 12,
                         fontFamily: fontFamily.mono,
                         letterSpacing: 0.3,
                         color: 'rgba(22,24,28,0.55)',
                       }}>
-                      Recent chats
+                      System
                     </Text>
                   </View>
-                  {threads.length === 0 ? (
-                    <EmptyNote text="No chats yet" />
-                  ) : (
-                  <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={{
+
+                  {/* SAME ANATOMY as the card beside it (2026-07-30
+                      "레이아웃이 안맞고"): every board card is title, then
+                      body centred in the space left, then meta pinned
+                      bottom-right. System stacked its image and host name
+                      as one block instead, which is why it read off.
+                      The picture IS the body here, so it fills that slot
+                      and the host drops to the meta line where "started
+                      9:02 AM" and "12ms" already live. */}
+                  <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                    <ConnectionMark />
+                  </View>
+
+                  <View
+                    style={{
+                      position: 'absolute',
+                      left: 18,
+                      right: 18,
+                      bottom: 16,
+                      flexDirection: 'row',
                       alignItems: 'center',
-                      paddingHorizontal: 18,
-                      paddingTop: 12,
-                      paddingBottom: 16,
-                      // NO gap: the tabs overlap each other by design
                     }}>
-                    {/* FILE TABS (2026-07-29): each chat is a small tab
-                        wearing the board's own diagonal folder cut, tucked
-                        under the one before it. Chips and dots stay retired
-                        (2026-07-24) — this is the folder language, not a
-                        box-in-a-box. */}
-                    {threads.slice(0, 6).map((t, i) => (
-                      <IndexTab
-                        key={t.id}
-                        label={t.title}
-                        index={i}
-                        onPress={() => router.push(`/chat/${t.id}`)}
-                      />
-                    ))}
-                  </ScrollView>
-                  )}
-                </Animated.View>
+                    <Text
+                      numberOfLines={1}
+                      style={{
+                        flex: 1,
+                        fontSize: 11,
+                        fontFamily: fontFamily.mono,
+                        color: AINK.dim,
+                      }}>
+                      openclaw.local
+                    </Text>
+                    <Text
+                      style={{ fontSize: 11, fontFamily: fontFamily.mono, color: AINK.dim }}>
+                      12ms
+                    </Text>
+                  </View>
+                </Pressable>
+                {/* ── RIGHT: running, else next up ── */}
+                <Pressable
+                  onPress={() => {
+                    if (runningTask?.threadId) router.push(`/chat/${runningTask.threadId}`);
+                    else if (nextUpRows[0]) router.push(`/chat/${nextUpRows[0].threadId}`);
+                  }}
+                  style={({ pressed }) => ({
+                    flex: 1,
+                    height: 124,
+                    paddingHorizontal: 18,
+                    paddingBottom: 18,
+                    shadowColor: '#16181C',
+                    shadowOpacity: 0.1,
+                    shadowRadius: 18,
+                    shadowOffset: { width: 0, height: 6 },
+                    elevation: 5,
+                    opacity: pressed ? 0.85 : 1,
+                  })}>
+                  <FrostedGlassFill
+                    radius={14}
+                    tabWidth={flapW(runningTask ? 'running' : 'nextup', 90)}
+                    tabHeight={22}
+                  />
+                  <View style={{ height: 26, flexDirection: 'row', alignItems: 'center' }}>
+                    <Text
+                      onTextLayout={measureTitle(runningTask ? 'running' : 'nextup')}
+                      style={{
+                        fontSize: 12,
+                        fontFamily: fontFamily.mono,
+                        letterSpacing: 0.3,
+                        color: 'rgba(22,24,28,0.55)',
+                      }}>
+                      {runningTask ? 'Running' : 'Next up'}
+                    </Text>
+                  </View>
+
+                  {/* the body clears the meta row (2026-07-30 "사이 간격이
+                      irregular"): a two-line title ran right up against
+                      "started 9:02 AM". paddingBottom reserves that line's
+                      space so the gap is the same however long the label. */}
+                  <View style={{ flex: 1, justifyContent: 'center', paddingBottom: 14 }}>
+                    {runningTask ? (
+                      <View style={{ gap: 8 }}>
+                        <ProgressCells color={AINK.running} size={10} />
+                        <Text
+                          numberOfLines={2}
+                          style={{
+                            fontSize: fontSize.body,
+                            lineHeight: 20,
+                            fontFamily: fontFamily.regular,
+                            color: AINK.text,
+                          }}>
+                          {runningTask.label}
+                        </Text>
+                      </View>
+                    ) : nextUpRows[0] ? (
+                      <View style={{ gap: 6 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                          <Ionicons
+                            name={
+                              NEXTUP_APP_ICON[
+                                nextUpRows[0].app as keyof typeof NEXTUP_APP_ICON
+                              ] ?? 'apps-outline'
+                            }
+                            size={16}
+                            color={AINK.dim}
+                          />
+                          <Text
+                            style={{
+                              fontSize: 11,
+                              fontFamily: fontFamily.mono,
+                              letterSpacing: 0.3,
+                              color: AINK.dim,
+                            }}>
+                            {nextUpRows[0].app.toUpperCase()}
+                          </Text>
+                        </View>
+                        <Text
+                          numberOfLines={3}
+                          style={{
+                            fontSize: fontSize.body,
+                            lineHeight: 20,
+                            fontFamily: fontFamily.regular,
+                            color: AINK.text,
+                          }}>
+                          {nextUpRows[0].name}
+                        </Text>
+                      </View>
+                    ) : (
+                      <Text
+                        style={{
+                          fontSize: fontSize.body,
+                          lineHeight: 20,
+                          fontFamily: fontFamily.regular,
+                          color: AINK.dim,
+                        }}>
+                        Nothing running
+                      </Text>
+                    )}
+                  </View>
+
+                  {/* the meta each state carries: elapsed, or when it fires */}
+                  <View style={{ position: 'absolute', right: 18, bottom: 16 }}>
+                    <Text
+                      style={{ fontSize: 11, fontFamily: fontFamily.mono, color: AINK.dim }}>
+                      {runningTask
+                        ? runningTask.progress ?? runningTask.age ?? 'now'
+                        : nextUpRows[0]?.when ?? ''}
+                    </Text>
+                  </View>
+                </Pressable>
+
+              </Animated.View>
+
+              {/* the CREW/YOU digest rides SECOND now (2026-07-21 "your
+                  turn up"): pure FYI yields to the live ask above.
+                  Stays mounted when empty (2026-07-28) — the card
+                  carries its own empty note. */}
+              <AwayDigestCard
+                digest={AWAY_DIGEST}
+                undoables={UNDOABLES}
+                enterDelay={120}
+                onOpenThread={(id) => router.push(`/chat/${id}`)}
+                onUndo={undoAction}
+              />
+
 
               {/* ALWAYS on the board (2026-07-28 "섹션들은 전부 나두고"):
                   the folder no longer hides when empty — it states the
@@ -1270,10 +1461,9 @@ export default function HomeScreen() {
                                 alignItems: 'flex-start',
                                 gap: spacing.sm,
                                 paddingVertical: 12,
-                                borderTopWidth: 1,
-                                borderTopColor: AINK.divider,
                                 opacity: pressed ? 0.5 : 1,
                               })}>
+                              <RowRule />
                               {/* SAME anatomy as the promoted row above
                                   (2026-07-29): the sentence wraps instead of
                                   truncating, and its own crew face signs the
@@ -1306,235 +1496,6 @@ export default function HomeScreen() {
                   ) : null}
                 </View>
                 </Animated.View>
-
-              {/* the CREW/YOU digest rides SECOND now (2026-07-21 "your
-                  turn up"): pure FYI yields to the live ask above.
-                  Stays mounted when empty (2026-07-28) — the card
-                  carries its own empty note. */}
-              <AwayDigestCard
-                digest={AWAY_DIGEST}
-                undoables={UNDOABLES}
-                enterDelay={120}
-                onOpenThread={(id) => router.push(`/chat/${id}`)}
-                onUndo={undoAction}
-              />
-
-              <Animated.View
-                entering={FadeInDown.duration(420).delay(240)}
-                style={{
-                  flexDirection: 'row',
-                  // ONE seam everywhere (2026-07-29 "폴더 사이에 간격이랑
-                  // 안맞아"): every folder is separated by 28, so the pair
-                  // was reading 16pt tighter than the stack around it.
-                  gap: SECTION_GAP,
-                  marginTop: SECTION_GAP,
-                }}>
-                {/* RUNNING leads the row (2026-07-29): live work on the
-                    left, the future axis on the right. System left this row
-                    entirely — its home is still being decided, and the >_
-                    key in the header remains the system door meanwhile. */}
-                <Pressable
-                  onPress={() =>
-                    runningTask?.threadId
-                      ? router.push(`/chat/${runningTask.threadId}`)
-                      : setTaskSheet('running')
-                  }
-                  style={({ pressed }) => ({
-                    flex: 1,
-                    height: 124,
-                    paddingHorizontal: 18,
-                    paddingBottom: 18,
-                    shadowColor: '#16181C',
-                    shadowOpacity: 0.1,
-                    shadowRadius: 18,
-                    shadowOffset: { width: 0, height: 6 },
-                    elevation: 5,
-                    opacity: pressed ? 0.85 : 1,
-                  })}>
-                  <FrostedGlassFill
-                    radius={14}
-                    tabWidth={flapW('running', 90)}
-                    tabHeight={22}
-                  />
-                  <View style={{ height: 26, flexDirection: 'row', alignItems: 'center' }}>
-                    <Text
-                      onTextLayout={measureTitle('running')}
-                      style={{
-                        fontSize: 12,
-                        fontFamily: fontFamily.mono,
-                        letterSpacing: 0.3,
-                        color: 'rgba(22,24,28,0.55)',
-                      }}>
-                      Running
-                    </Text>
-                  </View>
-                  <View
-                    style={{
-                      flex: 1,
-                      justifyContent: 'center',
-                      marginBottom: 14,
-                    }}>
-                    {runningTask ? (
-                      // the live line leads, the same anatomy Next up uses:
-                      // a quiet mono eyebrow over the work itself
-                      <View style={{ gap: 6 }}>
-                        <View
-                          style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                          {/* ONE breathing mosaic cluster, nothing else
-                              (2026-07-29 "그냥 아 움직이고 있구나"): the mark
-                              and a separate bar were two marks saying the
-                              same thing. The cells hand their weight around
-                              the square on a loop, in the board's own square
-                              language, and that is the entire statement. */}
-                          <ProgressCells color={AINK.running} size={10} />
-                          {runningCount > 1 ? (
-                            <Text
-                              style={{
-                                fontSize: 11,
-                                fontFamily: fontFamily.mono,
-                                letterSpacing: 0.3,
-                                color: AINK.dim,
-                              }}>
-                              {`${runningCount} TASKS`}
-                            </Text>
-                          ) : null}
-                        </View>
-                        <Text
-                          numberOfLines={2}
-                          style={{
-                            flexShrink: 1,
-                            fontSize: fontSize.body,
-                            lineHeight: 20,
-                            fontFamily: fontFamily.regular,
-                            color: AINK.text,
-                          }}>
-                          {runningTask.label}
-                        </Text>
-                      </View>
-                    ) : (
-                      <Text
-                        style={{
-                          fontSize: fontSize.body,
-                          lineHeight: 20,
-                          fontFamily: fontFamily.regular,
-                          color: AINK.dim,
-                        }}>
-                        Nothing running
-                      </Text>
-                    )}
-                  </View>
-                  {runningTask ? (
-                    // live progress in the same bottom-right slot Next up
-                    // uses for its schedule meta
-                    <View style={{ position: 'absolute', right: 18, bottom: 16 }}>
-                      <Text
-                        style={{ fontSize: 11, fontFamily: fontFamily.mono, color: AINK.dim }}>
-                        {runningTask.progress ?? runningTask.age ?? 'now'}
-                      </Text>
-                    </View>
-                  ) : null}
-                </Pressable>
-                <Pressable
-                  onPress={() =>
-                    nextUpRows[0] && router.push(`/chat/${nextUpRows[0].threadId}`)
-                  }
-                  style={({ pressed }) => ({
-                    flex: 1,
-                    height: 124,
-                    paddingHorizontal: 18,
-                    paddingBottom: 18,
-                    shadowColor: '#16181C',
-                    shadowOpacity: 0.1,
-                    shadowRadius: 18,
-                    shadowOffset: { width: 0, height: 6 },
-                    elevation: 5,
-                    opacity: pressed ? 0.85 : 1,
-                  })}>
-                  <FrostedGlassFill
-                    radius={14}
-                    tabWidth={flapW('nextup', 90)}
-                    tabHeight={22}
-                  />
-                  <View style={{ height: 26, flexDirection: 'row', alignItems: 'center' }}>
-                    <Text
-                      onTextLayout={measureTitle('nextup')}
-                      style={{
-                        fontSize: 12,
-                        fontFamily: fontFamily.mono,
-                        letterSpacing: 0.3,
-                        color: 'rgba(22,24,28,0.55)',
-                      }}>
-                      Next up
-                    </Text>
-                  </View>
-                  <View
-                    style={{
-                      flex: 1,
-                      justifyContent: 'center',
-                      marginBottom: 14,
-                    }}>
-                    {nextUpRows[0] ? (
-                      // the APP leads (2026-07-22 "위에 아이콘 보여주고"
-                      // + "gmail 이름 빠졌어"): icon AND app name in the
-                      // Routines group-header format, name below
-                      <View style={{ gap: 6 }}>
-                        <View
-                          style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                          <Ionicons
-                            name={
-                              NEXTUP_APP_ICON[
-                                nextUpRows[0].app as keyof typeof NEXTUP_APP_ICON
-                              ] ?? 'apps-outline'
-                            }
-                            size={17}
-                            color={AINK.dim}
-                          />
-                          <Text
-                            style={{
-                              fontSize: 11,
-                              fontFamily: fontFamily.mono,
-                              letterSpacing: 0.3,
-                              color: AINK.dim,
-                            }}>
-                            {nextUpRows[0].app.toUpperCase()}
-                          </Text>
-                        </View>
-                        <Text
-                          numberOfLines={2}
-                          style={{
-                            flexShrink: 1,
-                            fontSize: fontSize.body,
-                            lineHeight: 20,
-                            fontFamily: fontFamily.regular,
-                            color: AINK.text,
-                          }}>
-                          {nextUpRows[0].name}
-                        </Text>
-                      </View>
-                    ) : (
-                      <Text
-                        style={{
-                          fontSize: fontSize.body,
-                          lineHeight: 20,
-                          fontFamily: fontFamily.regular,
-                          color: AINK.dim,
-                        }}>
-                        Nothing scheduled yet
-                      </Text>
-                    )}
-                  </View>
-                  {nextUpRows[0] ? (
-                    // time meta lives BOTTOM-RIGHT (2026-07-22 "시간
-                    // 부분은 바텀 오른쪽")
-                    <View style={{ position: 'absolute', right: 18, bottom: 16 }}>
-                      <Text
-                        style={{ fontSize: 11, fontFamily: fontFamily.mono, color: AINK.dim }}>
-                        {nextUpRows[0].when}
-                      </Text>
-                    </View>
-                  ) : null}
-                </Pressable>
-              </Animated.View>
 
               {/* post-action control: the agent's most recent write
                   action stays undoable here instead of scrolling away
@@ -1605,12 +1566,11 @@ export default function HomeScreen() {
                       // from the text
                       marginTop: idx === 0 ? (lastActionOpen ? 4 : 14) : 0,
                       paddingVertical: lastActionOpen ? 12 : 0,
-                      borderTopWidth: lastActionOpen && idx > 0 ? 1 : 0,
-                      borderTopColor: AINK.divider,
                       flexDirection: 'row',
                       alignItems: 'center',
                       gap: spacing.sm,
                     }}>
+                    {lastActionOpen && idx > 0 ? <RowRule /> : null}
                     <View style={{ flex: 1 }}>
                       <Text
                         numberOfLines={1}
@@ -1682,10 +1642,9 @@ export default function HomeScreen() {
                     }}
                     style={({ pressed }) => ({
                       paddingTop: 12,
-                      borderTopWidth: 1,
-                      borderTopColor: AINK.divider,
                       opacity: pressed ? 0.6 : 1,
                     })}>
+                    <RowRule />
                     {/* dry register (2026-07-21 tone pass): state the
                         fallback, do not chat about it */}
                     <Text style={{ fontSize: 12, color: AINK.dim }}>
@@ -1832,7 +1791,10 @@ export default function HomeScreen() {
                           You've asked 3 times before calls with investors
                         </Text>
                       </View>
-                      {/* + promotes the habit into a real routine */}
+                      {/* + promotes the habit into a real routine. Glass
+                          chip, not a filled disc (2026-07-30): same white
+                          veil + lit rim as the card material, accent lives
+                          only in the glyph. */}
                       <Pressable
                         onPress={acceptSuggestedRule}
                         hitSlop={10}
@@ -1840,12 +1802,14 @@ export default function HomeScreen() {
                           width: 30,
                           height: 30,
                           borderRadius: 15,
-                          backgroundColor: sysColor.action,
+                          backgroundColor: 'rgba(255,255,255,0.45)',
+                          borderWidth: 1,
+                          borderColor: 'rgba(255,255,255,0.85)',
                           alignItems: 'center',
                           justifyContent: 'center',
                           opacity: pressed ? 0.7 : 1,
                         })}>
-                        <Ionicons name="add" size={19} color="#FFFFFF" />
+                        <Ionicons name="add" size={19} color={sysColor.accent} />
                       </Pressable>
                     </View>
                     {/* no hairline under this one (2026-07-25): the
@@ -1863,7 +1827,7 @@ export default function HomeScreen() {
                   <View key={g.app}>
                     {gi > 0 ? (
                       <View
-                        style={{ height: 1, marginHorizontal: 18, backgroundColor: AINK.divider }}
+                        style={{ height: 1, backgroundColor: ROW_RULE }}
                       />
                     ) : null}
                     {/* EVERY group leads with its app (2026-07-22
@@ -1955,6 +1919,8 @@ export default function HomeScreen() {
             </Animated.ScrollView>
 
           {/* Connection status popover (over the board) */}
+            {/* DEV TOOLBOX (2026-07-30): jump to any first-run step while
+                designing. Delete this and its component to ship. */}
             {statusOpen ? (
               <StatusPopover
                 services={services}
@@ -2044,7 +2010,7 @@ export default function HomeScreen() {
               no panel, no fill at all — just the text sitting directly
               on the fan, the same weight as "Clawstin" above it. */}
           <Pressable
-            onPress={() => setConnected(true)}
+            onPress={() => setPairing('scan')}
             hitSlop={12}
             style={({ pressed }) => ({
               paddingVertical: spacing.lg,
@@ -2062,6 +2028,59 @@ export default function HomeScreen() {
           </Pressable>
         </ScrollView>
       )}
+
+      {/* DEV ONLY (2026-07-30): jump between the splash, the three pairing
+          steps and the board without reinstalling. Delete this block and
+          step-toolbox.tsx to ship. */}
+      <StepToolbox
+        steps={[
+          {
+            key: 'splash',
+            label: 'Splash',
+            active: !connected && !pairing,
+            onPress: () => {
+              setConnected(false);
+              setPairing(null);
+            },
+          },
+          {
+            key: 'scan',
+            label: '1 · Scan',
+            active: pairing === 'scan',
+            onPress: () => {
+              setConnected(false);
+              setPairing('scan');
+            },
+          },
+          {
+            key: 'handshake',
+            label: '2 · Handshake',
+            active: pairing === 'handshake',
+            onPress: () => {
+              setConnected(false);
+              setPairing('handshake');
+            },
+          },
+          {
+            key: 'crew',
+            label: '3 · Crew wakes',
+            active: pairing === 'crew',
+            onPress: () => {
+              setConnected(false);
+              setPairing('crew');
+            },
+          },
+          {
+            key: 'board',
+            label: 'Home board',
+            active: connected,
+            onPress: () => {
+              setPairing(null);
+              setConnected(true);
+            },
+          },
+        ]}
+      />
     </SafeAreaView>
   );
 }

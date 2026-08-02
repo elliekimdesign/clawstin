@@ -321,6 +321,8 @@ type Store = {
   bookScheduleSlot: (threadId: string, messageId: string, slot: string) => void;
   /** send the draft Scribe wrote (stamps the card sent in place) */
   sendDraft: (threadId: string, messageId: string) => void;
+  /** inline rewrite of a draft's body, in the card itself (2026-08-01) */
+  editDraftBody: (threadId: string, messageId: string, body: string) => void;
 
   // Quick-task presets (guided suggestions, no in-app "connect" step)
   startQuickTask: (threadId: string, task: QuickTask) => void;
@@ -1034,7 +1036,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
               focusCrew('triage');
               // NO DURATION on the gate (2026-07-28): a hold is not a
               // finished step, so a "1.2s" beside it read as completed work.
-              appendThinking(threadId, ['hold  Operator · 2 replies, 5 labels → waiting on you']);
+              appendThinking(threadId, ['hold  Actions · 2 replies, 5 labels → waiting on you']);
               setTimeout(() => {
                 setTypingThreadId(null);
                 setCrewBusy(false);
@@ -1213,8 +1215,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
                     ? `I checked ${dayWord}. Nothing on the calendar, the day is clear.`
                     : `I checked ${dayWord}. ${n} event${n === 1 ? '' : 's'} on the books; the evening is open.`,
                 schedule: { date: parsed.date, title: '', slots: [] },
+                // the TASK pane's result line + guided next steps
+                // (2026-07-30 "결과 지향적인 말")
+                outcome: n === 0 ? `${dayWord} is clear.` : `${n} on the books, evening open.`,
+                suggestions: ['Block focus time', 'Watch this day'],
               });
             } else {
+              const slots = suggestSlots(dayEvents, parsed.start);
               appendToThread(threadId, {
                 id: nextId('c'),
                 from: 'agent',
@@ -1222,8 +1229,38 @@ export function AppProvider({ children }: { children: ReactNode }) {
                 schedule: {
                   date: parsed.date,
                   title: parsed.title,
-                  slots: suggestSlots(dayEvents, parsed.start),
+                  slots,
                 },
+                // the TASK pane's result line + guided next steps
+                // (2026-07-30 "결과 지향적인 말"): what the day holds
+                // now, and the two moves the user most likely wants
+                outcome: slots.length
+                  ? `${slots.length} slot${slots.length === 1 ? '' : 's'} open, ${slots[0]} looks best.`
+                  : `${dayWord} is fully booked.`,
+                suggestions: slots.length
+                  ? [`Book ${slots[0]}`, 'Watch this day']
+                  : ['Try another day', 'Watch for openings'],
+                // BRANCH LANES (2026-08-01): the reply as the split loop —
+                // this supersedes the prose bubble for this flow
+                lanes: slots.length
+                  ? {
+                      research: {
+                        summary: `${dayWord} is nearly clear. ${slots.length} slots open.`,
+                        rows: slots.map((s, i) => ({
+                          label: s,
+                          meta: i === 0 ? 'best fit' : 'open',
+                        })),
+                      },
+                      action: {
+                        summary: `${slots[0]} held. Book it?`,
+                        book: slots[0],
+                      },
+                      proposal: {
+                        summary: 'Draft the invite note?',
+                        draftSeed: `write a short invite note for ${parsed.title}`,
+                      },
+                    }
+                  : undefined,
               });
               // HANDOFF (2026-07-24 "스크라이버가 나와서 글을 써주는걸로"):
               // the ask wanted a note written too, not just a time. routeCrew
@@ -1597,8 +1634,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setTypingThreadId(threadId);
         setCrewBusy(true);
         runThinking(threadId, [
-          'hold  Operator · replies withheld → labels only  0.5s',
-          'plan  Operator · 5 labels, no posts  0.4s',
+          'hold  Actions · replies withheld → labels only  0.5s',
+          'plan  Actions · 5 labels, no posts  0.4s',
         ]);
         setTimeout(() => {
           setTypingThreadId(null);
@@ -1627,9 +1664,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setTypingThreadId(threadId);
         setCrewBusy(true);
         runThinking(threadId, [
-          ...(postedReplies ? ['post  Operator · 2 replies → #1148, #1151  1.9s'] : []),
-          'label  Operator · 5 issues → 3 duplicate, 2 bug  1.4s',
-          'verify  Operator · GitHub → all 7 writes landed  0.6s',
+          ...(postedReplies ? ['post  Actions · 2 replies → #1148, #1151  1.9s'] : []),
+          'label  Actions · 5 issues → 3 duplicate, 2 bug  1.4s',
+          'verify  Actions · GitHub → all 7 writes landed  0.6s',
         ]);
         setTimeout(() => {
           setTypingThreadId(null);
@@ -1975,6 +2012,28 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [threads]
   );
 
+  // Inline draft rewrite (2026-08-01 "드래프트 칸 내에서 수정"): the words
+  // change where they are read — no composer round-trip, no new bubble.
+  const editDraftBody = useCallback(
+    (threadId: string, messageId: string, body: string) => {
+      setThreads((prev) =>
+        prev.map((t) =>
+          t.id === threadId
+            ? {
+                ...t,
+                messages: t.messages.map((m) =>
+                  m.id === messageId && m.draft && !m.draft.sent
+                    ? { ...m, draft: { ...m.draft, body } }
+                    : m
+                ),
+              }
+            : t
+        )
+      );
+    },
+    []
+  );
+
   // --- Quick-task presets ----------------------------------------------------
   // Mobile is a controller over an already-provisioned gateway — these never
   // ask the user to "connect" anything in-app, just offer to run things.
@@ -2019,6 +2078,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       calendarScan,
       bookScheduleSlot,
       sendDraft,
+      editDraftBody,
       startQuickTask,
       crewSelected,
       crewManual,
@@ -2081,6 +2141,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       calendarScan,
       bookScheduleSlot,
       sendDraft,
+      editDraftBody,
       startQuickTask,
       crewSelected,
       crewManual,

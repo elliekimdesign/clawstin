@@ -66,6 +66,12 @@ export function draftForSchedule(title: string, slot?: string): string {
   const subject = title
     .replace(/\s*\bwith\s+[A-Z][\w'-]*/, '')
     .replace(/^\s*with\b/i, '')
+    // asks like "write a short invite note for dinner" carry the
+    // INSTRUCTION into the title (2026-08-01, lane draftSeed): strip
+    // the verb phrase so the note is about dinner, not about writing
+    .replace(/^\s*(write|draft|send)\b.*?\b(note|invite|message)\b(\s*for)?\s*/i, '')
+    // quotes ride in when the seed text embeds a quoted title
+    .replace(/["']/g, '')
     .trim()
     .toLowerCase();
   return slot
@@ -112,6 +118,26 @@ export type ChatMessage = {
   terminalLog?: string[];
   /** tap-to-send example prompts, shown under an agent message */
   suggestions?: string[];
+  /** RESULT-ORIENTED one-liner for the reply's TASK pane (2026-07-30):
+   * what state the world is in now, not what the machine did */
+  outcome?: string;
+  /** BRANCH LANES (2026-08-01, the Figma G-series storyboard): the
+   * reply as a split — each lane speaks max two precise lines; long
+   * content lives behind the research rows; the turn folds to a
+   * receipt once the action lands. Lanes REPLACE the prose bubble. */
+  lanes?: {
+    research?: {
+      summary: string;
+      /** scannable data rows (e.g. open slots), never paragraphs */
+      rows?: { label: string; meta?: string }[];
+    };
+    action?: {
+      summary: string;
+      /** the slot the Book button commits (research pick overrides) */
+      book?: string;
+    };
+    proposal?: { summary: string; draftSeed?: string };
+  };
   /** crew members who worked on this reply; >1 renders the mark with "+N" */
   crewCount?: number;
   /** the SYSTEM spoke first (escalation reminder, status nudge) — renders

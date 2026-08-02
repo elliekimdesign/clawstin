@@ -4,6 +4,8 @@ import { LayoutAnimation, Pressable, Text, View } from 'react-native';
 import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeable';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 
+import { RowRule } from './luminous-pour';
+
 import type { AwayDigest } from '@/mock/away';
 import type { Undoable } from '@/mock/undoables';
 import { fontFamily, fontSize, fontWeight, spacing, sysColor } from '@/theme/theme';
@@ -13,7 +15,6 @@ import { FrostedGlassFill } from './frosted-glass-fill';
 const INK = '#16181C';
 const INK_DIM = 'rgba(22,24,28,0.55)';
 const INK_GHOST = 'rgba(22,24,28,0.46)';
-const DIVIDER = 'rgba(22,24,28,0.08)';
 const TAB_GAP = 18;
 
 // APP_GLYPH retired 2026-07-28 ("뒤에 이거 아이콘지우기"): the digest rows
@@ -194,10 +195,9 @@ export function AwayDigestCard({
                 alignItems: 'center',
                 gap: spacing.sm,
                 paddingVertical: 12,
-                borderTopWidth: idx > 0 ? 1 : 0,
-                borderTopColor: DIVIDER,
                 opacity: pressed ? 0.5 : 1,
               })}>
+              {idx > 0 ? <RowRule /> : null}
               {/* NO front mark at all (2026-07-28 "앞에 아무것도 없어도돼"):
                   the label leads the row; doneness moved to the trailing
                   mosaic tile beside the time */}
@@ -307,10 +307,9 @@ export function AwayDigestCard({
                   alignItems: 'center',
                   gap: spacing.sm,
                   paddingVertical: 12,
-                  borderTopWidth: 1,
-                  borderTopColor: DIVIDER,
                   opacity: pressed ? 0.5 : 1,
                 })}>
+                <RowRule extraLeft={28} />
                 {/* app glyph retired here with the main rows (2026-07-28
                     "뒤에 이거 아이콘지우기"): label and age only */}
                 <Text

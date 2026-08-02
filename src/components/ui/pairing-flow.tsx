@@ -14,6 +14,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { CrewPixel } from '@/components/ui/crew-pixel';
+import { FrostedGlassFill } from '@/components/ui/frosted-glass-fill';
 import { MachinePixel } from '@/components/ui/machine-pixel';
 import { MosaicCheck } from '@/components/ui/mosaic-check';
 import { initialCrew } from '@/mock/crew';
@@ -269,16 +270,38 @@ export function PairingFlow({
           {/* ONE card holds both ways in (2026-07-30): the address and the
               QR line were two loose rows on the fan. Grouped, they read as
               a single "how you connect" block with a divider between the
-              two options. */}
+              two options.
+              FOLDER, not a plain card (2026-07-30 "온보딩에도 우리 폴더
+              스타일을 살짝"): the first surface the user ever touches wears
+              the board's folder grammar — white face, GATEWAY flap, the
+              ghost-blue layer showing at the notch — so the board reads as
+              the same product when it takes over. */}
           <View
             style={{
               marginTop: 26,
-              borderRadius: 16,
-              overflow: 'hidden',
-              backgroundColor: 'rgba(255,255,255,0.92)',
-              borderWidth: 1,
-              borderColor: 'rgba(22,24,28,0.08)',
+              shadowColor: '#16181C',
+              shadowOpacity: 0.08,
+              shadowRadius: 16,
+              shadowOffset: { width: 0, height: 6 },
+              elevation: 4,
             }}>
+            <FrostedGlassFill
+              radius={16}
+              tabWidth={100}
+              tabHeight={22}
+              tint="rgba(255,255,255,0.92)"
+            />
+            <View style={{ height: 26, justifyContent: 'center', paddingHorizontal: 16 }}>
+              <Text
+                style={{
+                  fontFamily: fontFamily.mono,
+                  fontSize: 11,
+                  letterSpacing: 0.3,
+                  color: DIM,
+                }}>
+                GATEWAY
+              </Text>
+            </View>
             <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16 }}>
               <Ionicons name="link-outline" size={16} color={FAINT} />
               <TextInput
@@ -383,28 +406,45 @@ export function PairingFlow({
               // step 1 uses for its input, they read as one resolved fact.
               <Animated.View
                 entering={FadeInDown.duration(320)}
-                // A RESULT, NOT ANOTHER INPUT (2026-07-30 "이전이랑 같은
-                // 박스 스타일로 들어가면 화면이 변한 게 잘 안 느껴질"): step 1
-                // asks in a white card, so answering in an identical white
-                // card made the two screens look the same. This one is the
-                // machine reporting back, so it wears the desk tint and a
-                // tinted edge instead.
+                // AN ACTIVATED FOLDER, NOT ANOTHER INPUT (2026-07-30 "연결이
+                // 되고 난 후니까 활성화된 폴더 스타일"): step 1 asks inside a
+                // still white GATEWAY folder; this one is the machine
+                // reporting back, so it wears the SAME folder grammar but
+                // switched on — bluer veil, LINKED flap in accent, and the
+                // board's `shine` breath (RUNNING's alive state), so
+                // "connected" reads as the folder waking up.
                 //
-                // THE EDGE IS BLUE, NOT GREEN (2026-07-30 "초록색 라인 너무
-                // 밤티"): ready-green on a blue-tinted card fought the fill
-                // and drew the eye to the outline instead of the host. The
-                // accent blue sits in the same family as the wash, so the
-                // card reads as one calm object.
+                // STILL BLUE, NOT GREEN (2026-07-30 "초록색 라인 너무 밤티"):
+                // the earlier green edge fought the fill; the activated cues
+                // stay in the accent family instead.
                 style={{
                   marginTop: 22,
                   alignSelf: 'stretch',
-                  borderRadius: 14,
-                  backgroundColor: 'rgba(143,192,232,0.16)',
-                  borderWidth: 1,
-                  borderColor: 'rgba(59,118,196,0.34)',
-                  paddingHorizontal: 16,
-                  paddingVertical: 13,
+                  shadowColor: '#16181C',
+                  shadowOpacity: 0.08,
+                  shadowRadius: 16,
+                  shadowOffset: { width: 0, height: 6 },
+                  elevation: 4,
                 }}>
+                <FrostedGlassFill
+                  radius={14}
+                  tabWidth={82}
+                  tabHeight={20}
+                  tint="rgba(186,216,242,0.60)"
+                  shine
+                />
+                <View style={{ height: 24, justifyContent: 'center', paddingHorizontal: 16 }}>
+                  <Text
+                    style={{
+                      fontFamily: fontFamily.mono,
+                      fontSize: 11,
+                      letterSpacing: 0.3,
+                      color: sysColor.accent,
+                    }}>
+                    LINKED
+                  </Text>
+                </View>
+                <View style={{ paddingHorizontal: 16, paddingTop: 6, paddingBottom: 13 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                   {/* NO MARK ON THE HOST (2026-07-30): a check says "verified",
                       but this row says WHERE you landed, and the card only
@@ -449,6 +489,7 @@ export function PairingFlow({
                   <Text style={{ fontSize: fontSize.small, color: DIM, flex: 1 }}>
                     End to end encrypted on your own network
                   </Text>
+                </View>
                 </View>
               </Animated.View>
             ) : (

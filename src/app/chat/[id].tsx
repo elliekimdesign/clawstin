@@ -42,6 +42,8 @@ import { MintBg } from '@/components/ui/mint-bg';
 import { MonthOverlay } from '@/components/ui/month-overlay';
 import { DraftCard } from '@/components/ui/draft-card';
 import { MessageBubble } from '@/components/ui/message-bubble';
+import { ThinkingBlob } from '@/components/ui/thinking-blob';
+import { TurnLanes } from '@/components/ui/turn-lanes';
 import { PRConsole } from '@/components/ui/pr-console';
 import { CrewDetail } from '@/components/ui/crew-detail';
 import { GlassIconButton } from '@/components/ui/glass-icon-button';
@@ -129,6 +131,7 @@ export function ChatThreadView({
     calendarDays,
     bookScheduleSlot,
     sendDraft,
+    editDraftBody,
     runScheduleOnce,
     confirmSchedule,
     runArchive,
@@ -232,6 +235,15 @@ export function ChatThreadView({
 
   const isTyping = typingThreadId === effId;
   const thinkingHere = thinking?.threadId === effId ? thinking : null;
+  /** the reply's face — the thread's own agent, else whoever the pill
+   * currently names (one source for bubbles, split panes, live runs) */
+  const replyFace =
+    thread?.agentId ??
+    (crewSelected
+      ? ({ researcher: 'scout', writer: 'quill', triage: 'pilot', orchestrator: 'muppet' } as const)[
+          crewSelected
+        ]
+      : undefined);
   // the floating console's measured height, so the scroll's content
   // starts below it at rest but slides BEHIND it when scrolling
   // console fold: expanded = full log floating up top (chat slides
@@ -1087,25 +1099,9 @@ export function ChatThreadView({
                     back through EVERY prompt's run, which the per-row version
                     could never do (it only ever knew the newest). One place to
                     look for the machine's side of things. */}
-                {m.taskDivider || m.from === 'user' ? null : (
-                <MessageBubble
-                  from={m.from}
-                  text={m.text}
-                  proactive={m.proactive}
-                  caption={m.caption}
-                  // the reply's face MUST match the marquee (2026-07-22
-                  // "오퍼레이터가 나와야 해"): both derive from the same
-                  // routing state — the thread's own agent when it has
-                  // one, else whoever the pill currently names
-                  agentId={
-                    thread.agentId ??
-                    (crewSelected
-                      ? { researcher: 'scout', writer: 'quill', triage: 'pilot', orchestrator: 'muppet' }[
-                          crewSelected
-                        ]
-                      : undefined)
-                  }
-                  >
+                {m.taskDivider || m.from === 'user' ? null : (() => {
+                const cards = (
+                <>
                 {m.approval ? (
                   <ApprovalCard
                     compact
@@ -1176,7 +1172,7 @@ export function ChatThreadView({
                   <DraftCard
                     draft={m.draft}
                     onSend={() => sendDraft(thread.id, m.id)}
-                    onEdit={() => setDraft(m.draft!.body)}
+                    onEditBody={(body) => editDraftBody(thread.id, m.id, body)}
                   />
                 ) : null}
                 {/* PIPELINE CARD RETIRED from the thread (2026-07-28 "셋이 다
@@ -1194,11 +1190,50 @@ export function ChatThreadView({
                 {/* suggestion chips retired (2026-07-24 "앞에
                     프롬프트 나오는 것도 지워" — the composer alone
                     invites; behavior is freeform now) */}
-                </MessageBubble>
-                )}
+                </>
+                );
+                // BRANCH LANES (2026-08-01, the Figma G-storyboard): a
+                // reply that carries lanes IS the split loop — no prose
+                // bubble, no cards; the lanes subsume the schedule UI
+                // and fold to a receipt once booked.
+                if (m.lanes) {
+                  return (
+                    <TurnLanes
+                      lanes={m.lanes}
+                      booked={m.schedule?.booked || undefined}
+                      title={m.schedule?.title || thread.title || 'Task'}
+                      onBook={(slot) => bookScheduleSlot(thread.id, m.id, slot)}
+                      onDraft={(seed) => setDraft(seed)}
+                      onChip={(text) => setDraft(text)}
+                    />
+                  );
+                }
+                // the RESEARCH│TASK SplitReply retired 2026-08-01 ("이
+                // 구조는 이제 완전히 지워도 돼"): lanes carry the new
+                // grammar, everything else keeps the classic bubble
+                return (
+                  <MessageBubble
+                    from={m.from}
+                    text={m.text}
+                    proactive={m.proactive}
+                    caption={m.caption}
+                    agentId={replyFace}>
+                    {cards}
+                  </MessageBubble>
+                );
+                })()}
               </View>
               );
             })}
+            {/* THINKING = the metaball blob (2026-08-01 "움직이는 버블
+                그거 사용해줘"): while a run writes itself the only
+                in-flow presence is the crew's own churning bead — the
+                step trace stays behind the >_ key. */}
+            {thinkingHere && !thinkingHere.done ? (
+              <View style={{ alignSelf: 'flex-start', marginTop: 6, marginLeft: 2 }}>
+                <ThinkingBlob size={34} lively />
+              </View>
+            ) : null}
           </ScrollView>
 
           {/* THE PLACEHOLDER MOVED TO THE STAGE (2026-07-27 "화면 중간에
@@ -1510,6 +1545,11 @@ export function ChatThreadView({
                   onPress={() => setRunPanelOpen((v) => !v)}
                   style={({ pressed }) => ({
                     width: 48,
+                    // FIXED SQUARE (2026-08-01 "줄이 길어져도 사각으로"): the
+                    // key must not stretch with a multiline input — it pins
+                    // to the row's bottom, beside the send arrow
+                    height: 48,
+                    alignSelf: 'flex-end',
                     borderRadius: 13,
                     backgroundColor: runPanelOpen ? '#1B2942' : '#0E1626',
                     alignItems: 'center',

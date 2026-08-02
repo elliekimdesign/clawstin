@@ -5,7 +5,6 @@ import Animated, { FadeInUp } from 'react-native-reanimated';
 import type { ServiceState, ServiceStatus } from '@/mock/services';
 import { fontFamily, fontSize, spacing, sysColor } from '@/theme/theme';
 
-import { ThinkingConsole } from './thinking-console';
 
 // ACTIVITY PANEL (2026-07-28 "가장 최근에 러닝된거부터 그 systemactivity가
 // 챗에 나오는거처럼"): the >_ key stopped opening a service healthcheck and
@@ -36,6 +35,22 @@ export function worstServiceState(services: ServiceStatus[]): ServiceState {
     (w, s) => (ORDER.indexOf(s.state) > ORDER.indexOf(w) ? s.state : w),
     'operational'
   );
+}
+
+/** the run's whole cost, summed from the trailing per-step timings the
+ * archive lines carry ("… 1.54s") — one number where three used to be */
+function totalTime(lines: string[]): string {
+  let total = 0;
+  let found = false;
+  for (const l of lines) {
+    const m = l.match(/(\d+(?:\.\d+)?)s\s*$/);
+    if (m) {
+      total += parseFloat(m[1]);
+      found = true;
+    }
+  }
+  if (!found) return '';
+  return total >= 10 ? `${Math.round(total)}s` : `${total.toFixed(1)}s`;
 }
 
 /** one run block in the activity roll — the chat run panel's own anatomy */
@@ -173,13 +188,13 @@ export function StatusPopover({
               </Text>
             </Pressable>
           </View>
-          {/* the receipt roll: the NEWEST runs, whole blocks only — a
-              clipped receipt read as a layout bug (2026-07-28 "간격이랑
-              뭔가 좀 어색한"), so the panel shows what fits and the full
-              ledger lives in the Activity tab. Each block is the chat
-              panel's own anatomy (ask line + steps) and a door to the
-              thread it ran in. */}
-          <View style={{ marginTop: 4 }}>
+          {/* ONE LINE PER RUN (2026-07-30 "좀 더 정리해줘", no dot lists):
+              the full step trace was the chat panel's anatomy repeated
+              in a peek window — twice the ask, three stages, timings.
+              Here each run is just its ask and how long the whole thing
+              took; hairlines separate, nothing leads the row. The trace
+              lives where it always did: in the thread the row opens. */}
+          <View style={{ marginTop: 2 }}>
             {runs.length === 0 ? (
               <Text
                 style={{
@@ -196,33 +211,36 @@ export function StatusPopover({
                   key={run.key}
                   onPress={() => onOpenRun(run.threadId)}
                   style={({ pressed }) => ({
-                    // the last block hands off to the footer hairline at
-                    // the same rhythm the rows keep among themselves
-                    marginBottom: idx === runs.length - 1 ? 10 : 18,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 12,
+                    paddingVertical: 11,
+                    borderTopWidth: idx > 0 ? 1 : 0,
+                    borderTopColor: DIVIDER,
                     opacity: pressed ? 0.6 : 1,
                   })}>
-                  {run.label ? (
-                    <Text
-                      numberOfLines={1}
-                      style={{
-                        fontSize: 12,
-                        lineHeight: 17,
-                        fontFamily: fontFamily.regular,
-                        color: PANEL_DIM,
-                        marginBottom: 8,
-                      }}>
-                      {run.label}
-                    </Text>
-                  ) : null}
-                  <ThinkingConsole
-                    threadId={`activity-${run.key}`}
-                    lines={run.lines}
-                    done={!run.live}
-                    failed={run.failed}
-                    folded={false}
-                    stepsOnly
-                    onDark
-                  />
+                  <Text
+                    numberOfLines={1}
+                    style={{
+                      flex: 1,
+                      fontSize: 13,
+                      fontFamily: fontFamily.regular,
+                      color: PANEL_TEXT,
+                    }}>
+                    {run.label ?? run.lines[0] ?? ''}
+                  </Text>
+                  <Text
+                    style={{
+                      fontSize: 11,
+                      fontFamily: fontFamily.mono,
+                      color: run.failed
+                        ? sysColor.fail
+                        : run.live
+                          ? PANEL_DIM
+                          : PANEL_FAINT,
+                    }}>
+                    {run.failed ? '✗' : run.live ? '…' : totalTime(run.lines)}
+                  </Text>
                 </Pressable>
               ))
             )}

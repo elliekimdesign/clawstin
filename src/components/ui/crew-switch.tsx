@@ -80,7 +80,8 @@ function CrewAvatar({ crewKey, size = 18 }: { crewKey: CrewKey; size?: number })
   );
 }
 // Center capsule is a FIXED medium size — sized for the longest name
-// ("Orchestrator") so every crew sits centered in the same constant box,
+// ("Research", since the 2026-07-30 rename shortened Orchestrator → Lead)
+// so every crew sits centered in the same constant box,
 // never stretching per-name. The outer glass pill hugs it flush: the same
 // RING gap on every side. Absolute children are positioned inside the pill's
 // border, so inner offsets subtract BORDER to keep the visual gap even.
@@ -89,7 +90,8 @@ const RING = 3;
 // Everything inside the pill lives in its INNER box (inside the border).
 const INNER_H = PILL_H - 2 * BORDER;
 // face at 10 + longest name at cell 1.25 + pin inset
-const CENTER_W = 156;
+// 156 → 130 with the shorter 2026-07-30 names ("Research" is the widest)
+const CENTER_W = 130;
 const PILL_W = CENTER_W + 2 * RING;
 // One smooth glide with barely-there overshoot — no jitter.
 const SLIDE_SPRING = { damping: 24, stiffness: 220, mass: 0.9 };

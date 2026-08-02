@@ -42,7 +42,7 @@ function CompactBar({
     },
     {
       name: 'chat',
-      label: 'Activity',
+      label: 'Recents',
       render: (c: string) => <Ionicons name="layers" size={17} color={c} />,
     },
     {

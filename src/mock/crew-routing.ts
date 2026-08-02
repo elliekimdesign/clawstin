@@ -11,10 +11,12 @@ export type CrewKey = 'researcher' | 'writer' | 'triage' | 'orchestrator';
 export type CrewRoute = { key: CrewKey; name: string; role: string };
 
 export const ISLAND_CREWS: Record<CrewKey, CrewRoute> = {
+  // names follow crew.ts's 2026-07-30 rename: Lead (was Orchestrator),
+  // Actions (was Operator) — one vocabulary everywhere the crew appears
   researcher: { key: 'researcher', name: 'Research', role: 'Research digs up answers and compares options' },
   writer: { key: 'writer', name: 'Scribe', role: 'Scribe writes drafts, posts, and replies' },
-  triage: { key: 'triage', name: 'Operator', role: 'Operator sorts your inbox and messages' },
-  orchestrator: { key: 'orchestrator', name: 'Orchestrator', role: 'Orchestrator splits big asks across the crew' },
+  triage: { key: 'triage', name: 'Actions', role: 'Actions sorts your inbox and messages' },
+  orchestrator: { key: 'orchestrator', name: 'Lead', role: 'Lead splits big asks across the crew' },
 };
 
 /** Render order for the chip row. */
